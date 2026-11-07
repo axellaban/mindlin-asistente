@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+
+# Secretos
+.env
+.env*.local
+
+# Datos del cliente (conversaciones exportadas, fichas reales, listas de contactos): nunca al repo
+datos/
+exportaciones/
