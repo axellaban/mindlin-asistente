@@ -13,9 +13,31 @@ Lo completa la IA de paneles (ver [`IA_DE_PANELES.md`](../IA_DE_PANELES.md)). **
 - Panel instalado y qué corre hoy: DonWeb informa instalación mínima y ninguna licencia. El nombre del servidor es «N8N», pero no se verificaron procesos, contenedores ni un panel dentro del VPS.
 - Dominio de Mindlin y dónde están sus DNS: `mindlindevelopers.com`, registrado y administrado en DonWeb. La consulta DNS pública devuelve `ns1.donweb.com` y `ns2.donweb.com`. El dominio y `www` apuntan a `54.209.192.162`; los MX apuntan a Zoho (`mx.zoho.com`, `mx2.zoho.com`, `mx3.zoho.com`). No se cambiaron registros. El panel muestra otros cinco nameservers de DonWeb en su cabecera; se registran aquí los que devuelve la consulta pública.
 - Precio del plan actual: ARS 68.864,40 por semestre, según «Pago y renovación» (consulta del 07/11/2026).
-- Precio del Cloud Server más chico con 4 GB de RAM o más: el configurador público permite configurar recursos por separado. Para el mínimo requerido por este proyecto (2 vCPU, 4 GB de RAM, 30 GB de almacenamiento disponible, 1 TB/mes, Backup Standard, sin licencias), mostró ARS 20.382 con pago mensual y ARS 157.233 con pago anual promocional (55 % de descuento; precio anual sin descuento: ARS 349.406). Solo cotizado: no se contrató ni amplió ningún servicio. Fuente: [configurador de DonWeb](https://donweb.com/es-ar/cloud-server-vps), 07/11/2026.
+- Cotización anterior: 2 vCPU, 4 GB de RAM y 30 GB de almacenamiento por ARS 157.233/año con 55 % de descuento. **Corrección:** el tipo de respaldo de esa cotización no se había comprobado. En la revisión posterior se detectó que el configurador preselecciona Backup Premium Diario; no debe tomarse aquel precio como una cotización con Backup Standard confirmado. Ver la comparación actualizada más abajo.
 
 **Resultado:** el VPS actual no alcanza para el instalador de WAHA + Chatwoot (requiere 2 vCPU, al menos 4 GB RAM y 30 GB libres). Antes de instalar, Axel debe decidir si amplía este VPS o contrata uno aparte, confirmar qué corre hoy y elegir el subdominio. No se instaló software ni se modificó el servidor.
+
+### Comparación DonWeb / Hostinger y promoción (07/11/2026)
+
+Axel pidió comparar precios anuales y aceptó considerar una contratación de 24 meses. Solo se consultaron planes y se ajustó un configurador; no se compró ningún servicio.
+
+- **DonWeb, cotización comprobada en el configurador:** 4 vCPU, 16 GB RAM, 60 GB disponibles, 1 TB de transferencia, Backup Standard semanal y SSL gratuito, sin licencias de panel. Pago anual mostrado: **ARS 259.591** con el descuento habitual del 55 %; precio de lista anual mostrado: ARS 576.868. Se abrió el resumen «Tu configuración» y se comprobó que decía «Copia de Seguridad Standard».
+- **Promoción Cyber DonWeb:** código `DWSALE-26`, **60 % de descuento** en contrataciones anuales de Cloud, todas las configuraciones. Válida para pagos acreditados entre el 02/11/2026 00:00 y el 15/11/2026 23:59, hora argentina. Clientes nuevos y actuales; **no aplica a renovaciones**. Aplicando 60 % al precio de lista de la configuración anterior, el total estimado es **ARS 230.747 por el primer año**. Es un cálculo a partir del precio de lista y la promoción publicada: **no se aplicó el cupón en un carrito** y falta confirmar allí el total. No sumar el 60 % al 55 %.
+- **Hostinger KVM 2:** 2 vCPU, 8 GB RAM, 100 GB NVMe. Catálogo oficial de la cuenta: primer año **ARS 241.188**, o primeros dos años **ARS 415.176** (equivale a ARS 17.299/mes). Renovación de 24 meses: ARS 753.576 (ARS 31.399/mes al precio actual). La página argentina publica 61 % de descuento para el período de 24 meses.
+- **Hostinger KVM 4:** 4 vCPU, 16 GB RAM, 200 GB NVMe. Catálogo oficial: primer año **ARS 338.388**, o primeros dos años **ARS 580.776** (ARS 24.199/mes). Renovación de 24 meses: ARS 1.447.176 (ARS 60.299/mes al precio actual). La página argentina publica 69 % de descuento para 24 meses.
+- Hostinger publica pago por adelantado y hasta 12 cuotas para Argentina. No se verificaron cuotas, impuestos ni un cupón adicional en una orden. Los totales de 12 y 24 meses se leyeron en el catálogo oficial de Hostinger (API `billing_catalog_list`, categoría VPS; importes en centavos convertidos a ARS); los de 24 meses también coinciden con su página pública. No hay fecha de vencimiento comprobada para esa oferta.
+
+**Capacidad para los dos servicios:** las fuentes de Chatwoot difieren: la guía técnica dice mínimo 4 GB RAM y recomienda 4 núcleos, mientras la página de despliegue publica 8 GB mínimo y 16 GB recomendado. Para compartir servidor con WAHA, conviene presupuestar 8 a 16 GB RAM; 4 vCPU da más margen. El instalador del repo admite 2 vCPU / 4 GB como mínimo para el piloto, pero no debe confundirse con la recomendación para producción.
+
+**Vercel / Neon:** Neon es la base del asistente, no un VPS. Vercel ya soporta contenedores y Daemons (beta), pero no ejecuta el instalador Docker Compose de este repo tal cual. Sus contenedores y Daemons no tienen almacenamiento local persistente, y los Daemons cobran memoria por hora de ejecución. Adaptar y separar todos los servicios es otra implementación; para la instalación actual se propone un VPS Linux en DonWeb o Hostinger. WAHA y Chatwoot pueden compartir ese VPS, conservando allí sesiones, adjuntos, Postgres y Redis.
+
+Fuentes oficiales consultadas:
+
+- [DonWeb: configurador](https://donweb.com/es-ar/cloud-server-vps) y [Cyber](https://donweb.com/es-ar/cybermonday).
+- [Hostinger: VPS Argentina](https://www.hostinger.com/ar/vps-argentina), además del catálogo de la cuenta.
+- [Chatwoot: requisitos técnicos](https://developers.chatwoot.com/self-hosted/deployment/requirements) y [despliegue](https://www.chatwoot.com/deploy).
+- [Vercel: contenedores](https://vercel.com/kb/guide/does-vercel-support-docker-deployments) y [Daemons](https://vercel.com/docs/daemons).
+- [WAHA: instalación](https://waha.devlike.pro/docs/how-to/install/).
 
 ## Vercel y base de datos (tarea 2)
 
