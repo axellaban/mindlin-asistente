@@ -6,9 +6,9 @@ El agente que atiende las consultas comerciales de los desarrollos por WhatsApp,
 - Cómo funciona el asistente (el recorrido de un mensaje): [`docs/asistente.md`](docs/asistente.md)
 - Lo que se confirmó probando con Chatwoot y WAHA: [`docs/chatwoot.md`](docs/chatwoot.md)
 - Qué falta y quién lo hace: [`PENDIENTES.md`](PENDIENTES.md)
-- Instrucciones para la IA de paneles (DonWeb, Vercel, Supabase, Google, Chatwoot): [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
+- Instrucciones para la IA de paneles (DonWeb, Vercel, Neon, Google, Chatwoot): [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
 - Instalador del servidor (WAHA + Chatwoot): [`infra/`](infra/README.md)
-- Base de datos: [`supabase/migrations/`](supabase/migrations/)
+- Base de datos (Neon/Postgres): [`db/migraciones/`](db/migraciones/), se aplican solas en cada publicación
 - Reglas para trabajar en el repo: [`AGENTS.md`](AGENTS.md)
 
 ## Para desarrollar

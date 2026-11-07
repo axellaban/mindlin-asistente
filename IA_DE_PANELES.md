@@ -1,6 +1,6 @@
 # Instrucciones para la IA de paneles
 
-Este archivo es para la IA que trabaja con **computer use** en la computadora de Axel: la que entra a paneles web (DonWeb, Vercel, Supabase, Google, Chatwoot) y a la terminal. Claude escribe el código en este repo y no tiene acceso a esos paneles. Las dos trabajan en paralelo, cada una en lo suyo.
+Este archivo es para la IA que trabaja con **computer use** en la computadora de Axel: la que entra a paneles web (DonWeb, Vercel, Neon, Google, Chatwoot) y a la terminal. Claude escribe el código en este repo y no tiene acceso a esos paneles. Las dos trabajan en paralelo, cada una en lo suyo.
 
 ## Para pegarle a la IA (Axel)
 
@@ -8,7 +8,7 @@ Este archivo es para la IA que trabaja con **computer use** en la computadora de
 
 ## Qué es el proyecto, en dos líneas
 
-Un asistente de IA que atiende por WhatsApp las consultas de los desarrollos de Mindlin Developers (piloto: Lerma 439). WhatsApp entra por **WAHA**, el equipo ve y responde todo en **Chatwoot** (los dos en un servidor de DonWeb), y el asistente es una app en **Vercel** con su base en **Supabase**. Detalle en [`docs/arquitectura.md`](docs/arquitectura.md).
+Un asistente de IA que atiende por WhatsApp las consultas de los desarrollos de Mindlin Developers (piloto: Lerma 439). WhatsApp entra por **WAHA**, el equipo ve y responde todo en **Chatwoot** (los dos en un servidor de DonWeb), y el asistente es una app en **Vercel** con su base en **Neon** (Postgres). Detalle en [`docs/arquitectura.md`](docs/arquitectura.md).
 
 ## Reglas
 
@@ -47,18 +47,16 @@ Queremos saber si el servidor de Mindlin sirve para correr WAHA y Chatwoot. Entr
 
 **Qué hace falta:** un VPS con 4 GB de RAM o más, 2 vCPU, 30 GB libres, Ubuntu 22.04 o 24.04 y acceso root. Si es solo hosting compartido, no sirve: hay que contratar un Cloud Server, pero eso lo decide Axel.
 
-### Tarea 2 · Vercel y Supabase
+### Tarea 2 · Vercel y la base (hecha el 07/11)
 
-1. **Preguntale a Axel en qué cuenta de Vercel va.** La de Mindlin está conectada a una cuenta de GitHub suspendida.
-2. En Vercel: **Add New → Project** → importá `axellaban/mindlin-asistente` → **Deploy**, sin cambiar nada.
-3. En el proyecto: **Storage** (o **Marketplace**) → **Supabase** → crear la base en la región **São Paulo** y conectarla al proyecto. Vercel carga solas sus variables.
-4. **Crear las tablas.** Abrí la base en Supabase → **SQL Editor** → **New query**. Después, **uno por uno y en orden**, con cada archivo de [`supabase/migrations/`](supabase/migrations/) (hoy son `202611070001_base.sql` y `202611070002_mensajes.sql`):
-   - abrilo en GitHub y tocá **Raw**;
-   - copiá todo, pegalo en una consulta nueva y tocá **Run**.
+Ya está todo: el proyecto en la cuenta de Vercel de Axel (`https://mindlin-asistente.vercel.app`) y la base **Neon** conectada. Supabase no se usa: el plan gratis estaba lleno.
 
-   Cada uno tiene que decir *Success*. Se pueden correr dos veces sin problema. Anotá cuáles aplicaste.
-5. `ANTHROPIC_API_KEY`: Axel la crea en console.anthropic.com y la carga en Vercel (**Settings → Environment Variables**, para Production y Preview).
-6. Volvé a publicar (**Deployments** → los tres puntos del último → **Redeploy**) y abrí `https://<proyecto>.vercel.app/api/salud`. Anotá la dirección del proyecto y la lista `faltan` (son solo nombres) en la sección «Vercel y Supabase».
+- **Las tablas se crean solas en cada publicación** (`scripts/migrar.mjs`). No hay que pegar nada a mano.
+- **Lo que queda de esta tarea:**
+  1. `ANTHROPIC_API_KEY`: Axel la crea en console.anthropic.com y la carga en Vercel (**Settings → Environment Variables**, para Production y Preview).
+  2. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
+  3. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: base al día (2 migraciones).` y anotarla.
+  4. Abrir `/api/salud` y anotar la lista `faltan`.
 
 ### Tarea 3 · Cuenta de Google para el CRM
 
