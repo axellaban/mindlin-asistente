@@ -20,7 +20,7 @@
      - `elegir_proyecto`: solo si hay más de un proyecto activo.
    - Manda la respuesta por Chatwoot.
    - **Si pasa a una persona:** deja una nota interna con el motivo y el resumen, abre la conversación y lo anota en el CRM.
-4. **Si algo falla** (Claude, Supabase, Chatwoot), la conversación pasa al equipo con una nota. Nadie queda sin respuesta.
+4. **Si algo falla** (Claude, la base, Chatwoot), la conversación pasa al equipo con una nota. Nadie queda sin respuesta.
 
 Si una persona del equipo escribe en una conversación pendiente, desde Chatwoot o desde el celular, la conversación pasa a abierta y el bot deja de contestar ahí.
 
@@ -36,7 +36,7 @@ Por defecto, `claude-opus-5-5` con esfuerzo `medium`, y `fallbacks: "default"`: 
 
 ## Qué guarda
 
-- **Supabase:**
+- **La base (Neon):**
   - historial de mensajes;
   - qué proyecto y qué contacto del CRM tiene cada conversación;
   - mensajes ya respondidos;
@@ -48,9 +48,9 @@ Por defecto, `claude-opus-5-5` con esfuerzo `medium`, y `fallbacks: "default"`: 
 Se hizo el 07/11/2026. Así se repite:
 
 1. Chatwoot y WAHA con `MINDLIN_DIR=<carpeta> DOMINIO_CHAT=chat.localhost EMAIL_CERTIFICADOS=… bash infra/servidor.sh instalar`. Después, la configuración inicial, `conectar` y `bot` con `URL_ASISTENTE=http://172.17.0.1:<puerto>`.
-2. Postgres con PostgREST detrás de `/rest/v1`, con las migraciones de `supabase/migrations/` aplicadas y una clave `service_role` firmada con el secreto JWT de PostgREST.
+2. Un Postgres con las migraciones de `db/migraciones/` (`DATABASE_URL=… npm run migrar`). Esa prueba se hizo cuando la base era Supabase; desde el cambio a Neon, `lib/datos/postgres.test.ts` prueba las migraciones y las consultas contra un Postgres de verdad en cada PR.
 3. Un servidor que imita la API de Anthropic, apuntado con `ANTHROPIC_BASE_URL`.
-4. La app: `next start -p <puerto> -H 0.0.0.0`, con las variables de Chatwoot, Supabase y Anthropic.
+4. La app: `next start -p <puerto> -H 0.0.0.0`, con las variables de Chatwoot, la base y Anthropic.
 5. Mensajes creados por la API de Chatwoot, como si fueran de un interesado o de una persona del equipo.
 
 Se comprobaron estos casos:

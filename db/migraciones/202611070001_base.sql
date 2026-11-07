@@ -1,6 +1,6 @@
 -- Base del asistente comercial de Mindlin.
 --
--- Cómo se aplica: Supabase → SQL Editor → New query → pegar todo este archivo → Run.
+-- Cómo se aplica: solo, en cada publicación en Vercel (scripts/migrar.mjs, antes del armado).
 -- Se puede correr más de una vez sin romper nada (crea solo lo que falta).
 --
 -- Qué guarda:
@@ -14,8 +14,8 @@
 -- * mensajes_respondidos: para no contestar dos veces el mismo mensaje si Chatwoot reintenta.
 -- * registro: lo que hizo el bot, para revisarlo y medir.
 --
--- Solo el servidor del asistente (service_role) lee y escribe: todas las tablas tienen RLS
--- activado y ninguna política, así que con la clave pública no se puede leer nada.
+-- Solo el servidor del asistente lee y escribe, con el usuario dueño de la base (Neon). Las
+-- tablas tienen RLS activado y ninguna política: cualquier otro usuario no puede leer nada.
 
 begin;
 

@@ -8,10 +8,10 @@ describe("estadoConfig", () => {
     expect(e.faltan).toHaveLength(GRUPOS.flatMap((g) => g.variables).length);
   });
 
-  it("acepta la variable que crea la integración de Supabase en Vercel", () => {
-    const e = estadoConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "k" });
+  it("acepta la otra variable que crea la integración de Neon en Vercel", () => {
+    const e = estadoConfig({ POSTGRES_URL: "postgres://x" });
     expect(e.grupos.find((g) => g.nombre.startsWith("Base"))!.listo).toBe(true);
-    expect(e.faltan).not.toContain("SUPABASE_URL");
+    expect(e.faltan).not.toContain("DATABASE_URL");
   });
 
   it("un valor con solo espacios no cuenta", () => {

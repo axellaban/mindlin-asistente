@@ -9,7 +9,7 @@ Probado el 07/11/2026 con Chatwoot 4.19.1 y WAHA 2026.10.1 levantados con `infra
 - **Quién escribió.** En el aviso, `sender.type` es `agent_bot` para lo del bot y `user` para lo de una persona del equipo. En los mensajes del interesado, el contacto viene en `conversation.meta.sender`, con nombre y teléfono.
 - **Qué puede hacer el token del Agent Bot:**
   - **Puede:** mandar mensajes, dejar notas internas y cambiar el estado.
-  - **No puede:** leer el historial (`GET …/messages` devuelve 401). Por eso el asistente lo arma con los avisos y lo guarda en Supabase (tabla `mensajes`).
+  - **No puede:** leer el historial (`GET …/messages` devuelve 401). Por eso el asistente lo arma con los avisos y lo guarda en la base del asistente (tabla `mensajes`).
 - **Avisos firmados.** Llegan con `X-Chatwoot-Timestamp` y `X-Chatwoot-Signature = sha256=HMAC(clave del bot, "hora.cuerpo")`. La clave es el `secret` del Agent Bot; `servidor.sh bot` la deja en `asistente.env` como `CHATWOOT_WEBHOOK_SECRET`.
 - **Tiempo de respuesta.** Chatwoot espera **5 segundos**. Si el webhook responde 429 o 500, reintenta. Si falla de otra forma, **pasa la conversación pendiente a abierta**, así que si el asistente se cae, atiende el equipo. Por eso la app responde enseguida y hace el trabajo después (`after`).
 

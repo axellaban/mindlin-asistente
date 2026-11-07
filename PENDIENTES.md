@@ -10,8 +10,9 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 
 ## Decisiones abiertas
 
-- [ ] ¿En qué cuenta de Vercel va el asistente? La de Mindlin está atada a la cuenta de GitHub suspendida. — Axel
-- [ ] El subdominio de Chatwoot (por ejemplo `chat.<dominio de Mindlin>`). — Axel / Mindlin
+- [x] Cuenta de Vercel: la de Axel, para el piloto. — Axel, 07/11
+- [ ] Servidor: el VPS de DonWeb («N8N») tiene 1 vCPU, 1 GB y 10 GB, y hacen falta 2 vCPU, 4 GB y 30 GB. ¿Ampliarlo (ARS 20.382/mes o 157.233/año con la promoción) o contratar otro? Si se amplía, antes ver qué corre hoy (por el nombre, quizás un n8n). — Axel
+- [ ] El subdominio de Chatwoot: propuesta `chat.mindlindevelopers.com` (los DNS están en DonWeb). — Axel / Mindlin
 - [ ] Correo para Chatwoot (invitaciones a agentes y avisos). Opciones: SMTP de Google Workspace, de DonWeb o un servicio como Brevo. — Axel
 - [ ] El CRM del hub no tiene «WhatsApp» como origen del contacto. ¿Lo sumamos? Es un cambio en el hub, para cuando vuelva. — Mindlin
 - [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
@@ -21,14 +22,17 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - [x] Definir la arquitectura (`docs/arquitectura.md`). — Claude y Axel, 07/11
 - [x] Esqueleto de la app: estado de la configuración (`/` y `/api/salud`) y control Verificar en GitHub. — Claude, 07/11
 - [x] Instrucciones para la IA de paneles (`IA_DE_PANELES.md`). — Claude, 07/11
-- [ ] Revisar DonWeb (tarea 1). — Panel
-- [ ] Proyecto en Vercel, Supabase y tablas (tarea 2). — Panel
-- [ ] Cuenta de servicio de Google y planilla del CRM compartida (tarea 3). — Panel
+- [x] Revisar DonWeb (tarea 1): el VPS actual no alcanza (ver decisiones abiertas). — Panel, 07/11
+- [x] Proyecto en Vercel (cuenta de Axel) y base Neon conectada (tarea 2). Supabase no se pudo: plan gratis lleno. — Panel, 07/11
+- [x] Pasar el código de Supabase a Neon: almacén en Postgres, migraciones solas en cada publicación y prueba contra un Postgres real en el control Verificar. — Claude, 07/11
+- [ ] `ANTHROPIC_API_KEY` en Vercel, volver a publicar y confirmar «migrar: base al día» en el registro (tarea 2). — Axel y Panel
+- [x] Cuenta de servicio de Google (`mindlin-asistente@mindlin-developers.iam.gserviceaccount.com`) y sus claves en Vercel (tarea 3). — Panel, 07/11
+- [ ] Planilla del CRM: es la misma de la cola de facturas del hub (pestañas «CRM Contactos» y «CRM Actividad»). Su ID está en el Vercel del hub como `CRM_SHEET_ID` o `COLA_SHEET_ID`. Mati o Tadeo la comparten como Editor con la cuenta de servicio y el ID se carga en el Vercel del asistente como `CRM_SHEET_ID`. — Mindlin y Axel
 
 ## Fase 1 · Infraestructura
 
 - [x] Instalador de WAHA y Chatwoot con HTTPS, verificación y respaldo nocturno (`infra/servidor.sh`). Probado entero en Docker local con Chatwoot 4.19.1 y WAHA 2026.10.1. — Claude, 07/11
-- [x] Tablas de Supabase (`supabase/migrations/202611070001_base.sql`). Probadas dos veces en un Postgres 16. — Claude, 07/11
+- [x] Tablas de la base (`db/migraciones/`). Probadas en Postgres 16. — Claude, 07/11
 - [ ] Instalar en el servidor (tarea 4). — Panel
 - [ ] Chatwoot y la línea de prueba con el QR (tarea 5). — Panel con Axel
 - [ ] Equipo en Chatwoot y app del celular (tarea 7). — Panel
@@ -39,14 +43,13 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - [x] Ignorar la conversación «Integración de WhatsApp» que crea WAHA (contacto `whatsapp.integration`). — Claude, 07/11
 - [x] Webhook del Agent Bot (`/api/chatwoot/webhook`): verifica la firma, guarda el historial, contesta después de responder y pasa a una persona si algo falla. Probado de punta a punta con un Chatwoot real (`docs/chatwoot.md`). — Claude, 07/11
 - [x] El agente con Claude: contexto (tono, ficha, CRM), herramientas (registrar al interesado, elegir el proyecto, pasar a una persona), espera de 6 segundos por si siguen escribiendo. — Claude, 07/11
-- [ ] Aplicar `supabase/migrations/202611070002_mensajes.sql` (historial de mensajes) junto con la primera (tarea 2). — Panel
 - [ ] Conectar el asistente (tarea 6). — Panel
 - [ ] Material de Lerma 439: descripción, ubicación, tipologías y superficies, precios, disponibilidad, financiación, etapa de obra y entrega, amenities y preguntas frecuentes. — Mindlin
 - [ ] Tono: revisar el borrador que dejó la migración y sumar 10 a 20 conversaciones reales de ejemplo, sin datos personales. — Mindlin
 - [ ] Probar las respuestas con Claude de verdad (en las pruebas se usó uno simulado) y ajustar el tono con el material de Mindlin. Hace falta `ANTHROPIC_API_KEY`. — Claude con Axel
 - [ ] Audios: transcribirlos y responder por escrito. Hoy el bot pide que lo escriban. Antes, confirmar con la línea real cómo llegan los adjuntos. — Claude
 - [ ] Con la línea real, confirmar que los mensajes que manda el bot no vuelven a entrar como si los hubiera escrito una persona desde el celular. Por las dudas, el webhook ya descarta ese eco (`docs/chatwoot.md`). — Claude y Panel
-- [ ] Pantalla para cargar fichas, tono y ejemplos. Mientras no esté, se cargan en Supabase → Table Editor (tablas `proyectos`, `tono` y `ejemplos`). — Claude
+- [ ] Pantalla para cargar fichas, tono y ejemplos. Mientras no esté, se cargan en la consola de Neon → **Tables** (tablas `proyectos`, `tono` y `ejemplos`). — Claude
 
 ## Fase 3 · CRM y traspaso a una persona
 

@@ -8,6 +8,19 @@ on:
 jobs:
   verificar:
     runs-on: ubuntu-latest
+    # Un Postgres para probar las migraciones y las consultas de verdad (lib/datos/postgres.test.ts).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: prueba
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-retries 20
+    env:
+      PRUEBA_DATABASE_URL: postgres://postgres:prueba@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

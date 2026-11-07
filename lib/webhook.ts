@@ -52,12 +52,12 @@ export async function manejarWebhook(
   if (!chatwoot) return { status: 200, json: { accion: "ignorar", motivo: "falta configurar Chatwoot en Vercel" } };
 
   if (accion.tipo === "la_tomo_una_persona") {
-    if (!almacen) return { status: 200, json: { accion: "ignorar", motivo: "falta configurar Supabase en Vercel" } };
+    if (!almacen) return { status: 200, json: { accion: "ignorar", motivo: "falta configurar la base (DATABASE_URL) en Vercel" } };
     return { status: 200, json: { accion: accion.tipo }, tarea: () => laTomoUnaPersona({ almacen, chatwoot }, accion.conversacion) };
   }
 
   if (!almacen || !modelo) {
-    const faltan = [!almacen && "Supabase", !modelo && "ANTHROPIC_API_KEY"].filter(Boolean).join(" y ");
+    const faltan = [!almacen && "DATABASE_URL", !modelo && "ANTHROPIC_API_KEY"].filter(Boolean).join(" y ");
     return {
       status: 200,
       json: { accion: "pasar_a_persona", motivo: `falta configurar ${faltan}` },

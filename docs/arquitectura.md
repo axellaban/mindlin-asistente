@@ -9,7 +9,7 @@ Interesado ──WhatsApp──► WAHA ──► Chatwoot ◄──── Equip
                                      ▼
                          Asistente (Vercel, este repo) ──► Claude
                             │                 │
-                        Supabase        CRM del hub (Google Sheets)
+                     Neon (Postgres)    CRM del hub (Google Sheets)
               (fichas, tono, reglas,    (contacto, etapa, responsable,
                seguimientos)             resumen de cada conversación)
 ```
@@ -64,7 +64,9 @@ Cómo se usa:
 - Mientras el hub esté bloqueado, el asistente escribe directo en la planilla, con las mismas columnas que el hub. Cuando vuelva, conviene pasarlo a un endpoint del hub.
 - Si el volumen crece, el paso siguiente es pasar el CRM del hub a Postgres.
 
-## 6. Base del asistente: Supabase (creado desde Vercel)
+## 6. Base del asistente: Postgres en Neon (creado desde Vercel)
+
+Primero iba a ser Supabase, pero el plan gratis de Axel estaba lleno (dos proyectos). El 07/11 se cambió a Neon, que es Postgres puro y también se crea desde Vercel, gratis. La app se conecta con `DATABASE_URL` (`lib/datos/postgres.ts`). Las tablas están en `db/migraciones/` y se aplican solas antes de cada publicación (`scripts/migrar.mjs`).
 
 Fichas de cada proyecto, tono y ejemplos, reglas de seguimiento con sus versiones, el estado de cada seguimiento y el registro de lo que hizo el bot.
 

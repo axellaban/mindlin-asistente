@@ -2,7 +2,7 @@ import "server-only";
 import { configChatwoot, crearChatwoot, type Chatwoot } from "./chatwoot/api";
 import { crearCRM, type CRM } from "./crm/planilla";
 import { hojaGoogle } from "./crm/google";
-import { almacenSupabase } from "./datos/supabase";
+import { almacenPostgres } from "./datos/postgres";
 import type { Almacen } from "./datos/tipos";
 import { modeloClaude } from "./agente/claude";
 import type { Modelo } from "./agente/agente";
@@ -19,7 +19,7 @@ export function conexionesDesdeEnv(env: Record<string, string | undefined> = pro
   const cw = configChatwoot(env);
   const hoja = hojaGoogle(env);
   return {
-    almacen: almacenSupabase(env),
+    almacen: almacenPostgres(env),
     chatwoot: cw ? crearChatwoot(cw) : null,
     modelo: modeloClaude(env),
     crm: hoja ? crearCRM(hoja, { responsable: env.CRM_RESPONSABLE?.trim() ?? "" }) : null,

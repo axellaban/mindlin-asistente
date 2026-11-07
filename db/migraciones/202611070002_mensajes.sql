@@ -5,7 +5,7 @@
 -- y con eso le da contexto a Claude. Se guarda solo el texto: los audios y las fotos quedan como
 -- [audio] o [foto].
 --
--- Cómo se aplica: igual que la anterior (SQL Editor → pegar → Run). Idempotente.
+-- Cómo se aplica: igual que la anterior (sola, en cada publicación). Idempotente.
 
 begin;
 

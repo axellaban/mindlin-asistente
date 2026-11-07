@@ -5,23 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrar.mjs && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verificar": "npm run typecheck && npm test && npm run build"
+    "verificar": "npm run typecheck && npm test && npm run build",
+    "migrar": "node scripts/migrar.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
-    "@supabase/supabase-js": "^2.119.0",
     "google-auth-library": "^11.3.3",
     "next": "^16.4.3",
+    "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "typescript": "^7.0.2",

@@ -32,6 +32,6 @@ Antes de trabajar, leé en este orden:
 
 ## Stack
 
-Next.js (App Router) en Vercel, TypeScript, Vitest. Supabase (creado desde Vercel) para la base del asistente. Claude (Anthropic) para las respuestas.
+Next.js (App Router) en Vercel, TypeScript, Vitest. Postgres en Neon (creado desde Vercel) para la base del asistente; las migraciones de `db/migraciones/` se aplican solas en cada publicación. Claude (Anthropic) para las respuestas.
 
 Esta versión de Next.js puede diferir de lo que conocés: ante la duda, leé la guía en `node_modules/next/dist/docs/` antes de escribir código.

@@ -8,7 +8,7 @@ export interface Variable {
   nombre: string;
   /** Para qué la usa el asistente, en una línea. */
   para: string;
-  /** Si alguna de estas está, cuenta como cargada (p. ej. la que crea la integración de Supabase en Vercel). */
+  /** Si alguna de estas está, cuenta como cargada (p. ej. POSTGRES_URL, que también carga la integración de Neon). */
   alternativas?: string[];
 }
 
@@ -32,10 +32,9 @@ export const GRUPOS: Grupo[] = [
     ],
   },
   {
-    nombre: "Base de datos (Supabase)",
+    nombre: "Base de datos (Neon)",
     variables: [
-      { nombre: "SUPABASE_URL", para: "La base del asistente: fichas, tono, reglas y seguimientos.", alternativas: ["NEXT_PUBLIC_SUPABASE_URL"] },
-      { nombre: "SUPABASE_SERVICE_ROLE_KEY", para: "Leer y escribir esa base desde el servidor." },
+      { nombre: "DATABASE_URL", para: "La base del asistente: fichas, tono, historial y seguimientos. La carga sola la integración de Neon en Vercel.", alternativas: ["POSTGRES_URL"] },
     ],
   },
   {
