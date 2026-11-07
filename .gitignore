@@ -10,5 +10,5 @@ next-env.d.ts
 .env*.local
 
 # Datos del cliente (conversaciones exportadas, fichas reales, listas de contactos): nunca al repo
-datos/
-exportaciones/
+/datos/
+/exportaciones/

@@ -36,6 +36,9 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 - Cada conversación nueva entra como **pendiente**: la atiende el bot.
 - Cuando el bot necesita a una persona, o alguien del equipo la toma o escribe (desde Chatwoot o desde el celular), pasa a **abierta** y el bot se calla.
 - Chatwoot le sigue avisando al bot aunque la conversación esté abierta: el bot mira el estado antes de contestar. Lógica en `lib/chatwoot/evento.ts`.
+- Los avisos vienen firmados con la clave del bot y el asistente verifica la firma.
+- Si el asistente no responde, Chatwoot pasa la conversación a abierta: atiende el equipo.
+- Detalle de lo que se confirmó probando en [`chatwoot.md`](chatwoot.md); el recorrido de un mensaje, en [`asistente.md`](asistente.md).
 
 ## 4. El asistente: una app aparte, en Vercel
 
@@ -63,13 +66,21 @@ Cómo se usa:
 
 ## 6. Base del asistente: Supabase (creado desde Vercel)
 
-Fichas de cada proyecto, tono y ejemplos, reglas de seguimiento con sus versiones, y el estado de cada seguimiento. Los mensajes quedan en Chatwoot: no se duplican.
+Fichas de cada proyecto, tono y ejemplos, reglas de seguimiento con sus versiones, el estado de cada seguimiento y el registro de lo que hizo el bot.
+
+También guarda el historial de mensajes (solo el texto). El token del Agent Bot no puede leer el historial de Chatwoot, así que el asistente lo arma con los avisos.
 
 ## 7. El agente: Claude con herramientas
 
-- Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Si no sabe de qué proyecto se trata, pregunta.
-- Herramientas: leer la ficha del proyecto, buscar el contacto en el CRM, registrar al interesado y lo que busca, pasar la conversación a una persona.
-- Audios: se transcriben y se responden por escrito.
+- Claude Opus 5.5 con esfuerzo medio, y reintento automático en otro modelo si rechaza una consulta. Se cambia con variables (ver `asistente.md`).
+- Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van en el caché de Anthropic. Si no sabe de qué proyecto se trata, pregunta.
+- El contacto del CRM se busca por teléfono antes de responder.
+- Herramientas:
+  - registrar al interesado y lo que busca;
+  - elegir el proyecto, si hay más de uno;
+  - pasar la conversación a una persona.
+- Espera 6 segundos antes de contestar, por si la persona sigue escribiendo.
+- Audios: por ahora pide que lo escriba. Falta transcribirlos.
 
 ## 8. Seguimientos
 

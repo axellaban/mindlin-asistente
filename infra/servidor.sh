@@ -138,6 +138,9 @@ REDIS_PASSWORD=$REDIS_PASSWORD
 ACTIVE_STORAGE_SERVICE=local
 ENABLE_PUSH_RELAY_SERVER=true
 MAILER_SENDER_EMAIL=Mindlin Developers <no-responder@$DOMINIO_CHAT>
+# Chatwoot (desde 4.13) no manda webhooks a direcciones internas. WAHA está en la red interna
+# de Docker (http://waha:3000): sin esto, lo que se escribe en Chatwoot no llega a WhatsApp.
+SAFE_FETCH_ALLOW_PRIVATE_NETWORK=true
 # Recomendado por WAHA para su integración con Chatwoot
 RACK_TIMEOUT_SERVICE_TIMEOUT=60
 CONVERSATION_MESSAGE_PER_MINUTE_LIMIT=3000
@@ -477,14 +480,15 @@ for b in json.load(sys.stdin)["payload"]:
   bandeja_id="$BANDEJA_ID"
   preguntar URL_ASISTENTE "Dirección del asistente en Vercel (por ejemplo https://mindlin-asistente.vercel.app)"
   base="${URL_ASISTENTE%/}"
-  clave_webhook="$(clave 24)"
-  url="$base/api/chatwoot/webhook?clave=$clave_webhook"
+  url="$base/api/chatwoot/webhook"
 
   creado=$(chatwoot_api POST "/api/v1/accounts/$CHATWOOT_CUENTA/agent_bots" \
     "$(python3 -c 'import json,sys; print(json.dumps({"name": "Asistente Mindlin", "description": "Atiende las consultas comerciales; pasa a una persona cuando hace falta.", "outgoing_url": sys.argv[1]}))' "$url")")
   bot_id=$(echo "$creado" | json id)
   bot_token=$(echo "$creado" | json access_token)
-  [ -n "$bot_id" ] && [ -n "$bot_token" ] || morir "Chatwoot no devolvió el bot: $creado"
+  # Chatwoot firma cada aviso al bot con esta clave (X-Chatwoot-Signature): el asistente la verifica.
+  clave_webhook=$(echo "$creado" | json secret)
+  [ -n "$bot_id" ] && [ -n "$bot_token" ] && [ -n "$clave_webhook" ] || morir "Chatwoot no devolvió el bot completo: $creado"
   chatwoot_api POST "/api/v1/accounts/$CHATWOOT_CUENTA/inboxes/$bandeja_id/set_agent_bot" "{\"agent_bot\":$bot_id}" >/dev/null
   ok "Agent Bot $bot_id conectado a la bandeja $bandeja_id"
 

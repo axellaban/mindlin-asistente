@@ -20,7 +20,7 @@ Lo completa la IA de paneles (ver [`IA_DE_PANELES.md`](../IA_DE_PANELES.md)). **
 - Cuenta de Vercel:
 - Dirección del proyecto (`https://….vercel.app`):
 - Supabase creada (región):
-- Migración `202611070001_base.sql` aplicada (sí / no, y el mensaje):
+- Migraciones aplicadas (cuáles, y el mensaje de cada una):
 - `/api/salud` → `faltan`:
 
 ## Google (tarea 3)

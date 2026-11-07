@@ -36,19 +36,24 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 ## Fase 2 · El agente (Lerma 439)
 
 - [x] Decidir cuándo responde el bot y cuándo la tomó una persona (`lib/chatwoot/evento.ts`). — Claude, 07/11
-- [ ] Ignorar la conversación «Integración de WhatsApp» que crea WAHA (contacto `whatsapp.integration`): la vimos en la prueba local. — Claude
-- [ ] Webhook del Agent Bot (`/api/chatwoot/webhook`) y respuestas por la API de Chatwoot. — Claude
+- [x] Ignorar la conversación «Integración de WhatsApp» que crea WAHA (contacto `whatsapp.integration`). — Claude, 07/11
+- [x] Webhook del Agent Bot (`/api/chatwoot/webhook`): verifica la firma, guarda el historial, contesta después de responder y pasa a una persona si algo falla. Probado de punta a punta con un Chatwoot real (`docs/chatwoot.md`). — Claude, 07/11
+- [x] El agente con Claude: contexto (tono, ficha, CRM), herramientas (registrar al interesado, elegir el proyecto, pasar a una persona), espera de 6 segundos por si siguen escribiendo. — Claude, 07/11
+- [ ] Aplicar `supabase/migrations/202611070002_mensajes.sql` (historial de mensajes) junto con la primera (tarea 2). — Panel
 - [ ] Conectar el asistente (tarea 6). — Panel
 - [ ] Material de Lerma 439: descripción, ubicación, tipologías y superficies, precios, disponibilidad, financiación, etapa de obra y entrega, amenities y preguntas frecuentes. — Mindlin
 - [ ] Tono: revisar el borrador que dejó la migración y sumar 10 a 20 conversaciones reales de ejemplo, sin datos personales. — Mindlin
-- [ ] El agente con Claude: contexto (tono, ficha, CRM) y herramientas (registrar al interesado, pasar a una persona). — Claude
-- [ ] Audios: transcribirlos y responder por escrito. — Claude
-- [ ] Con la línea real, confirmar que los mensajes que manda el bot no vuelven a entrar como si los hubiera mandado una persona desde el celular. — Claude y Panel
+- [ ] Probar las respuestas con Claude de verdad (en las pruebas se usó uno simulado) y ajustar el tono con el material de Mindlin. Hace falta `ANTHROPIC_API_KEY`. — Claude con Axel
+- [ ] Audios: transcribirlos y responder por escrito. Hoy el bot pide que lo escriban. Antes, confirmar con la línea real cómo llegan los adjuntos. — Claude
+- [ ] Con la línea real, confirmar que los mensajes que manda el bot no vuelven a entrar como si los hubiera escrito una persona desde el celular. Por las dudas, el webhook ya descarta ese eco (`docs/chatwoot.md`). — Claude y Panel
+- [ ] Pantalla para cargar fichas, tono y ejemplos. Mientras no esté, se cargan en Supabase → Table Editor (tablas `proyectos`, `tono` y `ejemplos`). — Claude
 
 ## Fase 3 · CRM y traspaso a una persona
 
-- [ ] Buscar el contacto por teléfono, darlo de alta si no existe y anotar un resumen por conversación en «CRM Actividad». — Claude
-- [ ] Pasar a una persona (pendiente → abierta) con una nota interna del motivo, y avisarle al responsable. — Claude
+- [x] Buscar el contacto por teléfono, darlo de alta si no existe y anotar actividad en «CRM Actividad». Si ya existe, solo suma actividad. — Claude, 07/11
+- [x] Pasar a una persona (pendiente → abierta) con una nota interna del motivo y el resumen, y anotarlo en el CRM. — Claude, 07/11
+- [ ] Avisarle al responsable del CRM por el hub o por Telegram cuando el bot le pasa una conversación. Necesita el hub. — Claude
+- [ ] Probar el CRM con la planilla real (tarea 3). — Claude
 
 ## Fase 4 · Seguimientos y panel
 

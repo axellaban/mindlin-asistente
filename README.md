@@ -3,6 +3,8 @@
 El agente que atiende las consultas comerciales de los desarrollos por WhatsApp, con el tono de Mindlin, con el contexto de cada proyecto y conectado al CRM del hub. El equipo ve y responde todo desde Chatwoot.
 
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
+- Cómo funciona el asistente (el recorrido de un mensaje): [`docs/asistente.md`](docs/asistente.md)
+- Lo que se confirmó probando con Chatwoot y WAHA: [`docs/chatwoot.md`](docs/chatwoot.md)
 - Qué falta y quién lo hace: [`PENDIENTES.md`](PENDIENTES.md)
 - Instrucciones para la IA de paneles (DonWeb, Vercel, Supabase, Google, Chatwoot): [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
 - Instalador del servidor (WAHA + Chatwoot): [`infra/`](infra/README.md)

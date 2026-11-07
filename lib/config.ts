@@ -28,7 +28,7 @@ export const GRUPOS: Grupo[] = [
       { nombre: "CHATWOOT_URL", para: "La dirección de Chatwoot, por ejemplo https://chat.dominio.com." },
       { nombre: "CHATWOOT_ACCOUNT_ID", para: "El número de la cuenta de Mindlin en Chatwoot." },
       { nombre: "CHATWOOT_BOT_TOKEN", para: "El token del Agent Bot: con él contesta y pasa la conversación a una persona." },
-      { nombre: "CHATWOOT_WEBHOOK_SECRET", para: "La clave que va en la URL del webhook, para que solo Chatwoot lo pueda llamar." },
+      { nombre: "CHATWOOT_WEBHOOK_SECRET", para: "La clave del Agent Bot: con ella se verifica que cada aviso venga de Chatwoot." },
     ],
   },
   {
