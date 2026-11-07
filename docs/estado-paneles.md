@@ -89,6 +89,12 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 
 ## Servidor (tarea 4)
 
+- **Decisión de Axel (07/11/2026): Hostinger KVM 1 por 24 meses.** Axel indicó «compraremos kvm1» después de aportar una captura con su código de recomendación aplicado. Se registra la elección; no se creó una orden ni se pagó desde esta sesión.
+- Oferta de la captura: **ARS 232.300,80 por 24 meses**, equivalente a **ARS 9.679,20/mes**. Recursos: 1 vCPU, 4 GB RAM, 50 GB NVMe y 4 TB de transferencia. Renovación publicada en esa captura: ARS 24.199/mes por el mismo plazo. El precio con recomendación debe conservarse al comprar; no es el precio público sin ese código.
+- La captura también mostró KVM 2 con recomendación: 2 vCPU, 8 GB RAM, 100 GB NVMe y 8 TB de transferencia por ARS 332.140,80 / 24 meses (ARS 13.839,20/mes). Es ARS 4.160/mes más que KVM 1. Se comparó como alternativa con más margen, pero **Axel eligió KVM 1**.
+- Alcance del KVM 1: piloto con una línea y pocas conversaciones simultáneas, dedicado a WAHA + Chatwoot y sus servicios. 4 GB es el mínimo de memoria previsto; requiere monitoreo y margen para actualizaciones. La especificación de 2 vCPU del README era una referencia de capacidad: se revisó `infra/servidor.sh` y no tiene una validación que impida instalar por tener una sola CPU. No se probó todavía la carga real en KVM 1.
+- Preparación propuesta para el VPS nuevo: Ubuntu 24.04 LTS, instalación mínima, swap de 2 GB y revisión de concurrencia de Rails/Sidekiq para poca memoria. **El script actual no configura swap**; Claude debe preparar ese ajuste y actualizar la documentación de capacidad y proveedor. Panel debe seguir el instalador revisado, sin improvisar cambios en el servidor.
+- Pendiente de confirmar la compra y el aprovisionamiento: IP, acceso al VPS, región elegida, subdominio de Chatwoot y correo de invitaciones. Para latencia regional, elegir Brasil/São Paulo si está disponible. No se modificó el VPS anterior de DonWeb.
 - Subdominio de Chatwoot:
 - Salida de `servidor.sh verificar`:
 
