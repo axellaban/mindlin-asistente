@@ -52,7 +52,11 @@ Queremos saber si el servidor de Mindlin sirve para correr WAHA y Chatwoot. Entr
 1. **Preguntale a Axel en qué cuenta de Vercel va.** La de Mindlin está conectada a una cuenta de GitHub suspendida.
 2. En Vercel: **Add New → Project** → importá `axellaban/mindlin-asistente` → **Deploy**, sin cambiar nada.
 3. En el proyecto: **Storage** (o **Marketplace**) → **Supabase** → crear la base en la región **São Paulo** y conectarla al proyecto. Vercel carga solas sus variables.
-4. **Crear las tablas:** abrí la base en Supabase → **SQL Editor** → **New query**. En GitHub, abrí [`supabase/migrations/202611070001_base.sql`](supabase/migrations/202611070001_base.sql), tocá **Raw**, copiá todo, pegalo y tocá **Run**. Tiene que decir *Success*. Se puede correr dos veces sin problema.
+4. **Crear las tablas.** Abrí la base en Supabase → **SQL Editor** → **New query**. Después, **uno por uno y en orden**, con cada archivo de [`supabase/migrations/`](supabase/migrations/) (hoy son `202611070001_base.sql` y `202611070002_mensajes.sql`):
+   - abrilo en GitHub y tocá **Raw**;
+   - copiá todo, pegalo en una consulta nueva y tocá **Run**.
+
+   Cada uno tiene que decir *Success*. Se pueden correr dos veces sin problema. Anotá cuáles aplicaste.
 5. `ANTHROPIC_API_KEY`: Axel la crea en console.anthropic.com y la carga en Vercel (**Settings → Environment Variables**, para Production y Preview).
 6. Volvé a publicar (**Deployments** → los tres puntos del último → **Redeploy**) y abrí `https://<proyecto>.vercel.app/api/salud`. Anotá la dirección del proyecto y la lista `faltan` (son solo nombres) en la sección «Vercel y Supabase».
 

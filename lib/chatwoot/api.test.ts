@@ -1,0 +1,37 @@
+import { describe, expect, it } from "vitest";
+import { configChatwoot, crearChatwoot, ErrorChatwoot } from "./api";
+
+function chatwootFalso(status = 200) {
+  const pedidos: { url: string; token: string | null; cuerpo: unknown }[] = [];
+  const pedir = (async (url: string, init: RequestInit) => {
+    pedidos.push({ url, token: new Headers(init.headers).get("api_access_token"), cuerpo: JSON.parse(String(init.body)) });
+    return new Response(JSON.stringify({ id: 99 }), { status });
+  }) as typeof fetch;
+  return { pedidos, pedir };
+}
+
+describe("cliente de Chatwoot", () => {
+  const cfg = { url: "https://chat.ejemplo.com", cuenta: "2", token: "token-del-bot" };
+
+  it("contesta, deja notas internas y pasa a una persona con el token del bot", async () => {
+    const f = chatwootFalso();
+    const cw = crearChatwoot(cfg, f.pedir);
+    expect(await cw.enviar(7, "Hola")).toBe(99);
+    await cw.notaInterna(7, "Pidió visitar el proyecto");
+    await cw.pasarAPersona(7);
+    expect(f.pedidos).toEqual([
+      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", token: "token-del-bot", cuerpo: { content: "Hola", message_type: "outgoing" } },
+      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", token: "token-del-bot", cuerpo: { content: "Pidió visitar el proyecto", message_type: "outgoing", private: true } },
+      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/toggle_status", token: "token-del-bot", cuerpo: { status: "open" } },
+    ]);
+  });
+
+  it("si Chatwoot rechaza, avisa con el código", async () => {
+    await expect(crearChatwoot(cfg, chatwootFalso(401).pedir).enviar(7, "x")).rejects.toBeInstanceOf(ErrorChatwoot);
+  });
+
+  it("toma la configuración de las variables (sin la barra final)", () => {
+    expect(configChatwoot({ CHATWOOT_URL: "https://chat.ejemplo.com/", CHATWOOT_ACCOUNT_ID: "2", CHATWOOT_BOT_TOKEN: "t" })).toEqual({ url: "https://chat.ejemplo.com", cuenta: "2", token: "t" });
+    expect(configChatwoot({ CHATWOOT_URL: "https://chat.ejemplo.com" })).toBeNull();
+  });
+});
