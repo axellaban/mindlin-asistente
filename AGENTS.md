@@ -10,11 +10,12 @@ Antes de trabajar, leé en este orden:
 
 1. [`PENDIENTES.md`](PENDIENTES.md): qué falta, quién lo hace y las decisiones abiertas. **Empezá por acá.**
 2. [`docs/arquitectura.md`](docs/arquitectura.md): qué pieza hace qué y por qué se eligió así.
-3. [`docs/tareas-panel.md`](docs/tareas-panel.md): lo que se hace entrando a paneles (DonWeb, Vercel, Google). Lo hace la IA con computer use.
+3. [`IA_DE_PANELES.md`](IA_DE_PANELES.md): lo que se hace entrando a paneles (DonWeb, Vercel, Supabase, Google, Chatwoot). Lo hace la IA con computer use, que anota lo que averigua en [`docs/estado-paneles.md`](docs/estado-paneles.md).
 
 ## Cómo trabajamos entre varias IAs
 
 - **Cada tarea tiene dueño en `PENDIENTES.md`.** Tomá solo las tuyas. Al terminar, marcala hecha y anotá lo que el siguiente necesita saber (sin claves).
+- **La IA de paneles solo edita `docs/estado-paneles.md`.** Claude lo lee y actualiza `PENDIENTES.md`. Así no se pisan.
 - **Nadie sube directo a `main`.** Cada uno trabaja en su rama (`claude/…`, `codex/…`, `panel/…`) y abre un PR. Se mergea con el control **Verificar** en verde.
 - **Antes de abrir un PR:** `npm run verificar` (tipos, pruebas y armado de la app).
 - **Si cambia una decisión**, se actualiza `docs/arquitectura.md` en el mismo PR.

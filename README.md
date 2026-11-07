@@ -4,7 +4,9 @@ El agente que atiende las consultas comerciales de los desarrollos por WhatsApp,
 
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Qué falta y quién lo hace: [`PENDIENTES.md`](PENDIENTES.md)
-- Tareas en paneles (DonWeb, Vercel, Google): [`docs/tareas-panel.md`](docs/tareas-panel.md)
+- Instrucciones para la IA de paneles (DonWeb, Vercel, Supabase, Google, Chatwoot): [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
+- Instalador del servidor (WAHA + Chatwoot): [`infra/`](infra/README.md)
+- Base de datos: [`supabase/migrations/`](supabase/migrations/)
 - Reglas para trabajar en el repo: [`AGENTS.md`](AGENTS.md)
 
 ## Para desarrollar

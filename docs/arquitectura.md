@@ -26,7 +26,9 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 
 - Todas las líneas juntas, en la web y en la app del celular (iOS y Android).
 - Asignar conversaciones, notas internas, etiquetas, el historial de cada contacto. El email se suma después como otra bandeja.
-- WAHA le pasa los mensajes con su integración propia (sin código). Lo que alguien mande desde el celular de la línea también aparece.
+- WAHA le pasa los mensajes con su integración propia (sin código). Lo que alguien mande desde el celular de la línea también aparece, **como mensaje y no como nota interna** (así el bot sabe que lo tomó una persona).
+- Una conversación por chat, como en WhatsApp. WAHA crea además una conversación «Integración de WhatsApp» para avisos y el QR: el bot la ignora.
+- Lo instala y opera `infra/servidor.sh` (ver `infra/README.md`).
 - **Necesita unos 4 GB de RAM** (Chatwoot con su Postgres y Redis, más WAHA). Si el servidor de DonWeb no da: ampliarlo o usar Chatwoot Cloud (pago por usuario).
 
 ## 3. El bot es un Agent Bot de Chatwoot
