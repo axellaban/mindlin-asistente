@@ -6,7 +6,7 @@ Lo completa la IA de paneles (ver [`IA_DE_PANELES.md`](../IA_DE_PANELES.md)). **
 
 - Fecha: 07/11/2026.
 - Qué hay contratado (planes): Cloud Server «N8N» (#4016076), activo hasta el 02/03/2027; Registro dominio .COM para `mindlindevelopers.com` (#4046656), activo hasta el 16/04/2028. No se mostró un hosting compartido contratado en «Web Hosting».
-- Cloud Server / VPS: 1 vCPU Standard · 1 GB RAM · 10 GB Standard SSD contratados. Uso y espacio libre dentro del sistema no verificados. Incluye 1 TB/mes de transferencia y copia de seguridad Standard.
+- Cloud Server / VPS: 1 vCPU Standard · 1 GB RAM · 10 GB Standard SSD contratados. El panel «Información» mostró 11,27 GB utilizados de 15 GB SSD (10 GB contratados + 5 GB para sistema operativo y otros); uso dentro del sistema no verificado. Incluye 1 TB/mes de transferencia y copia de seguridad Standard.
 - Sistema operativo: Ubuntu 22.04, 64 bits, imagen `Ubuntu2204-64-min` («Instalación Mínima»).
 - IP pública: `149.50.139.33` (IPv4).
 - Acceso root (SSH / consola web): el panel informa usuario `root`, SSH por el puerto `5258` y consola VNC. No se probaron las credenciales ni se ingresó al sistema.
@@ -89,7 +89,15 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 
 ## Servidor (tarea 4)
 
-- Aclaración posterior a la elección (07/11/2026): Axel pidió justificar si DonWeb a 24 meses con los mismos recursos sería más caro. **No se confirmó una cotización equivalente de DonWeb a 24 meses ni el precio de ampliar el servidor actual. No afirmar que DonWeb fue descartado por precio o por menor calidad.** La recomendación inicial mezclaba capacidades y plazos distintos.
+- **Ampliación del DonWeb actual, cotización real del panel (07/11/2026):** se abrió «Información → Escalar recursos» del VPS #4016076 y se llegó al resumen previo a «Ir a pagar». Subir de 1 GB a 4 GB de RAM también elevó las vCPU de 1 a 2 automáticamente. Conservando 1 TB de transferencia y Backup Standard semanal, el panel mostró:
+
+  | Configuración nueva | Diferencia a pagar ahora, hasta el 02/03/2027 | Nuevo costo semestral | Equivalente mensual del nuevo costo |
+  | --- | ---: | ---: | ---: |
+  | 2 vCPU · 4 GB RAM · 30 GB SSD | ARS 53.407,52 | ARS 152.923,20 | ARS 25.487,20 |
+  | 2 vCPU · 4 GB RAM · 50 GB SSD | ARS 61.316,98 | ARS 165.372,00 | ARS 27.562,00 |
+
+  Son importes mostrados para ampliar el contrato existente, distintos de una contratación nueva con promoción. El costo actual usado por el resumen fue ARS 68.864,40 por semestre. No se verificó una tarifa anual o de 24 meses para esa ampliación ni impuestos adicionales fuera del resumen. **No se pulsó «Ir a pagar», no se generó una orden ni se amplió el VPS**; se canceló el configurador y se verificaron los recursos originales. Capturas locales: `evidencia/paneles-2026-11-07/donweb-ampliacion-2cpu-4gb-30gb.jpg` y `donweb-ampliacion-2cpu-4gb-50gb.jpg` (fuera del repo).
+- Aclaración posterior a la elección (07/11/2026): Axel pidió justificar si DonWeb a 24 meses con los mismos recursos sería más caro. **No se confirmó una cotización equivalente de DonWeb a 24 meses. No afirmar que DonWeb fue descartado por menor calidad.** La recomendación inicial mezclaba capacidades y plazos distintos. La ampliación consultada arriba requiere menos desembolso inmediato que contratar Hostinger por 24 meses, pero su nuevo costo mensual equivalente es mayor que el de la oferta de Hostinger aportada por Axel; DonWeb ofrece 2 vCPU frente a 1 vCPU del KVM 1.
 - Comparación más cercana comprobada en DonWeb: 2 vCPU / 4 GB RAM / 50 GB disponibles / 1 TB de transferencia / Backup Standard. Total de 12 meses mostrado: ARS 148.835 (55 %); lista anual ARS 330.744. Con Cyber 60 %, el cálculo es ARS 132.298, sin cupón aplicado en un carrito. No es idéntico al KVM 1, que tiene 1 vCPU. En el configurador, los intentos de subir RAM desde 1 GB con 1 vCPU no cambiaron el valor; su ayuda indica que la RAM depende de las vCPU. La configuración de 4 GB se pudo cotizar con 2 vCPU.
 - El monto de Hostinger con recomendación sí está mostrado para 24 meses en la captura de Axel: ARS 232.300,80. Esto sustenta una oferta concreta para el piloto, pero no una conclusión general de superioridad de proveedor. Comparar también la ampliación del DonWeb existente antes de presentar al cliente un ahorro definitivo por cambiarse. No se proyectó una renovación de DonWeb sin verificarla ni se duplicó una promoción que excluye renovaciones.
 - **Decisión de Axel (07/11/2026): Hostinger KVM 1 por 24 meses.** Axel indicó «compraremos kvm1» después de aportar una captura con su código de recomendación aplicado. Se registra la elección; no se creó una orden ni se pagó desde esta sesión.
