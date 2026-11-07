@@ -39,6 +39,19 @@ Fuentes oficiales consultadas:
 - [Vercel: contenedores](https://vercel.com/kb/guide/does-vercel-support-docker-deployments) y [Daemons](https://vercel.com/docs/daemons).
 - [WAHA: instalación](https://waha.devlike.pro/docs/how-to/install/).
 
+### Opción de menor costo para el piloto (07/11/2026)
+
+Axel priorizó el precio y consultó si alcanza el VPS más bajo. Se cotizaron dos opciones inferiores a la de 16 GB:
+
+| DonWeb, Backup Standard semanal, SSL gratuito y 1 TB de transferencia | Total anual mostrado (55 %) | Estimación anual con Cyber 60 % |
+| --- | ---: | ---: |
+| 2 vCPU · 4 GB RAM · 30 GB disponibles | ARS 137.631 | ARS 122.338 |
+| 2 vCPU · 8 GB RAM · 60 GB disponibles | ARS 174.789 | ARS 155.368 |
+
+Ambas configuraciones y el Backup Standard se comprobaron abriendo «Tu configuración». Los precios de lista anuales mostrados fueron ARS 305.846 y ARS 388.420, respectivamente. Los totales con el cupón siguen siendo estimaciones: no se aplicó en un carrito.
+
+Para una sola línea con poca carga, 2 vCPU / 4 GB es el mínimo previsto por el instalador y puede servir para probar, con swap y monitoreo de memoria; no es la configuración holgada para producción. El VPS actual de 1 GB no alcanza. El KVM 1 de Hostinger tiene 1 vCPU / 4 GB / 50 GB: podría iniciar con uso mínimo, pero queda por debajo de las 2 vCPU previstas en el repo. Su catálogo oficial marca ARS 159.588 por un año o ARS 290.376 por dos años (ARS 12.099/mes). La opción DonWeb 2 vCPU / 4 GB anual resulta más económica por mes incluso con el 55 % ya mostrado, sin depender de que el cupón se acepte.
+
 ## Vercel y base de datos (tarea 2)
 
 - Cuenta de Vercel: `axellaban@gmail.com` (usuario `axellaban-1812`, equipo `laban's projects`, slug `labans-projects-c5c64fdc`). Elegida por Axel el 07/11/2026 para las primeras pruebas.
