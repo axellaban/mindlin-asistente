@@ -105,29 +105,29 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 - **09/11/2026 · VPS comprado y verificado:** KVM 1 `srv2145105.hstgr.cloud`, IPv4 `187.53.99.210`, Brazil – Campinas, Ubuntu 24.04.5 LTS, 1 vCPU / 4 GB RAM / 50 GB NVMe. Se verificó acceso root por la consola web y por SSH con la huella del servidor. Docker 29.9.3 y Compose 5.7.0 activos; swap persistente de 2 GB.
 - Axel autorizó el rol **Admin** para `axellaban@gmail.com`, limitado a este VPS. Hostinger pidió verificar de nuevo la cuenta dueña por correo antes de emitir la invitación. La pantalla de verificación quedó abierta para que Axel la complete.
 - Instalador de `main` (`7ac1fad`) copiado y validado. Se usó la instalación probada de Mindlin con GOWS y la integración nativa de Chatwoot. Se tomó de Turnia la práctica de fijar el digest y conservar sesiones separadas. WAHA `devlikeapro/waha@sha256:1f7faeb0227ad5edb5711f7058bfce807ea65e5f92234af0778e4db140f6eb46`; Chatwoot `chatwoot/chatwoot@sha256:a0d571a3a2f78f4a4b1d7c21a53309c0184068d6021b3664ab37788faef04c1`. Secretos propios en `/opt/mindlin-asistente`.
-- Subdominio elegido: `chat.mindlindevelopers.com`. DNS administrado en DonWeb; falta `A chat → 187.53.99.210`. DonWeb pide iniciar sesión. El alta inicial de Chatwoot se abrió mediante un túnel SSH local para que Axel complete el administrador. Después corresponde levantar Caddy y verificar el certificado HTTPS.
+- **Chatwoot publicado:** `https://chat.mindlindevelopers.com`. Se agregó en DonWeb `A chat → 187.53.99.210` con TTL de 900 segundos. Google Public DNS y Cloudflare devolvieron la IP correcta. Tras comprobar que el alta inicial ya redirigía al inicio, se levantó Caddy. El sitio abrió con certificado válido de Let's Encrypt; `/api` devolvió HTTP 200, versión 4.19.1 y estado `ok` para cola y base. El resolvedor del VPS aún no devolvía la IP en la primera revisión; el HTTPS directo al VPS con el nombre del certificado validó correctamente.
 - Salida de `servidor.sh verificar`:
 
 ```
-Activos: chatwoot-rails, chatwoot-sidekiq, postgres, redis, waha.
-Chatwoot 4.19.1 y WAHA 2026.10.1 responden dentro del VPS.
-Caddy pendiente de alta del administrador y DNS. HTTPS todavía no responde.
-Todavía no hay una sesión de WhatsApp. RAM: 1722 de 3915 MB usados.
-Disco: 38 GB libres de 48 GB. Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
+Activos: caddy, chatwoot-rails, chatwoot-sidekiq, postgres, redis, waha.
+Chatwoot 4.19.1 por HTTPS, cola y base ok. WAHA 2026.10.1 en puerto local.
+Sesión default: SCAN_QR_CODE. Pendiente el vínculo desde el celular de prueba.
+Recursos antes de publicar Caddy: 1722 de 3915 MB RAM usados y 38 GB libres de 48 GB.
+Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 ```
 
 ## Chatwoot (tareas 5 a 7)
 
-- Cuenta de administrador creada (sí / no):
-- Línea conectada y QR escaneado (sí / no):
-- Prueba de mensaje desde otro teléfono (llegó / no llegó):
-- Asistente conectado (`servidor.sh bot`) y variables en Vercel (sí / no):
-- Agentes invitados y si llegaron los mails:
+- Cuenta administradora: `mindlindevelopers.ia@gmail.com`, cuenta Chatwoot 3 «Mindlin Developers». Alta completada, panel en español con zona horaria de Buenos Aires.
+- Línea de prueba: `default`, bandeja 1 «WhatsApp Lerma 439». Integración WAHA–Chatwoot creada. WAHA informa `SCAN_QR_CODE`; el QR quedó abierto en la conversación «Integración de WhatsApp», dentro de «Sin asignar».
+- Prueba de mensaje desde otro teléfono: pendiente del escaneo y de confirmar que WAHA pasa a `WORKING` con la cuenta esperada.
+- Asistente y variables de Chatwoot en Vercel: pendientes. `/api/salud` sigue indicando que falta `ANTHROPIC_API_KEY`.
+- Invitaciones de agentes: pendientes de definir el equipo y el correo de envío.
 
 ## Problemas
 
 - 07/11/2026 · DonWeb: capacidad insuficiente del VPS actual. No se ejecutó el instalador.
 - 07/11/2026 · Vercel / Supabase: «Unavailable - The following members have reached their 2 project Free Plan limit: axellaban. All active projects in Free Plan organizations count towards this limit.» Axel eligió Neon Free desde Vercel. Base vinculada y migraciones verificadas en producción el 09/11.
 - 09/11/2026 · CRM: planilla y permiso de Editor confirmados, `CRM_SHEET_ID` activo en Production según `/api/salud`.
-- 09/11/2026 · Hostinger: acceso al VPS comprobado. Chatwoot y WAHA operativos en privado. Pendientes la verificación para delegar Admin, el alta de Chatwoot, el DNS y HTTPS, y la vinculación de WhatsApp con el celular de prueba.
-- 07/11/2026 · Quedan pendientes las decisiones sobre capacidad del servidor, subdominio de Chatwoot y correo de invitaciones. La cuenta de Vercel y el proyecto de Google Cloud ya fueron elegidos por Axel en el chat.
+- 09/11/2026 · Hostinger: VPS comprobado, Chatwoot publicado por HTTPS y WAHA interno. Pendientes el código de Hostinger para delegar Admin, la vinculación de WhatsApp desde el celular de prueba y la configuración del agente en Vercel.
+- Correo para invitaciones de Chatwoot pendiente de definir.
