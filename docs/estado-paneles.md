@@ -103,7 +103,8 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 - Alcance del KVM 1: piloto con una línea y pocas conversaciones simultáneas, dedicado a WAHA + Chatwoot y sus servicios. 4 GB es el mínimo de memoria previsto; requiere monitoreo y margen para actualizaciones. La especificación de 2 vCPU del README era una referencia de capacidad: se revisó `infra/servidor.sh` y no tiene una validación que impida instalar por tener una sola CPU. No se probó todavía la carga real en KVM 1.
 - Preparación propuesta para el VPS nuevo: Ubuntu 24.04 LTS, instalación mínima, swap de 2 GB y revisión de concurrencia de Rails/Sidekiq para poca memoria. **El script actual no configura swap**; Claude debe preparar ese ajuste y actualizar la documentación de capacidad y proveedor. Panel debe seguir el instalador revisado, sin improvisar cambios en el servidor.
 - **09/11/2026 · VPS comprado y verificado:** KVM 1 `srv2145105.hstgr.cloud`, IPv4 `187.53.99.210`, Brazil – Campinas, Ubuntu 24.04.5 LTS, 1 vCPU / 4 GB RAM / 50 GB NVMe. Se verificó acceso root por la consola web y por SSH con la huella del servidor. Docker 29.9.3 y Compose 5.7.0 activos; swap persistente de 2 GB.
-- Axel autorizó el rol **Admin** para `axellaban@gmail.com`, limitado a este VPS. Hostinger pidió verificar de nuevo la cuenta dueña por correo antes de emitir la invitación. La pantalla de verificación quedó abierta para que Axel la complete.
+- Respaldos: cron del VPS activo y último archivo local verificado con `gzip -t`. hPanel muestra backup semanal y anuncia la primera copia automática para el **16/11/2026**. WAHA y el puerto directo de Chatwoot están en loopback; Postgres y Redis quedan en la red de Docker. Se observaron los puertos públicos 22, 80 y 443.
+- Axel autorizó el rol **Admin** para `axellaban@gmail.com`, limitado a este VPS. Hostinger pidió verificar de nuevo la cuenta dueña por correo antes de emitir la invitación. Axel pidió retomar este paso después.
 - Instalador de `main` (`7ac1fad`) copiado y validado. Se usó la instalación probada de Mindlin con GOWS y la integración nativa de Chatwoot. Se tomó de Turnia la práctica de fijar el digest y conservar sesiones separadas. WAHA `devlikeapro/waha@sha256:1f7faeb0227ad5edb5711f7058bfce807ea65e5f92234af0778e4db140f6eb46`; Chatwoot `chatwoot/chatwoot@sha256:a0d571a3a2f78f4a4b1d7c21a53309c0184068d6021b3664ab37788faef04c1`. Secretos propios en `/opt/mindlin-asistente`.
 - **Chatwoot publicado:** `https://chat.mindlindevelopers.com`. Se agregó en DonWeb `A chat → 187.53.99.210` con TTL de 900 segundos. Google Public DNS y Cloudflare devolvieron la IP correcta. Tras comprobar que el alta inicial ya redirigía al inicio, se levantó Caddy. El sitio abrió con certificado válido de Let's Encrypt; `/api` devolvió HTTP 200, versión 4.19.1 y estado `ok` para cola y base. El resolvedor del VPS aún no devolvía la IP en la primera revisión; el HTTPS directo al VPS con el nombre del certificado validó correctamente.
 - Salida de `servidor.sh verificar`:
@@ -119,10 +120,18 @@ Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 ## Chatwoot (tareas 5 a 7)
 
 - Cuenta administradora: `mindlindevelopers.ia@gmail.com`, cuenta Chatwoot 3 «Mindlin Developers». Alta completada, panel en español con zona horaria de Buenos Aires.
-- Línea de prueba: `default`, bandeja 1 «WhatsApp Lerma 439». Integración WAHA–Chatwoot creada. WAHA informa `SCAN_QR_CODE`; el QR quedó abierto en la conversación «Integración de WhatsApp», dentro de «Sin asignar».
+- Línea de prueba: `default`, bandeja 1 «WhatsApp Lerma 439». Integración WAHA–Chatwoot creada. Pasó de `SCAN_QR_CODE` a `FAILED` sin una cuenta vinculada. Generar un QR fresco cuando esté disponible el celular de prueba. La conversación «Integración de WhatsApp» aparece dentro de «Sin asignar».
 - Prueba de mensaje desde otro teléfono: pendiente del escaneo y de confirmar que WAHA pasa a `WORKING` con la cuenta esperada.
-- Asistente y variables de Chatwoot en Vercel: pendientes. `/api/salud` sigue indicando que falta `ANTHROPIC_API_KEY`.
+- Asistente: Agent Bot 1 «Asistente Mindlin» creado en la cuenta 3, con destino al webhook de producción. Configuración guardada en el VPS con permisos `600`. Sigue sin asignar a la bandeja mientras se carga y verifica la configuración de Vercel. `/api/salud` indica que falta `ANTHROPIC_API_KEY`.
 - Invitaciones de agentes: pendientes de definir el equipo y el correo de envío.
+
+## Pendientes para retomar (09/11/2026)
+
+- **Hostinger, diferido por Axel:** completar el código de la cuenta dueña y aceptar desde `axellaban@gmail.com` la invitación de Admin al VPS de Mindlin.
+- **WhatsApp:** generar un QR fresco con Axel y el celular del piloto listos. Confirmar `WORKING` y el número esperado; hacer la prueba desde otro teléfono.
+- **Asistente:** cargar y publicar la configuración de Chatwoot en Vercel. Completar `ANTHROPIC_API_KEY` antes de asignar el Agent Bot a la bandeja. Probar webhook y escritura en el CRM con datos de prueba acordados.
+- **Equipo:** definir agentes y correo de envío de invitaciones. Falta validar ese flujo.
+- **Acceso al servidor:** rotar las credenciales iniciales de la cuenta y de root desde sus pantallas de cambio de contraseña. Axel puede hacerlo cuando esté lista la delegación de Hostinger.
 
 ## Problemas
 
