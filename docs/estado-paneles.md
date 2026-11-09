@@ -80,7 +80,7 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 - **09/11/2026:** la consola de `mindlin-developers` confirma que la cuenta de facturación «Mindlin Developers» está vinculada y que Google Sheets API y Google Drive API están habilitadas.
 - Axel indicó que el repo del hub para el trabajo futuro es [`matimindlin111/mindlinhub`](https://github.com/matimindlin111/mindlinhub). Se verificó acceso de lectura a `main` y se consultó la referencia de la cola en `docs/configuracion.md`. La pantalla «Scoring de leads» del hub en producción confirma que el CRM todavía guarda en la planilla.
 - Planilla del CRM: «Facturas Mindlin - cola de la app», propiedad de `mindlindevelopers.ia@gmail.com`, con pestañas «CRM Contactos» y «CRM Actividad». Axel autorizó compartirla con la cuenta de servicio del asistente como **Editor**. Google confirmó el permiso y el acceso general quedó Restringido. Se reutilizó el archivo del hub.
-- `CRM_SHEET_ID` se guardó como Secret en **Production** en el proyecto `mindlin-asistente`. El redeploy del `main` de producción quedó pendiente de la verificación de identidad de Vercel. Hasta que se publique, `/api/salud` sigue reportando que falta `CRM_SHEET_ID`. La integración de escritura se prueba con el piloto una vez que la publicación esté activa.
+- `CRM_SHEET_ID` se guardó como Secret en **Production** en el proyecto `mindlin-asistente`. El endpoint `/api/salud` de producción confirmó que la publicación ya reconoce la variable. Queda la prueba de escritura de punta a punta con la línea de prueba.
 - Decisión de Axel: contactos y actividad comercial del CRM en Sheets. Chats, reglas y demás datos internos del asistente en la base de datos. Todo archivo del hub en Google Drive debe quedar bajo `mindlindevelopers.ia@gmail.com`.
 - Drive organizado bajo «Hub Mindlin»: `App de facturas` conserva su estructura interna y la planilla original en `Sistema (no tocar)`; `Automatizaciones` contiene el script `Facturas por mail`; `CRM` contiene el acceso directo `CRM - Contactos y actividad` a la misma planilla. Se comprobó el resultado en el Drive de Mindlin.
 
@@ -102,13 +102,18 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 - La captura también mostró KVM 2 con recomendación: 2 vCPU, 8 GB RAM, 100 GB NVMe y 8 TB de transferencia por ARS 332.140,80 / 24 meses (ARS 13.839,20/mes). Es ARS 4.160/mes más que KVM 1. Se comparó como alternativa con más margen, pero **Axel eligió KVM 1**.
 - Alcance del KVM 1: piloto con una línea y pocas conversaciones simultáneas, dedicado a WAHA + Chatwoot y sus servicios. 4 GB es el mínimo de memoria previsto; requiere monitoreo y margen para actualizaciones. La especificación de 2 vCPU del README era una referencia de capacidad: se revisó `infra/servidor.sh` y no tiene una validación que impida instalar por tener una sola CPU. No se probó todavía la carga real en KVM 1.
 - Preparación propuesta para el VPS nuevo: Ubuntu 24.04 LTS, instalación mínima, swap de 2 GB y revisión de concurrencia de Rails/Sidekiq para poca memoria. **El script actual no configura swap**; Claude debe preparar ese ajuste y actualizar la documentación de capacidad y proveedor. Panel debe seguir el instalador revisado, sin improvisar cambios en el servidor.
-- Pendiente de confirmar la compra y el aprovisionamiento: IP, acceso al VPS, región elegida, subdominio de Chatwoot y correo de invitaciones. Para latencia regional, elegir Brasil/São Paulo si está disponible. No se modificó el VPS anterior de DonWeb.
-- **09/11/2026:** Axel confirmó que el cliente compró el VPS y habilitó el acceso a la cuenta de Hostinger de Mindlin. El inicio de sesión llegó a la verificación de 6 dígitos enviada por Hostinger. Queda pendiente que se complete en esa pestaña para identificar el VPS y verificar sistema, recursos y acceso SSH. El VPS de la cuenta ya conectada a la API fue creado en agosto y no se usó para este proyecto.
-- Subdominio de Chatwoot:
+- **09/11/2026 · VPS comprado y verificado:** KVM 1 `srv2145105.hstgr.cloud`, IPv4 `187.53.99.210`, Brazil – Campinas, Ubuntu 24.04.5 LTS, 1 vCPU / 4 GB RAM / 50 GB NVMe. Se verificó acceso root por la consola web y por SSH con la huella del servidor. Docker 29.9.3 y Compose 5.7.0 activos; swap persistente de 2 GB.
+- Axel autorizó el rol **Admin** para `axellaban@gmail.com`, limitado a este VPS. Hostinger pidió verificar de nuevo la cuenta dueña por correo antes de emitir la invitación. La pantalla de verificación quedó abierta para que Axel la complete.
+- Instalador de `main` (`7ac1fad`) copiado y validado. Se usó la instalación probada de Mindlin con GOWS y la integración nativa de Chatwoot. Se tomó de Turnia la práctica de fijar el digest y conservar sesiones separadas. WAHA `devlikeapro/waha@sha256:1f7faeb0227ad5edb5711f7058bfce807ea65e5f92234af0778e4db140f6eb46`; Chatwoot `chatwoot/chatwoot@sha256:a0d571a3a2f78f4a4b1d7c21a53309c0184068d6021b3664ab37788faef04c1`. Secretos propios en `/opt/mindlin-asistente`.
+- Subdominio elegido: `chat.mindlindevelopers.com`. DNS administrado en DonWeb; falta `A chat → 187.53.99.210`. DonWeb pide iniciar sesión. El alta inicial de Chatwoot se abrió mediante un túnel SSH local para que Axel complete el administrador. Después corresponde levantar Caddy y verificar el certificado HTTPS.
 - Salida de `servidor.sh verificar`:
 
 ```
-(pegar acá)
+Activos: chatwoot-rails, chatwoot-sidekiq, postgres, redis, waha.
+Chatwoot 4.19.1 y WAHA 2026.10.1 responden dentro del VPS.
+Caddy pendiente de alta del administrador y DNS. HTTPS todavía no responde.
+Todavía no hay una sesión de WhatsApp. RAM: 1722 de 3915 MB usados.
+Disco: 38 GB libres de 48 GB. Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 ```
 
 ## Chatwoot (tareas 5 a 7)
@@ -123,6 +128,6 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 
 - 07/11/2026 · DonWeb: capacidad insuficiente del VPS actual. No se ejecutó el instalador.
 - 07/11/2026 · Vercel / Supabase: «Unavailable - The following members have reached their 2 project Free Plan limit: axellaban. All active projects in Free Plan organizations count towards this limit.» Axel eligió Neon Free desde Vercel. Base vinculada y migraciones verificadas en producción el 09/11.
-- 09/11/2026 · CRM: planilla y permiso de Editor confirmados, `CRM_SHEET_ID` guardado en Production. Falta completar la verificación de Vercel y comprobar la publicación.
-- 09/11/2026 · Hostinger: verificación del inicio de sesión pendiente en la cuenta del cliente. Los servicios del VPS todavía no se instalaron.
+- 09/11/2026 · CRM: planilla y permiso de Editor confirmados, `CRM_SHEET_ID` activo en Production según `/api/salud`.
+- 09/11/2026 · Hostinger: acceso al VPS comprobado. Chatwoot y WAHA operativos en privado. Pendientes la verificación para delegar Admin, el alta de Chatwoot, el DNS y HTTPS, y la vinculación de WhatsApp con el celular de prueba.
 - 07/11/2026 · Quedan pendientes las decisiones sobre capacidad del servidor, subdominio de Chatwoot y correo de invitaciones. La cuenta de Vercel y el proyecto de Google Cloud ya fueron elegidos por Axel en el chat.
