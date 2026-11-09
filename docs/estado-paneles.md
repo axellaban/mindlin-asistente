@@ -67,25 +67,22 @@ Para una sola línea con poca carga, 2 vCPU / 4 GB es el mínimo previsto por el
 ["ANTHROPIC_API_KEY", "CHATWOOT_URL", "CHATWOOT_ACCOUNT_ID", "CHATWOOT_BOT_TOKEN", "CHATWOOT_WEBHOOK_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "CRM_SHEET_ID", "CRON_SECRET"]
 ```
 
-### Para Claude: cambio a Neon autorizado por Axel
+### Neon en producción
 
-La base está creada y conectada, pero **la app todavía usa el adaptador de Supabase** en `lib/datos/supabase.ts`. La conexión desde el panel no reemplaza ese código. El despliegue actual ignora `DATABASE_URL` y sigue pidiendo `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
-
-Pendiente del dueño del código:
-
-1. Implementar el almacén PostgreSQL/Neon detrás de la interfaz `Almacen` de `lib/datos/tipos.ts`, conservando el historial, las operaciones del agente y la deduplicación de mensajes.
-2. Revisar y aplicar las migraciones en la base nueva, manteniendo el acceso exclusivo del servidor. La base debe tener sus propias tablas y datos de Mindlin.
-3. Cambiar la selección del almacén y el chequeo de configuración para usar `DATABASE_URL`; actualizar `.env.example`, `docs/arquitectura.md`, `IA_DE_PANELES.md` y `PENDIENTES.md` conforme a la decisión de Axel.
-4. Publicar y verificar una lectura/escritura de prueba con datos inventados. Hasta entonces, Neon está aprovisionado y vinculado, pero el asistente todavía no lo utiliza.
-5. Resolver el supuesto de la planilla del CRM: Axel no tiene una identificada. Hay que validar si existe con Mindlin o acordar crearla; hoy `CRM_SHEET_ID` sigue faltando.
+El PR #4 (`7ac1fad`) adaptó el código a Postgres. El 09/11 se verificó en Vercel que el despliegue de Production de ese commit está Ready, que el registro muestra `migrar: base al día (2 migraciones).` y que `/api/salud` no pide variables de base. Falta verificar la lectura y escritura de punta a punta junto con el CRM y la línea de prueba. Ver el avance de `CRM_SHEET_ID` en «Google».
 
 La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud` (Neon Free → turniasalud), `supabase-lorito` (Supabase Free → enviaunlorito), `convex-canary-island` (Convex Free → slack-clone), `loreado-login` (Upstash Redis Free → copiloto-mvp) y `playcanvas-engine-blob` (Blob → playcanvas-engine). Para Mindlin se creó un recurso nuevo dentro de la integración Neon existente.
 
 ## Google (tarea 3)
 
 - Cuenta de servicio creada (mail): `mindlin-asistente@mindlin-developers.iam.gserviceaccount.com`, creada el 07/11/2026 en el proyecto `mindlin-developers` de `axellaban@gmail.com`, sin roles de proyecto. Google Sheets API ya estaba habilitada. Axel autorizó la emisión de la clave JSON y su carga en Vercel; se emitió una sola clave.
-- Planilla del CRM compartida como Editor (sí / no): no. Axel respondió «no se no tengo nada» al pedido de la planilla. Hay que validar con Mindlin si existe la planilla del hub o acordar crear una; no se creó ni compartió una planilla nueva.
 - Variables cargadas en Vercel (sí / no): sí, `GOOGLE_SERVICE_ACCOUNT_EMAIL` y `GOOGLE_PRIVATE_KEY`, ambas como Secret en Production y Preview. Redeploy de Production listo y `/api/salud` ya no las incluye en `faltan`. Se eliminó la copia JSON descargada después de confirmar el guardado en Vercel; no quedó en la papelera ni en el repo.
+- **09/11/2026:** la consola de `mindlin-developers` confirma que la cuenta de facturación «Mindlin Developers» está vinculada y que Google Sheets API y Google Drive API están habilitadas.
+- Axel indicó que el repo del hub para el trabajo futuro es [`matimindlin111/mindlinhub`](https://github.com/matimindlin111/mindlinhub). Se verificó acceso de lectura a `main` y se consultó la referencia de la cola en `docs/configuracion.md`. La pantalla «Scoring de leads» del hub en producción confirma que el CRM todavía guarda en la planilla.
+- Planilla del CRM: «Facturas Mindlin - cola de la app», propiedad de `mindlindevelopers.ia@gmail.com`, con pestañas «CRM Contactos» y «CRM Actividad». Axel autorizó compartirla con la cuenta de servicio del asistente como **Editor**. Google confirmó el permiso y el acceso general quedó Restringido. Se reutilizó el archivo del hub.
+- `CRM_SHEET_ID` se guardó como Secret en **Production** en el proyecto `mindlin-asistente`. El redeploy del `main` de producción quedó pendiente de la verificación de identidad de Vercel. Hasta que se publique, `/api/salud` sigue reportando que falta `CRM_SHEET_ID`. La integración de escritura se prueba con el piloto una vez que la publicación esté activa.
+- Decisión de Axel: contactos y actividad comercial del CRM en Sheets. Chats, reglas y demás datos internos del asistente en la base de datos. Todo archivo del hub en Google Drive debe quedar bajo `mindlindevelopers.ia@gmail.com`.
+- Drive organizado bajo «Hub Mindlin»: `App de facturas` conserva su estructura interna y la planilla original en `Sistema (no tocar)`; `Automatizaciones` contiene el script `Facturas por mail`; `CRM` contiene el acceso directo `CRM - Contactos y actividad` a la misma planilla. Se comprobó el resultado en el Drive de Mindlin.
 
 ## Servidor (tarea 4)
 
@@ -106,6 +103,7 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 - Alcance del KVM 1: piloto con una línea y pocas conversaciones simultáneas, dedicado a WAHA + Chatwoot y sus servicios. 4 GB es el mínimo de memoria previsto; requiere monitoreo y margen para actualizaciones. La especificación de 2 vCPU del README era una referencia de capacidad: se revisó `infra/servidor.sh` y no tiene una validación que impida instalar por tener una sola CPU. No se probó todavía la carga real en KVM 1.
 - Preparación propuesta para el VPS nuevo: Ubuntu 24.04 LTS, instalación mínima, swap de 2 GB y revisión de concurrencia de Rails/Sidekiq para poca memoria. **El script actual no configura swap**; Claude debe preparar ese ajuste y actualizar la documentación de capacidad y proveedor. Panel debe seguir el instalador revisado, sin improvisar cambios en el servidor.
 - Pendiente de confirmar la compra y el aprovisionamiento: IP, acceso al VPS, región elegida, subdominio de Chatwoot y correo de invitaciones. Para latencia regional, elegir Brasil/São Paulo si está disponible. No se modificó el VPS anterior de DonWeb.
+- **09/11/2026:** Axel confirmó que el cliente compró el VPS y habilitó el acceso a la cuenta de Hostinger de Mindlin. El inicio de sesión llegó a la verificación de 6 dígitos enviada por Hostinger. Queda pendiente que se complete en esa pestaña para identificar el VPS y verificar sistema, recursos y acceso SSH. El VPS de la cuenta ya conectada a la API fue creado en agosto y no se usó para este proyecto.
 - Subdominio de Chatwoot:
 - Salida de `servidor.sh verificar`:
 
@@ -124,6 +122,7 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 ## Problemas
 
 - 07/11/2026 · DonWeb: capacidad insuficiente del VPS actual. No se ejecutó el instalador.
-- 07/11/2026 · Vercel / Supabase: «Unavailable - The following members have reached their 2 project Free Plan limit: axellaban. All active projects in Free Plan organizations count towards this limit.» No se confirmó Pro; Axel eligió Neon Free desde Vercel. Base creada y vinculada; falta la adaptación del código.
-- 07/11/2026 · CRM: Axel no tiene identificada la planilla que el repo daba por existente. No se puede completar la conexión de Google Sheets sin resolverla.
+- 07/11/2026 · Vercel / Supabase: «Unavailable - The following members have reached their 2 project Free Plan limit: axellaban. All active projects in Free Plan organizations count towards this limit.» Axel eligió Neon Free desde Vercel. Base vinculada y migraciones verificadas en producción el 09/11.
+- 09/11/2026 · CRM: planilla y permiso de Editor confirmados, `CRM_SHEET_ID` guardado en Production. Falta completar la verificación de Vercel y comprobar la publicación.
+- 09/11/2026 · Hostinger: verificación del inicio de sesión pendiente en la cuenta del cliente. Los servicios del VPS todavía no se instalaron.
 - 07/11/2026 · Quedan pendientes las decisiones sobre capacidad del servidor, subdominio de Chatwoot y correo de invitaciones. La cuenta de Vercel y el proyecto de Google Cloud ya fueron elegidos por Axel en el chat.
