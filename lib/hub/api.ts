@@ -99,7 +99,7 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
       case "config": {
         if (metodo !== "GET" || id) return noSePuede();
         const [proyectos, tono, ejemplos, reglas, estado] = await Promise.all([datos.proyectos(), datos.tono(), datos.ejemplos(), datos.reglas(), datos.estado()]);
-        const falta = queFalta({ tono, proyectos, reglas: reglas.filter((r) => r.estado !== "archivada").length, faltan: d.faltan ?? [] });
+        const falta = queFalta({ tono, proyectos, reglas: reglas.filter((r) => r.estado !== "archivada").length, archivadas: reglas.filter((r) => r.estado === "archivada").length, faltan: d.faltan ?? [] });
         return { status: 200, json: { proyectos, tono, ejemplos, reglas, estado, falta, ia: d.ia ?? null, opciones: OPCIONES } };
       }
 

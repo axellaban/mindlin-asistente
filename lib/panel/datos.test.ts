@@ -55,7 +55,10 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
     expect(await d.proyecto("guemes-4676")).toMatchObject({ precios: "Desde USD 120.000", activo: false, notas_internas: "Solo para el equipo." });
     const { rows } = await pool.query("select actualizado_por from proyectos where id = 'guemes-4676'");
     expect(rows[0].actualizado_por).toBe("Mati");
-    expect((await d.proyectos()).map((p) => p.id)).toEqual(["lerma-439", "guemes-4676"]);
+    // Primero los activos; después los apagados (el nuevo y los borradores de Kommo).
+    const ids = (await d.proyectos()).map((p) => p.id);
+    expect(ids[0]).toBe("lerma-439");
+    expect(ids).toContain("guemes-4676");
     expect((await crearAlmacen(pool).proyectosActivos()).map((p) => p.id)).toEqual(["lerma-439"]);
   });
 
@@ -80,7 +83,8 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
     const otraEtapa = await d.agregarRegla({ ...base, etapa: "Seguimiento" });
     await pool.query("insert into seguimientos_enviados (conversacion, regla, etapa, paso, version, texto, respondio) values (1, $1, 'Nuevo', 1, 1, 'Hola', now()), (2, $1, 'Nuevo', 1, 1, 'Hola', null)", [v1]);
 
-    const reglas = await d.reglas();
+    // (Las archivadas que deja la migración de borradores van al final: acá se miran las de esta prueba.)
+    const reglas = (await d.reglas()).filter((r) => r.estado !== "archivada");
     expect(reglas.map((r) => [r.id, r.version, r.enviados, r.respondieron])).toEqual([
       [v1, 1, 2, 1],
       [v2, 2, 0, 0],

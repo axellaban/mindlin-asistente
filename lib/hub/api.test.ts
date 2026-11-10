@@ -57,20 +57,20 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
   });
 
   it("una ficha: crea, cambia solo lo que viene y revisa como el panel; el asistente la usa enseguida", async () => {
-    const alta = await hub("PUT", "proyectos/via-53", { nombre: "VIA 53", palabras_clave: ["Vía 53", "torre 53"], precios: "2 ambientes desde USD 108.000" }, { usuario: "  Tadeo " });
+    const alta = await hub("PUT", "proyectos/torre-nueva", { nombre: "Torre Nueva", palabras_clave: ["Vía 53", "torre 53"], precios: "2 ambientes desde USD 108.000" }, { usuario: "  Tadeo " });
     expect(alta.status).toBe(201);
-    expect(alta.json.proyecto).toMatchObject({ id: "via-53", nombre: "VIA 53", activo: true, palabras_clave: ["vía 53", "torre 53"], precios: "2 ambientes desde USD 108.000", presentacion: "" });
-    expect((await pool.query("select actualizado_por from proyectos where id = 'via-53'")).rows[0].actualizado_por).toBe("Tadeo");
+    expect(alta.json.proyecto).toMatchObject({ id: "torre-nueva", nombre: "Torre Nueva", activo: true, palabras_clave: ["vía 53", "torre 53"], precios: "2 ambientes desde USD 108.000", presentacion: "" });
+    expect((await pool.query("select actualizado_por from proyectos where id = 'torre-nueva'")).rows[0].actualizado_por).toBe("Tadeo");
 
-    const cambio = await hub("PUT", "proyectos/via-53", { presentacion: "La torre frente al Teatro Argentino.", activo: false });
+    const cambio = await hub("PUT", "proyectos/torre-nueva", { presentacion: "La torre frente al Teatro Argentino.", activo: false });
     expect(cambio.status).toBe(200);
-    expect(cambio.json.proyecto).toMatchObject({ nombre: "VIA 53", precios: "2 ambientes desde USD 108.000", presentacion: "La torre frente al Teatro Argentino.", activo: false, palabras_clave: ["vía 53", "torre 53"] });
+    expect(cambio.json.proyecto).toMatchObject({ nombre: "Torre Nueva", precios: "2 ambientes desde USD 108.000", presentacion: "La torre frente al Teatro Argentino.", activo: false, palabras_clave: ["vía 53", "torre 53"] });
     // Apagado: el asistente no lo ofrece.
-    expect((await crearAlmacen(pool).proyectosActivos()).map((p) => p.id)).not.toContain("via-53");
+    expect((await crearAlmacen(pool).proyectosActivos()).map((p) => p.id)).not.toContain("torre-nueva");
 
     expect(await hub("PUT", "proyectos/Con Espacios", { nombre: "x" })).toMatchObject({ status: 400 });
     expect(await hub("PUT", "proyectos/sin-nombre", { precios: "x" })).toMatchObject({ status: 400, json: { error: expect.stringContaining("nombre") } });
-    expect((await hub("PUT", "proyectos/via-53", { precios: "x".repeat(8001) })).status).toBe(400);
+    expect((await hub("PUT", "proyectos/torre-nueva", { precios: "x".repeat(8001) })).status).toBe(400);
   });
 
   it("el tono: cambia lo que viene, incluido el modo «presenta y pasa»", async () => {
