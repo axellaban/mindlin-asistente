@@ -103,7 +103,7 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
         .sort((a, b) => a.salida!.localeCompare(b.salida!))
         .map(({ id, s, salida }) => {
           const c = conv(id);
-          return { chatwoot_id: id, nombre: c.nombre, telefono: c.telefono, proyecto: c.proyecto, crm_contacto_id: c.crm_contacto_id, paso_seguimiento: s.paso_seguimiento, ultima_salida: salida! };
+          return { chatwoot_id: id, nombre: c.nombre, nombre_anotado: c.interesado?.nombre ?? null, telefono: c.telefono, proyecto: c.proyecto, crm_contacto_id: c.crm_contacto_id, paso_seguimiento: s.paso_seguimiento, ultima_salida: salida! };
         });
     },
     async reglasVigentes() {

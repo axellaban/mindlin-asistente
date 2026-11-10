@@ -140,7 +140,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
     },
     async candidatosSeguimiento(ahora) {
       const { rows } = await db.query(
-        `select chatwoot_id, nombre, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida
+        `select chatwoot_id, nombre, interesado->>'nombre' as nombre_anotado, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida
          from (
            select *, greatest(ultimo_mensaje_bot, ultimo_seguimiento) as ultima_salida from conversaciones
            where not sin_seguimientos and ultimo_mensaje_interesado is not null and paso_seguimiento < $1

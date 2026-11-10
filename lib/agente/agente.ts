@@ -36,7 +36,7 @@ export interface Resultado {
   texto: string;
   pasarAPersona: { motivo: string; resumen: string } | null;
   /** Por qué terminó: para el registro. */
-  fin: "respuesta" | "rechazo" | "sin_texto" | "demasiadas_vueltas" | "demasiado_tiempo";
+  fin: "respuesta" | "rechazo" | "sin_texto" | "demasiadas_vueltas" | "demasiado_tiempo" | "cortada";
 }
 
 /** Vueltas máximas entre Claude y las herramientas en un mismo mensaje. */
@@ -103,6 +103,9 @@ export function definirHerramientas(proyectos: string[]): Tool[] {
   return tools;
 }
 
+/** Hasta dónde se le pasa cada mensaje a la IA: alguien que pega un texto enorme no dispara el costo. */
+export const MAX_LETRAS_MENSAJE = 4000;
+
 /**
  * El historial como mensajes para Claude: el interesado es «user»; el bot y el equipo, «assistant»
  * (lo del equipo, marcado «[Equipo]»). Arranca en el primer mensaje del interesado.
@@ -112,7 +115,7 @@ export function mensajesDelHistorial(historial: MensajeHistorial[]): MessagePara
   if (desde < 0) return [];
   return historial.slice(desde).map((m) => ({
     role: m.rol === "interesado" ? "user" : "assistant",
-    content: m.rol === "persona" ? `[Equipo] ${m.texto}` : m.texto,
+    content: (m.rol === "persona" ? `[Equipo] ${m.texto}` : m.texto).slice(0, MAX_LETRAS_MENSAJE),
   }));
 }
 
@@ -161,6 +164,10 @@ export async function responder({
     const r = await modelo({ system, tools, messages });
     if (r.stop_reason === "refusal") {
       return { texto: "", pasarAPersona: { motivo: "El asistente no pudo responder esta consulta.", resumen: "" }, fin: "rechazo" };
+    }
+    // Llegó al tope de largo: el mensaje saldría cortado. Mejor que lo siga el equipo.
+    if (r.stop_reason === "max_tokens") {
+      return { texto: "", pasarAPersona: pasarAPersona ?? { motivo: "La respuesta del asistente salió demasiado larga.", resumen: "" }, fin: "cortada" };
     }
     const t = textoDe(r);
     if (t) ultimo = t;

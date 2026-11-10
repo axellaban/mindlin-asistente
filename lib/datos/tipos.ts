@@ -68,6 +68,8 @@ export interface ReglaSeguimiento {
 export interface CandidatoSeguimiento {
   chatwoot_id: number;
   nombre: string | null;
+  /** El nombre que le dijo al asistente (puede ser distinto del de WhatsApp). */
+  nombre_anotado?: string | null;
   telefono: string | null;
   proyecto: string | null;
   crm_contacto_id: string | null;

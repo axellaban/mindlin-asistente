@@ -56,6 +56,8 @@ export function nombreDePila(nombre: string | null | undefined): string {
 export function textoSeguimiento(mensaje: string, { nombre, proyecto }: { nombre: string; proyecto: string }): string {
   return mensaje
     .replace(/\s*\{\{\s*nombre\s*\}\}/gi, nombre ? ` ${nombre}` : "")
+    // Sin proyecto: «lo de {{proyecto}}» queda «lo del proyecto», no «lo de el proyecto».
+    .replace(/\b(de|a)\s+\{\{\s*proyecto\s*\}\}/gi, (_, prep: string) => (proyecto ? `${prep} ${proyecto}` : `${prep.toLowerCase() === "de" ? "del" : "al"} proyecto`))
     .replace(/\{\{\s*proyecto\s*\}\}/gi, proyecto || "el proyecto")
     .replace(/^[\s,]+/, "")
     .replace(/[ \t]{2,}/g, " ")

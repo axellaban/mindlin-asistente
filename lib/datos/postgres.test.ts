@@ -95,7 +95,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await msg(421, 42, "persona", "2026-11-07T13:01:00.000Z");
 
     expect(await a.candidatosSeguimiento(ahora)).toEqual([
-      { chatwoot_id: 40, nombre: "Ana", telefono: "5491155550000", proyecto: "lerma-439", crm_contacto_id: null, paso_seguimiento: 0, ultima_salida: "2026-11-07T13:01:00.000Z" },
+      { chatwoot_id: 40, nombre: "Ana", nombre_anotado: null, telefono: "5491155550000", proyecto: "lerma-439", crm_contacto_id: null, paso_seguimiento: 0, ultima_salida: "2026-11-07T13:01:00.000Z" },
     ]);
 
     const { rows } = await pool.query(

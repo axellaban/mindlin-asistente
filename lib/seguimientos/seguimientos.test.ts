@@ -62,7 +62,9 @@ describe("reglas de seguimiento", () => {
 
   it("arma el mensaje con el nombre de pila y el proyecto, y sin nombre no queda raro", () => {
     expect(textoSeguimiento("Hola {{nombre}}, ¿pudiste ver lo de {{proyecto}}?", { nombre: "Ana", proyecto: "Lerma 439" })).toBe("Hola Ana, ¿pudiste ver lo de Lerma 439?");
-    expect(textoSeguimiento("Hola {{nombre}}, ¿pudiste ver lo de {{proyecto}}?", { nombre: "", proyecto: "" })).toBe("Hola, ¿pudiste ver lo de el proyecto?");
+    expect(textoSeguimiento("Hola {{nombre}}, ¿pudiste ver lo de {{proyecto}}?", { nombre: "", proyecto: "" })).toBe("Hola, ¿pudiste ver lo del proyecto?");
+    expect(textoSeguimiento("¿Te interesa ir a {{proyecto}}? {{proyecto}} tiene cocheras.", { nombre: "", proyecto: "" })).toBe("¿Te interesa ir al proyecto? el proyecto tiene cocheras.");
+    expect(textoSeguimiento("¿Te interesa ir a {{proyecto}}?", { nombre: "", proyecto: "Lerma 439" })).toBe("¿Te interesa ir a Lerma 439?");
     expect(textoSeguimiento("{{nombre}}, ¿seguís buscando?", { nombre: "", proyecto: "" })).toBe("¿seguís buscando?");
     expect(["ANA maría", "  juan ", "WhatsApp +5491155550000", "+54 9 11", "🌸 Flor", "Ñandú", "", null].map(nombreDePila)).toEqual(["Ana", "Juan", "", "", "", "Ñandú", "", ""]);
   });
@@ -120,6 +122,14 @@ describe("la corrida de seguimientos", () => {
     expect(p.pestanias["CRM Actividad"][0][5]).toBe("Seguimiento automático (1.º): Hola Ana, ¿pudiste ver lo de Lerma 439?");
     // La corrida siguiente no repite: el paso 2 no tiene regla.
     expect((await p.correr()).enviados).toBe(0);
+  });
+
+  it("si el CRM no tiene el nombre (lo dio de alta el asistente sin nombre), usa el que la persona le dijo", async () => {
+    const p = preparar({ contactos: [filaCRM({ ID: "c1", Nombre: "WhatsApp +5491155550000", Teléfono: "+5491155550000", Etapa: "Nuevo" })] });
+    await p.charla(7, 3, { nombre: "🌸" });
+    await p.datos.almacen.guardarConversacion({ chatwoot_id: 7, interesado: { nombre: "beatriz gómez" } });
+    await p.correr();
+    expect(p.hechos).toEqual(["enviar 7: Hola Beatriz, ¿pudiste ver lo de Lerma 439?"]);
   });
 
   it("no escribe antes de los días de la regla, fuera de horario ni sin reglas", async () => {

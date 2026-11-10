@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { respuesta } from "../../test/fixtures";
-import { LIMITE_MS, MAX_VUELTAS, responder, type Herramientas, type Modelo } from "./agente";
+import { LIMITE_MS, MAX_LETRAS_MENSAJE, MAX_VUELTAS, mensajesDelHistorial, responder, type Herramientas, type Modelo } from "./agente";
 
 const herramientas: Herramientas = {
   async registrarInteresado() {
@@ -40,5 +40,16 @@ describe("el ida y vuelta con la IA", () => {
     const r = await responder({ modelo, instrucciones: "i", situacion: "s", historial, proyectos: ["lerma-439"], herramientas, reloj: () => 0 });
     expect(pedidos).toBe(MAX_VUELTAS);
     expect(r.fin).toBe("demasiadas_vueltas");
+  });
+
+  it("si la respuesta llega al tope de largo, no la manda cortada: pasa al equipo", async () => {
+    const modelo: Modelo = async () => respuesta([{ type: "text", text: "Te cuento todo: primero…" }], "max_tokens");
+    const r = await responder({ modelo, instrucciones: "i", situacion: "s", historial, proyectos: ["lerma-439"], herramientas });
+    expect(r).toEqual({ texto: "", pasarAPersona: { motivo: "La respuesta del asistente salió demasiado larga.", resumen: "" }, fin: "cortada" });
+  });
+
+  it("cada mensaje del historial va con un tope de largo", () => {
+    const largo = [{ ...historial[0], texto: "x".repeat(MAX_LETRAS_MENSAJE + 500) }];
+    expect(String(mensajesDelHistorial(largo)[0].content)).toHaveLength(MAX_LETRAS_MENSAJE);
   });
 });
