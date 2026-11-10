@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lerma, otroProyecto, tono } from "../../test/fixtures";
-import { ficha, instrucciones, situacion } from "./contexto";
+import { equipoTrabajando, ficha, instrucciones, situacion } from "./contexto";
 
 describe("contexto del agente", () => {
   it("la ficha marca lo que falta para que no lo invente", () => {
@@ -16,6 +16,11 @@ describe("contexto del agente", () => {
     expect(i).toContain("quiera visitar el proyecto");
     expect(i).toContain("Villa Crespo");
     expect(i).not.toContain("Palermo");
+    // De los otros proyectos va solo el nombre, para poder cambiar si pregunta por otro.
+    expect(i).toContain("# Otros proyectos de Mindlin");
+    expect(i).toContain("- Otro 1 (id: otro-1)");
+    expect(i).not.toContain("Monoambientes");
+    expect(instrucciones({ tono, proyectos: [lerma()], proyecto: lerma(), ejemplos: [] })).not.toContain("Otros proyectos");
   });
 
   it("sin proyecto elegido, lista los proyectos sin dar datos y pide elegir", () => {
@@ -42,11 +47,26 @@ describe("contexto del agente", () => {
       ahora,
       nombre: "Ana",
       telefono: "5491155550000",
-      crm: { id: "c1", nombre: "Ana", telefono: "", etapa: "Interesado", responsable: "Mati", proyectos: [], ultimoContacto: "2026-11-01T10:00:00Z", notas: "Quiere balcón." },
+      crm: { id: "c1", nombre: "Ana", telefono: "", etapa: "Interesado", responsable: "Mati", proyectos: [], ultimoContacto: "2026-11-01T10:00:00Z", notas: "Quiere balcón.", para: "Invertir", ambientes: "", presupuestoUsd: "90000", formaDePago: "", plazo: "", proximoPaso: "Mandar planos", fechaProximoPaso: "2026-11-12" },
     });
     expect(s).toContain("18:05");
     expect(s).toContain("Etapa: Interesado. Responsable: Mati. Último contacto: 2026-11-01.");
     expect(s).toContain("Quiere balcón.");
+    expect(s).toContain("En el CRM figura: para: Invertir; presupuesto: USD 90000.");
+    expect(s).toContain("Próximo paso que anotó el equipo: Mandar planos (2026-11-12).");
     expect(situacion({ ahora, nombre: "", telefono: "", crm: undefined })).toContain("no se pudo consultar");
+    const conAnotado = situacion({ ahora, nombre: "Ana", telefono: "", crm: null, anotado: { nombre: "Ana Prueba", ambientes: "2", resumen: "Busca 2 ambientes." } });
+    expect(conAnotado).toContain("Lo que ya sabés de esta persona (lo anotaste vos): nombre: Ana Prueba; ambientes: 2.");
+    expect(conAnotado).toContain("Tu último resumen para el equipo: Busca 2 ambientes.");
+  });
+
+  it("sabe si el equipo está trabajando (lunes a viernes de 9 a 20 en Buenos Aires)", () => {
+    expect(equipoTrabajando(new Date("2026-11-10T12:00:00Z"))).toBe(true); // martes 9:00
+    expect(equipoTrabajando(new Date("2026-11-10T11:59:00Z"))).toBe(false); // martes 8:59
+    expect(equipoTrabajando(new Date("2026-11-10T23:00:00Z"))).toBe(false); // martes 20:00
+    expect(equipoTrabajando(new Date("2026-11-07T15:00:00Z"))).toBe(false); // sábado 12:00
+    const sabado = situacion({ ahora: new Date("2026-11-07T15:00:00Z"), nombre: "Ana", telefono: "", crm: null });
+    expect(sabado).toContain("El equipo comercial no está trabajando ahora");
+    expect(situacion({ ahora: new Date("2026-11-10T15:00:00Z"), nombre: "Ana", telefono: "", crm: null })).not.toContain("no está trabajando");
   });
 });

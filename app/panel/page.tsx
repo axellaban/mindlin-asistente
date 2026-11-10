@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { describirIA } from "@/lib/agente/proveedor";
 import { estadoConfig } from "@/lib/config";
+import { queFalta } from "@/lib/panel/listo";
 import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { pausarAsistente } from "./acciones";
 import { fecha, Marco, SinBase, type Avisos } from "./marco";
@@ -30,14 +31,28 @@ export default async function Resumen({ searchParams }: { searchParams: Avisos }
       </Marco>
     );
   }
-  const [r, registro, estado] = await Promise.all([d.resumen(7), d.registro({ limite: 30 }), d.estado()]);
+  const [r, registro, estado, tono, proyectos, reglas] = await Promise.all([d.resumen(7), d.registro({ limite: 30 }), d.estado(), d.tono(), d.proyectos(), d.reglas()]);
+  const pasos = queFalta({ tono, proyectos, reglas: reglas.filter((x) => x.estado !== "archivada").length, faltan });
+  const pendientes = pasos.filter((p) => !p.listo);
   return (
     <Marco nombre={nombre} actual="/panel" titulo="Resumen" avisos={searchParams}>
       <p className="nota">
         Responde {ia.proveedor === "openai" ? "OpenAI" : ia.proveedor === "anthropic" ? "Claude" : "nadie todavía (falta la clave de la IA)"}
         {ia.modelo ? ` (${ia.modelo})` : ""}. Audios: {ia.audios ? "se transcriben" : "pide que los escriban (falta OPENAI_API_KEY)"}.
-        {faltan.length > 0 && <> Falta cargar en Vercel: {faltan.join(", ")}.</>}
       </p>
+      <section aria-labelledby="falta-titulo">
+        <h2 id="falta-titulo">{pendientes.length ? pendientes.length === 1 ? "Para que atienda bien, falta 1 cosa" : `Para que atienda bien, faltan ${pendientes.length} cosas` : "Está todo listo"}</h2>
+        <ul className="pasos">
+          {pasos.map((p, i) => (
+            <li key={i} className={p.listo ? "listo" : ""}>
+              <span aria-hidden="true">{p.listo ? "✅" : "⬜"}</span> {p.texto} {!p.listo && p.link && <Link href={p.link}>Resolverlo</Link>}
+            </li>
+          ))}
+        </ul>
+        <p className="nota">
+          Antes de abrir la línea (y cada vez que cambies una ficha o el tono), <Link href="/panel/probar">probá el asistente</Link> como si fueras un interesado.
+        </p>
+      </section>
       <section className={`estado ${estado.pausado ? "pausado" : ""}`} aria-labelledby="estado-titulo">
         <h2 id="estado-titulo">{estado.pausado ? "⏸️ El asistente está pausado" : "El asistente está respondiendo"}</h2>
         <p className="nota">

@@ -22,7 +22,7 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
   const registro: { tipo: TipoRegistro; conversacion: number | null; detalle: string; datos?: unknown }[] = [];
   const reglas = inicial.reglas ?? [];
   const tono: Tono = inicial.tono ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "" };
-  const conv = (id: number) => conversaciones.get(id) ?? { chatwoot_id: id, proyecto: null, crm_contacto_id: null, telefono: null, nombre: null };
+  const conv = (id: number): Conversacion => conversaciones.get(id) ?? { chatwoot_id: id, proyecto: null, crm_contacto_id: null, telefono: null, nombre: null, interesado: {} };
   const seg = (id: number): Seguimiento => {
     let s = seguimiento.get(id);
     if (!s) {
@@ -103,7 +103,7 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
         .sort((a, b) => a.salida!.localeCompare(b.salida!))
         .map(({ id, s, salida }) => {
           const c = conv(id);
-          return { chatwoot_id: id, nombre: c.nombre, telefono: c.telefono, proyecto: c.proyecto, crm_contacto_id: c.crm_contacto_id, paso_seguimiento: s.paso_seguimiento, ultima_salida: salida! };
+          return { chatwoot_id: id, nombre: c.nombre, nombre_anotado: c.interesado?.nombre ?? null, telefono: c.telefono, proyecto: c.proyecto, crm_contacto_id: c.crm_contacto_id, paso_seguimiento: s.paso_seguimiento, ultima_salida: salida! };
         });
     },
     async reglasVigentes() {

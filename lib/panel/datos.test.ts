@@ -103,6 +103,9 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
 
     expect((await d.conversaciones())[0]).toMatchObject({ chatwoot_id: 50, nombre: "Ana Prueba", ultimo_texto: "¡Hola! ¿En qué te ayudo?", ultimo_rol: "bot" });
     expect((await d.mensajes(50)).map((m) => m.rol)).toEqual(["interesado", "bot"]);
+    await a.guardarConversacion({ chatwoot_id: 50, interesado: { ambientes: "2" } });
+    expect(await d.conversacion(50)).toMatchObject({ chatwoot_id: 50, nombre: "Ana Prueba", interesado: { ambientes: "2" }, sin_seguimientos: false, ultimo_seguimiento: null });
+    expect(await d.conversacion(999)).toBeNull();
     expect((await d.registro({ conversacion: 50 })).map((r) => r.tipo)).toEqual(["respuesta"]);
     expect((await d.registro()).map((r) => r.tipo)).toEqual(["error", "respuesta"]);
     expect(await d.resumen()).toMatchObject({ respuesta: 1, error: 1, conversaciones: 1, seguimiento: 0 });

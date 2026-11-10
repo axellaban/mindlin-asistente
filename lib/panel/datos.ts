@@ -5,7 +5,7 @@
 
 import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
-import type { Ejemplo, ReglaSeguimiento, Tono, TipoRegistro } from "../datos/tipos";
+import type { Anotado, Ejemplo, ReglaSeguimiento, Tono, TipoRegistro } from "../datos/tipos";
 import type { FichaEditable, ReglaNueva } from "./validar";
 
 type Db = Pick<pg.Pool, "query">;
@@ -30,6 +30,18 @@ export interface ConversacionPanel {
   ultimo_rol: MensajeHistorial["rol"] | null;
   paso_seguimiento: number;
   sin_seguimientos: boolean;
+}
+
+export interface DetalleConversacion {
+  chatwoot_id: number;
+  nombre: string | null;
+  telefono: string | null;
+  proyecto: string | null;
+  crm_contacto_id: string | null;
+  interesado: Anotado;
+  paso_seguimiento: number;
+  sin_seguimientos: boolean;
+  ultimo_seguimiento: string | null;
 }
 
 export interface RegistroPanel {
@@ -168,6 +180,15 @@ export function datosPanel(db: Db) {
         [limite],
       );
       return rows.map((r) => ({ ...r, chatwoot_id: Number(r.chatwoot_id), ultimo: iso(r.ultimo) }));
+    },
+
+    async conversacion(id: number): Promise<DetalleConversacion | null> {
+      const { rows } = await db.query(
+        "select chatwoot_id, nombre, telefono, proyecto, crm_contacto_id, interesado, paso_seguimiento, sin_seguimientos, ultimo_seguimiento from conversaciones where chatwoot_id = $1",
+        [id],
+      );
+      const r = rows[0];
+      return r ? { ...r, chatwoot_id: Number(r.chatwoot_id), interesado: r.interesado ?? {}, ultimo_seguimiento: iso(r.ultimo_seguimiento) } : null;
     },
 
     async mensajes(conversacion: number, limite = 300): Promise<MensajeHistorial[]> {

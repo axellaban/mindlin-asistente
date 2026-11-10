@@ -13,9 +13,11 @@ export function hojaGoogle(env: Record<string, string | undefined> = process.env
   if (!email || !clave || !planilla) return null;
   const cliente = new JWT({ email, key: clave.replace(/\\n/g, "\n"), scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(planilla)}/values`;
+  // Si Google no contesta, mejor un error a tiempo: el asistente sigue sin el CRM.
+  const timeout = 20_000;
   return {
     async leer(rango) {
-      const r = await cliente.request<{ values?: string[][] }>({ url: `${base}/${encodeURIComponent(rango)}` });
+      const r = await cliente.request<{ values?: string[][] }>({ url: `${base}/${encodeURIComponent(rango)}`, timeout });
       return r.data.values ?? [];
     },
     async agregar(pestania, filas) {
@@ -23,6 +25,7 @@ export function hojaGoogle(env: Record<string, string | undefined> = process.env
         url: `${base}/${encodeURIComponent(`'${pestania}'!A1`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
         method: "POST",
         data: { values: filas },
+        timeout,
       });
     },
   };

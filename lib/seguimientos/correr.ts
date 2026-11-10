@@ -71,7 +71,7 @@ export async function correrSeguimientos({
     const cuando = ahora.toISOString();
     if (!(await almacen.reclamarSeguimiento({ conversacion: c.chatwoot_id, pasoAnterior: c.paso_seguimiento, regla: regla.id, ahora: cuando }))) continue;
     const proyecto = proyectos.find((p) => p.id === (c.proyecto ?? regla.proyecto)) ?? (proyectos.length === 1 ? proyectos[0] : null);
-    const texto = textoSeguimiento(regla.mensaje, { nombre: nombreDePila(contacto?.nombre || c.nombre), proyecto: proyecto?.nombre ?? "" });
+    const texto = textoSeguimiento(regla.mensaje, { nombre: [contacto?.nombre, c.nombre_anotado, c.nombre].map(nombreDePila).find(Boolean) ?? "", proyecto: proyecto?.nombre ?? "" });
     try {
       const mensajeId = await chatwoot.enviar(c.chatwoot_id, texto);
       await almacen.anotarSeguimiento({ conversacion: c.chatwoot_id, regla: regla.id, etapa, paso, version: regla.version, texto, mensaje_id: mensajeId, enviado: cuando });

@@ -23,7 +23,15 @@ export default async function Ficha({ params, searchParams }: { params: Promise<
   if (d && !nuevo && !p) notFound();
   return (
     <Marco nombre={nombre} actual="/panel/proyectos" titulo={nuevo ? "Nuevo proyecto" : `Ficha de ${p?.nombre ?? id}`} avisos={searchParams}>
-      <p><Link href="/panel/proyectos">← Todas las fichas</Link></p>
+      <p>
+        <Link href="/panel/proyectos">← Todas las fichas</Link>
+        {p?.activo && (
+          <>
+            {" · "}
+            <Link href={`/panel/probar?proyecto=${p.id}`}>Probar el asistente con esta ficha</Link>
+          </>
+        )}
+      </p>
       {!d ? (
         <SinBase />
       ) : (

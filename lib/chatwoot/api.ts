@@ -31,6 +31,9 @@ export interface Chatwoot {
 /** 25 MB: el máximo que acepta OpenAI para transcribir. Un audio de WhatsApp de varios minutos pesa mucho menos. */
 export const MAX_ADJUNTO_BYTES = 25 * 1024 * 1024;
 
+/** Cuánto esperar a Chatwoot en cada pedido. */
+export const TIEMPO_MAXIMO_MS = 20_000;
+
 export class ErrorChatwoot extends Error {
   constructor(
     message: string,
@@ -47,6 +50,8 @@ export function crearChatwoot(cfg: ConfigChatwoot, pedir: typeof fetch = fetch):
       method: "POST",
       headers: { "Content-Type": "application/json", api_access_token: cfg.token },
       body: JSON.stringify(cuerpo),
+      // Si Chatwoot no contesta, mejor un error a tiempo (pasa al equipo) que colgar la función.
+      signal: AbortSignal.timeout(TIEMPO_MAXIMO_MS),
     });
     if (!r.ok) throw new ErrorChatwoot(`Chatwoot respondió ${r.status} en ${ruta}: ${(await r.text()).slice(0, 300)}`, r.status);
     return r.json().catch(() => null);

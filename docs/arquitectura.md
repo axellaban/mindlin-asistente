@@ -78,7 +78,7 @@ También guarda el historial de mensajes (solo el texto). El token del Agent Bot
 
 - Responde la IA que tenga clave en Vercel. **Hoy, Claude** (Opus 5.5): Axel cargó `ANTHROPIC_API_KEY` el 10/11. OpenAI (GPT-6.1 Sol, por la API «Responses») queda como alternativa sin tocar código: el agente arma los pedidos siempre igual y un adaptador los traduce. Se cambia con variables (ver `asistente.md`).
 - Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van primero, para aprovechar el caché del proveedor. Si no sabe de qué proyecto se trata, pregunta.
-- El contacto del CRM se busca por teléfono antes de responder.
+- El contacto del CRM se busca antes de responder: por el ID anotado en la conversación y, si no, por teléfono.
 - Herramientas:
   - registrar al interesado y lo que busca;
   - elegir el proyecto, si hay más de uno;

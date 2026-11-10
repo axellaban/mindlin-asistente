@@ -96,6 +96,14 @@ export interface ContactoCRM {
   proyectos: string[];
   ultimoContacto: string;
   notas: string;
+  /** Lo que el equipo (o el asistente, al darlo de alta) ya sabe de lo que busca. */
+  para: string;
+  ambientes: string;
+  presupuestoUsd: string;
+  formaDePago: string;
+  plazo: string;
+  proximoPaso: string;
+  fechaProximoPaso: string;
 }
 
 export interface DatosInteresado {
@@ -111,7 +119,11 @@ export interface DatosInteresado {
 }
 
 export interface CRM {
-  buscarPorTelefono(telefono: string): Promise<ContactoCRM | null>;
+  /**
+   * El contacto de esta persona: primero por el ID que ya quedó anotado en la conversación y, si
+   * no, por teléfono (WhatsApp a veces no pasa el número: sin el ID se crearía un repetido).
+   */
+  buscar(p: { id?: string | null; telefono?: string | null }): Promise<ContactoCRM | null>;
   /** Todos los contactos (una sola lectura): para saber la etapa de cada conversación en los seguimientos. */
   contactos(): Promise<ContactoCRM[]>;
   crearContacto(d: DatosInteresado, ahora: string): Promise<ContactoCRM>;
@@ -140,6 +152,13 @@ export function contactoDeFila(f: string[]): ContactoCRM {
     proyectos: v("Proyectos").split(",").map((p) => p.trim()).filter(Boolean),
     ultimoContacto: v("Último contacto"),
     notas: v("Notas"),
+    para: v("Para"),
+    ambientes: v("Ambientes"),
+    presupuestoUsd: v("Presupuesto USD"),
+    formaDePago: v("Forma de pago"),
+    plazo: v("Plazo"),
+    proximoPaso: v("Próximo paso"),
+    fechaProximoPaso: v("Fecha próximo paso"),
   };
 }
 
@@ -187,11 +206,15 @@ export const RANGO_CONTACTOS = `'${PESTANIA_CONTACTOS}'!A2:${letraColumna(COLUMN
 
 export function crearCRM(hoja: Hoja, { responsable = "" }: { responsable?: string } = {}): CRM {
   return {
-    async buscarPorTelefono(telefono) {
-      const clave = claveTelefono(telefono);
-      if (clave.length < 8) return null;
-      const filas = await hoja.leer(RANGO_CONTACTOS);
-      const fila = filas.find((f) => f[col("ID")] && claveTelefono(f[col("Teléfono")] ?? "") === clave);
+    async buscar({ id, telefono }) {
+      const clave = claveTelefono(telefono ?? "");
+      const porId = id?.trim();
+      if (!porId && clave.length < 8) return null;
+      const filas = (await hoja.leer(RANGO_CONTACTOS)).filter((f) => f[col("ID")]);
+      const fila =
+        (porId && filas.find((f) => f[col("ID")].trim() === porId)) ||
+        (clave.length >= 8 && filas.find((f) => claveTelefono(f[col("Teléfono")] ?? "") === clave)) ||
+        null;
       return fila ? contactoDeFila(fila) : null;
     },
     async contactos() {

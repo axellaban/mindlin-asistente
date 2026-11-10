@@ -15,7 +15,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 1. **Axel y Panel:** cargar `PANEL_CLAVE` y `CRON_SECRET` en Vercel y volver a publicar (`ANTHROPIC_API_KEY` ya está). Tarea 2 de `IA_DE_PANELES.md`.
 2. **Axel y Panel:** escanear el QR con el celular de la línea de prueba y probar un mensaje (tarea 5).
 3. **Panel:** asignar el Agent Bot a la bandeja y probar de punta a punta con datos inventados (tarea 6): respuesta, paso a una persona, devolverla al bot y la fila en el CRM.
-4. **Mindlin:** cargar la ficha de Lerma 439 y revisar el tono en `/panel`.
+4. **Mindlin:** cargar la ficha de Lerma 439 y revisar el tono en `/panel` (el Resumen dice qué falta), y probarlo en `/panel/probar` antes de abrir la línea.
 5. **Claude con Axel:** probar las respuestas con Claude de verdad y ajustar el tono con el material de Mindlin.
 6. **Panel:** actualizar el instalador en el servidor (tarea 8).
 
@@ -25,6 +25,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - [ ] Los contactos que da de alta el asistente entran en etapa **Nuevo**, y en el hub eso dispara la alarma «nuevo sin contactar en 2 h». ¿Está bien así (que el equipo lo mire enseguida) o tienen que entrar en «Contacto inicial», porque ya les habló el asistente? — Mindlin
 - [ ] Seguimientos: qué mensajes, en qué etapas y a los cuántos días. Se cargan en `/panel/seguimientos`; sin reglas no sale ninguno. — Mindlin
 - [ ] Audios: cargar `OPENAI_API_KEY` para transcribirlos (Axel: «luego»). Mientras tanto, el bot pide que lo escriban. — Axel
+- [ ] Horario del equipo comercial: el asistente supone de lunes a viernes de 9 a 20 (fuera de eso, si pasa la conversación avisa que le escriben apenas vuelvan). ¿Es así? Se cambia en `HORARIO_EQUIPO` (`lib/agente/contexto.ts`). — Mindlin
 - [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
 
 Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); responde **Claude** (Axel, 10/11; OpenAI queda como opción); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11).
@@ -36,6 +37,8 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 - [x] Tono y ejemplos editables en el panel (`/panel/tono`). — Claude, 10/11
 - [x] Claude como proveedor, con OpenAI como alternativa por variable (`docs/asistente.md`). `ANTHROPIC_API_KEY` cargada. — Claude y Axel, 10/11
 - [x] Audios: transcripción lista con OpenAI; sin esa clave, pide que lo escriban. — Claude, 10/11
+- [x] Recuerda lo que ya anotó de cada persona (no repite preguntas ni filas en el CRM), responde con el formato de WhatsApp, cambia de proyecto si preguntan por otro y tiene en cuenta el horario del equipo. — Claude, 11/11
+- [x] «Probar» en el panel: chatear con el asistente sin WhatsApp ni CRM, para ajustar tono y fichas. — Claude, 11/11
 - [ ] Tono: revisar el borrador y sumar 10 a 20 conversaciones reales de ejemplo, sin datos personales. — Mindlin
 - [ ] Probar con Claude de verdad (en las pruebas se usó uno simulado) y ajustar. — Claude con Axel
 - [ ] Con la línea real, confirmar que los mensajes del bot no vuelven a entrar como si los hubiera escrito una persona (el webhook ya descarta ese eco). — Claude y Panel
@@ -50,6 +53,7 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 
 - [x] Busca a la persona por teléfono y consulta etapa, responsable y notas; da de alta al interesado con lo que busca y anota el resumen en la actividad. Nunca cambia lo que cargó una persona. — Claude, 07/11
 - [x] Columnas, etapas y orígenes al día con el hub de noviembre. — Claude, 10/11
+- [x] Busca por el ID anotado además del teléfono (sin eso, un contacto sin número se repetía en cada mensaje) y lee para qué busca, presupuesto y próximo paso. — Claude, 11/11
 - [x] Planilla compartida con la cuenta de servicio y `CRM_SHEET_ID` en Vercel. — Panel, 09/11
 - [x] El acuerdo de integración: qué lee y escribe hoy, y qué necesitaría del hub cuando su CRM deje la planilla ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 10/11
 - [ ] Pasarle `docs/integracion-crm.md` a Mindlin y acordarlo. — Axel
