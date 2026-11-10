@@ -1,10 +1,12 @@
 # Integración con el CRM de Mindlin
 
-La propuesta de Mindlin pide que el asistente **registre** los datos del interesado, lo que busca y un resumen, y que **consulte** la etapa, el responsable y lo que ya saben de esa persona. También pide acordar qué hace falta de su lado. Este documento es ese acuerdo: qué hace hoy y qué necesitaría el día que su CRM deje la planilla.
+La propuesta de Mindlin pide que el asistente **registre** los datos del interesado, lo que busca y un resumen, y que **consulte** la etapa, el responsable y lo que ya saben de esa persona. También pide acordar qué hace falta de su lado. Este documento es ese acuerdo.
 
-## Hoy: la planilla del CRM
+**Decidido (Axel, 10/11): el CRM es una planilla de Google.** El asistente ya lee y escribe ahí, así que la integración está hecha; falta probarla con la línea real.
 
-El CRM del hub guarda en una planilla de Google, con las pestañas **«CRM Contactos»** y **«CRM Actividad»**. El asistente entra con su propia cuenta de servicio, como **Editor** (`mindlin-asistente@mindlin-developers.iam.gserviceaccount.com`), y la planilla se indica con `CRM_SHEET_ID` en Vercel.
+## La planilla del CRM
+
+El CRM guarda en una planilla de Google, con las pestañas **«CRM Contactos»** y **«CRM Actividad»**. El asistente entra con su propia cuenta de servicio, como **Editor** (`mindlin-asistente@mindlin-developers.iam.gserviceaccount.com`), y la planilla se indica con `CRM_SHEET_ID` en Vercel.
 
 ### Qué lee
 
@@ -37,18 +39,20 @@ Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto in
 - No cambiar el orden ni el nombre de las columnas de esas pestañas sin avisar: el asistente las lee por posición, como el hub.
 - Si el hub cambia las etapas, las opciones o las columnas, hay que actualizar `lib/crm/planilla.ts` en este repo.
 
-## Cuando el CRM deje la planilla
+### Si se usa otra planilla
 
-El hub ya puede guardar el CRM en su propia base de datos. Cuando lo activen, lo que el asistente escriba en la planilla **dejaría de verse** en el hub. Para ese momento, el asistente necesita que el hub ofrezca **cuatro operaciones**, protegidas con una clave compartida (en Vercel, en los dos proyectos):
+Hoy `CRM_SHEET_ID` apunta a la planilla del CRM del hub. Si Mindlin quiere que el asistente use otra planilla de Google, hace falta:
 
-| Operación | Qué recibe | Qué devuelve |
-| --- | --- | --- |
-| Buscar un contacto | el id (si ya se conoce) o el teléfono | id, nombre, teléfono, etapa, responsable, proyectos, último contacto, notas, para, ambientes, presupuesto, forma de pago, plazo y próximo paso; o «no está» |
-| La etapa de varios contactos | una lista de teléfonos o ids (para los seguimientos, cada 15 minutos) | id, teléfono y etapa de cada uno |
-| Dar de alta un contacto | los mismos datos que hoy van a la fila nueva | el id |
-| Sumar actividad | id del contacto, tipo («WhatsApp»), detalle y fecha | — |
+1. Que tenga las pestañas **«CRM Contactos»** y **«CRM Actividad»**, con las mismas columnas y en el mismo orden (están en `lib/crm/planilla.ts`: `COLUMNAS_CONTACTOS` y `COLUMNAS_ACTIVIDAD`), con los títulos en la primera fila.
+2. Compartirla con la cuenta de servicio del asistente como **Editor**.
+3. Cambiar `CRM_SHEET_ID` en Vercel por el ID de esa planilla y volver a publicar.
 
-Del lado del asistente, el cambio es chico: todo pasa por cuatro funciones (`buscar`, `contactos`, `crearContacto` y `anotarActividad` en `lib/crm/planilla.ts`), así que se cambia cómo se conectan sin tocar el resto.
+Si quieren otras columnas u otras etapas, se cambia `lib/crm/planilla.ts` (y sus pruebas): es un cambio chico.
+
+### Límites de una planilla
+
+- Google permite una cantidad de pedidos por minuto. El asistente usa su propia cuenta de servicio y hace una o dos lecturas por mensaje y una por corrida de seguimientos: para el volumen de un piloto sobra.
+- El asistente solo agrega filas. Mover a alguien de etapa, asignar responsable o corregir datos lo hace el equipo, a mano o desde el hub.
 
 ## Lo que queda en Chatwoot
 

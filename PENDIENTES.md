@@ -28,7 +28,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - [ ] Horario del equipo comercial: el asistente supone de lunes a viernes de 9 a 20 (fuera de eso, si pasa la conversación avisa que le escriben apenas vuelvan). ¿Es así? Se cambia en `HORARIO_EQUIPO` (`lib/agente/contexto.ts`). — Mindlin
 - [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
 
-Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); responde **Claude** (Axel, 10/11; OpenAI queda como opción); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11).
+Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); responde **Claude** (Axel, 10/11; OpenAI queda como opción); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11).
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
@@ -55,8 +55,10 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 - [x] Columnas, etapas y orígenes al día con el hub de noviembre. — Claude, 10/11
 - [x] Busca por el ID anotado además del teléfono (sin eso, un contacto sin número se repetía en cada mensaje) y lee para qué busca, presupuesto y próximo paso. — Claude, 11/11
 - [x] Planilla compartida con la cuenta de servicio y `CRM_SHEET_ID` en Vercel. — Panel, 09/11
-- [x] El acuerdo de integración: qué lee y escribe hoy, y qué necesitaría del hub cuando su CRM deje la planilla ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 10/11
-- [ ] Pasarle `docs/integracion-crm.md` a Mindlin y acordarlo. — Axel
+- [x] El acuerdo de integración: qué lee y escribe, y qué tiene que cuidar Mindlin ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 10/11
+- [x] Decidido: el CRM es una planilla de Google, que es lo que el asistente ya usa. Mindlin no tiene que construir nada para la integración. — Axel, 10/11
+- [ ] Confirmar si es la planilla del CRM del hub (la que ya está en `CRM_SHEET_ID`) u otra. Si es otra: mismas pestañas y columnas, compartirla con la cuenta de servicio y cambiar `CRM_SHEET_ID` (`docs/integracion-crm.md`). — Axel
+- [ ] Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas sin avisar. — Axel
 - [ ] Probar el CRM con la planilla real (con la línea de prueba). — Claude y Panel
 
 ## 4. Seguimientos
