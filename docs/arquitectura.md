@@ -44,7 +44,7 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 
 - Se publica sola: si el bot falla o tiene carga, no afecta al hub. Tampoco depende de la cuenta de GitHub suspendida.
 - Mismo stack y convenciones que el hub, para poder sumarlo como módulo más adelante si lo quieren adentro.
-- Su panel: conversaciones del bot, fichas de proyecto, tono y ejemplos, reglas de seguimiento.
+- Su panel (`/panel`, con clave): conversaciones del bot, fichas de proyecto, tono y ejemplos, reglas de seguimiento. Ver [`panel.md`](panel.md).
 
 ## 5. CRM: el del hub
 
@@ -63,6 +63,8 @@ Cómo se usa:
 - El asistente usa **su propia cuenta de servicio de Google**, para tener su propio límite de pedidos y no comerle cuota al hub.
 - Mientras el hub esté bloqueado, el asistente escribe directo en la planilla, con las mismas columnas que el hub. Cuando vuelva, conviene pasarlo a un endpoint del hub.
 - Si el volumen crece, el paso siguiente es pasar el CRM del hub a Postgres.
+- Las etapas, las columnas y los orígenes son los del hub de noviembre de 2026 (etapas Nuevo → Contacto inicial → Seguimiento → Visita / reunión → Negociación → Reserva → Vendido, más Descartado y En pausa; columna Tags; origen WhatsApp). Revisado el 10/11 contra `lib/crm/modelo.ts` del hub.
+- **Riesgo (10/11):** el hub ya sabe guardar el CRM en su propia base (Postgres) cuando se le carga `DATABASE_URL`. Desde ese momento lee y escribe ahí y la planilla queda como copia vieja: **lo que anote el asistente en la planilla dejaría de verse en el hub.** Hoy el hub sigue en la planilla. Antes de conectarle la base al hub, hay que pasar el asistente a esa base o a un endpoint del hub (ver `PENDIENTES.md`).
 
 ## 6. Base del asistente: Postgres en Neon (creado desde Vercel)
 
@@ -72,24 +74,24 @@ Fichas de cada proyecto, tono y ejemplos, reglas de seguimiento con sus versione
 
 También guarda el historial de mensajes (solo el texto). El token del Agent Bot no puede leer el historial de Chatwoot, así que el asistente lo arma con los avisos.
 
-## 7. El agente: Claude con herramientas
+## 7. El agente: OpenAI o Claude, con herramientas
 
-- Claude Opus 5.5 con esfuerzo medio, y reintento automático en otro modelo si rechaza una consulta. Se cambia con variables (ver `asistente.md`).
-- Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van en el caché de Anthropic. Si no sabe de qué proyecto se trata, pregunta.
+- Responde la IA que tenga clave en Vercel. Axel pidió **OpenAI** el 09/11 (GPT-6.1 Sol por defecto, por la API «Responses»); **Claude** (Opus 5.5) queda como alternativa sin tocar código. El agente arma los pedidos siempre igual y un adaptador los traduce para OpenAI. Se cambia con variables (ver `asistente.md`).
+- Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van primero, para aprovechar el caché del proveedor. Si no sabe de qué proyecto se trata, pregunta.
 - El contacto del CRM se busca por teléfono antes de responder.
 - Herramientas:
   - registrar al interesado y lo que busca;
   - elegir el proyecto, si hay más de uno;
   - pasar la conversación a una persona.
 - Espera 6 segundos antes de contestar, por si la persona sigue escribiendo.
-- Audios: por ahora pide que lo escriba. Falta transcribirlos.
+- Audios: se transcriben con OpenAI (`gpt-transcribe`) y responde por escrito. Sin `OPENAI_API_KEY`, pide que lo escriban.
 
 ## 8. Seguimientos
 
 - Reglas del tipo «si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones para comparar cuál convierte mejor.
 - Solo a quien ya escribió, de 9 a 20, con tope de intentos. Frenan si el interesado responde o si una persona tomó la conversación.
 - Salen por Chatwoot, así quedan a la vista en la bandeja.
-- Corren cada 15 minutos con un cron (Vercel o el servidor de DonWeb, según el plan de Vercel).
+- Corren cada 15 minutos con el cron de Vercel (plan Pro de Axel). La etapa sale del CRM del hub. Detalle en [`seguimientos.md`](seguimientos.md).
 
 ## Lo que se reutiliza de otros proyectos de Axel
 

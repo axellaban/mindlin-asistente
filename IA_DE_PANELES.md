@@ -1,6 +1,6 @@
 # Instrucciones para la IA de paneles
 
-Este archivo es para la IA que trabaja con **computer use** en la computadora de Axel: la que entra a paneles web (DonWeb, Vercel, Neon, Google, Chatwoot) y a la terminal. Claude escribe el código en este repo y no tiene acceso a esos paneles. Las dos trabajan en paralelo, cada una en lo suyo.
+Este archivo es para la IA que trabaja con **computer use** en la computadora de Axel: la que entra a paneles web (Hostinger, DonWeb, Vercel, Neon, Google, Chatwoot) y a la terminal. Claude escribe el código en este repo y no tiene acceso a esos paneles. Las dos trabajan en paralelo, cada una en lo suyo.
 
 ## Para pegarle a la IA (Axel)
 
@@ -8,7 +8,7 @@ Este archivo es para la IA que trabaja con **computer use** en la computadora de
 
 ## Qué es el proyecto, en dos líneas
 
-Un asistente de IA que atiende por WhatsApp las consultas de los desarrollos de Mindlin Developers (piloto: Lerma 439). WhatsApp entra por **WAHA**, el equipo ve y responde todo en **Chatwoot** (los dos en un servidor de DonWeb), y el asistente es una app en **Vercel** con su base en **Neon** (Postgres). Detalle en [`docs/arquitectura.md`](docs/arquitectura.md).
+Un asistente de IA que atiende por WhatsApp las consultas de los desarrollos de Mindlin Developers (piloto: Lerma 439). WhatsApp entra por **WAHA**, el equipo ve y responde todo en **Chatwoot** (los dos en un VPS de Hostinger, `https://chat.mindlindevelopers.com`), y el asistente es una app en **Vercel** con su base en **Neon** (Postgres). Detalle en [`docs/arquitectura.md`](docs/arquitectura.md).
 
 ## Reglas
 
@@ -52,11 +52,15 @@ Queremos saber si el servidor de Mindlin sirve para correr WAHA y Chatwoot. Entr
 Ya está todo: el proyecto en la cuenta de Vercel de Axel (`https://mindlin-asistente.vercel.app`) y la base **Neon** conectada. Supabase no se usa: el plan gratis estaba lleno.
 
 - **Las tablas se crean solas en cada publicación** (`scripts/migrar.mjs`). No hay que pegar nada a mano.
-- **Lo que queda de esta tarea:**
-  1. `ANTHROPIC_API_KEY`: Axel la crea en console.anthropic.com y la carga en Vercel (**Settings → Environment Variables**, para Production y Preview).
-  2. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
-  3. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: base al día (2 migraciones).` y anotarla.
-  4. Abrir `/api/salud` y anotar la lista `faltan`.
+- **Lo que queda de esta tarea** (actualizado el 10/11). Cada variable, en **Settings → Environment Variables**, para Production y Preview, como **Secret**:
+  1. `OPENAI_API_KEY`: Axel eligió OpenAI. La crea en platform.openai.com (**API keys → Create new secret key**) y la carga directo en Vercel. Con esa clave el asistente responde y transcribe los audios. (Si algún día prefieren Claude, se carga `ANTHROPIC_API_KEY` y `ASISTENTE_PROVEEDOR=anthropic`: ver `docs/asistente.md`.)
+  2. `PANEL_CLAVE`: la clave del panel del equipo (`/panel`). Que la elija Axel (larga, por ejemplo cuatro palabras al azar) y la guarde en su gestor de contraseñas. La comparte él con el equipo, no por este chat.
+  3. `CRON_SECRET`: una clave al azar para los seguimientos. Se puede generar en la terminal con `openssl rand -hex 24` y pegarla directo en Vercel. Nadie más la necesita.
+  4. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
+  5. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: base al día (3 migraciones).` y anotarla.
+  6. En **Settings → Cron Jobs**, confirmar que aparece `/api/cron/seguimientos` cada 15 minutos. Si Vercel no deja publicar por el cron («Hobby accounts are limited to daily cron jobs»), anotalo y frená: el proyecto tiene que estar en el equipo con plan Pro.
+  7. Abrir `/api/salud` y anotar la lista `faltan` y lo que dice `ia` (tiene que decir `"proveedor": "openai"` y `"audios": true`).
+  8. Abrir `/panel`, entrar con tu nombre («IA de paneles») y la clave, y anotar si se ve el resumen. **No cambies las fichas ni el tono:** eso lo carga Mindlin.
 
 ### Tarea 3 · Cuenta de Google para el CRM
 
@@ -117,3 +121,14 @@ Hace falta la tarea 2 terminada (la dirección de Vercel) y que Claude haya deja
 - `bash /opt/mindlin-asistente/servidor.sh verificar` dice qué anda y qué no.
 - `cd /opt/mindlin-asistente && docker compose logs --tail 100 chatwoot-rails` muestra los últimos mensajes de un servicio. Los servicios son `caddy`, `chatwoot-rails`, `chatwoot-sidekiq`, `postgres`, `redis` y `waha`.
 - Copiá el error en `docs/estado-paneles.md`. Antes de copiarlo, revisá que no tenga claves.
+
+### Tarea 8 · Actualizar el instalador en el servidor (10/11)
+
+El instalador ahora se ajusta solo a un servidor con 4 GB: crea el swap si falta (el del VPS ya está) y baja los hilos de Chatwoot para que entre todo. Hay que pasarlo al servidor y correr `actualizar`:
+
+1. Copiá el `infra/servidor.sh` de `main` al servidor como `/opt/mindlin-asistente/servidor.sh` (igual que en la tarea 4).
+2. `bash /opt/mindlin-asistente/servidor.sh actualizar`. Hace un respaldo antes, conserva las claves y los datos, y reinicia Chatwoot (un minuto sin bandeja: avisale a Axel antes si el equipo ya la usa).
+3. Copiá la salida de `verificar` en «Servidor» (ahora también muestra el swap).
+4. Para confirmar los hilos: `grep -E 'RAILS_MAX_THREADS|SIDEKIQ_CONCURRENCY' /opt/mindlin-asistente/chatwoot.env` tiene que decir 3 y 5.
+
+Si en la instalación se cambiaron las imágenes a mano (por ejemplo, con el digest), `actualizar` vuelve a las versiones fijadas en el script (las mismas: Chatwoot 4.19.1 y WAHA 2026.10.1). Si hay otra diferencia, frená y anotala.
