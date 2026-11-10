@@ -38,6 +38,7 @@ export const COLUMNAS_CONTACTOS = [
   "Unidad vendida",
   "Precio de venta USD",
   "Hora próximo paso",
+  "Tags",
 ] as const;
 
 export const COLUMNAS_ACTIVIDAD = ["Fecha", "Usuario", "Contacto ID", "Contacto", "Tipo", "Detalle", "Etapa"] as const;
@@ -48,6 +49,41 @@ export const PESTANIA_ACTIVIDAD = "CRM Actividad";
 export const USUARIO_ASISTENTE = "Asistente WhatsApp";
 
 export const USOS = ["Vivir", "Invertir", "A definir"] as const;
+
+/** Las etapas del CRM del hub desde noviembre de 2026, en orden. */
+export const ETAPAS = ["Nuevo", "Contacto inicial", "Seguimiento", "Visita / reunión", "Negociación", "Reserva", "Vendido", "Descartado", "En pausa"] as const;
+
+/** Sin acentos, en minúscula y con un solo espacio: para comparar etapas escritas distinto. */
+export const normalizar = (t: string) =>
+  t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, " / ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Las etapas de antes de noviembre (que pueden seguir en filas viejas), con la de ahora, como las lee el hub. */
+const ETAPAS_VIEJAS: Record<string, (typeof ETAPAS)[number]> = {
+  contactado: "Contacto inicial",
+  interesado: "Seguimiento",
+  "propuesta enviada": "Negociación",
+  evaluando: "Negociación",
+  negociando: "Negociación",
+  visita: "Visita / reunión",
+  reunion: "Visita / reunión",
+  "visita reunion": "Visita / reunión",
+  reservado: "Reserva",
+  perdido: "Descartado",
+  dormido: "En pausa",
+  pausa: "En pausa",
+};
+
+/** La etapa de ahora para lo que diga la planilla (de ahora o de antes); si no se entiende, «Nuevo», como el hub. */
+export function etapaDe(t: string): string {
+  const n = normalizar(t);
+  return ETAPAS.find((e) => normalizar(e) === n) ?? ETAPAS_VIEJAS[n] ?? "Nuevo";
+}
 export const FORMAS_DE_PAGO = ["Al costo (cuotas)", "Contado", "A definir"] as const;
 export const PLAZOS = ["Menos de 2 meses", "2 a 6 meses", "Más de 6 meses", "A definir"] as const;
 
@@ -76,6 +112,8 @@ export interface DatosInteresado {
 
 export interface CRM {
   buscarPorTelefono(telefono: string): Promise<ContactoCRM | null>;
+  /** Todos los contactos (una sola lectura): para saber la etapa de cada conversación en los seguimientos. */
+  contactos(): Promise<ContactoCRM[]>;
   crearContacto(d: DatosInteresado, ahora: string): Promise<ContactoCRM>;
   anotarActividad(a: { contacto: ContactoCRM; detalle: string; ahora: string }): Promise<void>;
 }
@@ -97,7 +135,7 @@ export function contactoDeFila(f: string[]): ContactoCRM {
     id: v("ID"),
     nombre: v("Nombre"),
     telefono: v("Teléfono"),
-    etapa: v("Etapa") || "Nuevo",
+    etapa: etapaDe(v("Etapa")),
     responsable: v("Responsable"),
     proyectos: v("Proyectos").split(",").map((p) => p.trim()).filter(Boolean),
     ultimoContacto: v("Último contacto"),
@@ -115,7 +153,7 @@ export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string,
   poner("Nombre", d.nombre || `WhatsApp +${d.telefono}`);
   poner("Teléfono", d.telefono ? `+${d.telefono}` : "");
   poner("Tipo", "Beneficiario al costo");
-  poner("Origen", "Otro");
+  poner("Origen", "WhatsApp");
   poner("Etapa", "Nuevo");
   poner("Presupuesto USD", /^\d+$/.test(d.presupuestoUsd) ? d.presupuestoUsd : "");
   poner("Forma de pago", enLista(d.formaDePago, FORMAS_DE_PAGO));
@@ -137,14 +175,28 @@ export interface Hoja {
   agregar(pestania: string, filas: string[][]): Promise<void>;
 }
 
+/** La letra de la columna n (1 → A, 27 → AA). */
+export function letraColumna(n: number): string {
+  let letras = "";
+  for (let x = n; x > 0; x = Math.floor((x - 1) / 26)) letras = String.fromCharCode(65 + ((x - 1) % 26)) + letras;
+  return letras;
+}
+
+/** Todas las columnas de «CRM Contactos», sin los títulos. */
+export const RANGO_CONTACTOS = `'${PESTANIA_CONTACTOS}'!A2:${letraColumna(COLUMNAS_CONTACTOS.length)}`;
+
 export function crearCRM(hoja: Hoja, { responsable = "" }: { responsable?: string } = {}): CRM {
   return {
     async buscarPorTelefono(telefono) {
       const clave = claveTelefono(telefono);
       if (clave.length < 8) return null;
-      const filas = await hoja.leer(`'${PESTANIA_CONTACTOS}'!A2:AC`);
+      const filas = await hoja.leer(RANGO_CONTACTOS);
       const fila = filas.find((f) => f[col("ID")] && claveTelefono(f[col("Teléfono")] ?? "") === clave);
       return fila ? contactoDeFila(fila) : null;
+    },
+    async contactos() {
+      const filas = await hoja.leer(RANGO_CONTACTOS);
+      return filas.filter((f) => f[col("ID")]).map(contactoDeFila);
     },
     async crearContacto(d, ahora) {
       const fila = filaContactoNuevo(d, nuevoIdContacto(), ahora, responsable);

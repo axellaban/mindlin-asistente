@@ -4,10 +4,10 @@ Acordada con Axel el 07/11/2026. Si cambia algo, se actualiza acá en el mismo P
 
 ```
 Interesado ──WhatsApp──► WAHA ──► Chatwoot ◄──── Equipo comercial (web y app del celular)
-                        (DonWeb)  (DonWeb)
+                     (Hostinger) (Hostinger)
                                      │ Agent Bot: un aviso por cada mensaje
                                      ▼
-                         Asistente (Vercel, este repo) ──► Claude
+                         Asistente (Vercel, este repo) ──► Claude (OpenAI, opcional)
                             │                 │
                      Neon (Postgres)    CRM del hub (Google Sheets)
               (fichas, tono, reglas,    (contacto, etapa, responsable,
@@ -29,7 +29,7 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 - WAHA le pasa los mensajes con su integración propia (sin código). Lo que alguien mande desde el celular de la línea también aparece, **como mensaje y no como nota interna** (así el bot sabe que lo tomó una persona).
 - Una conversación por chat, como en WhatsApp. WAHA crea además una conversación «Integración de WhatsApp» para avisos y el QR: el bot la ignora.
 - Lo instala y opera `infra/servidor.sh` (ver `infra/README.md`).
-- **Necesita unos 4 GB de RAM** (Chatwoot con su Postgres y Redis, más WAHA). Si el servidor de DonWeb no da: ampliarlo o usar Chatwoot Cloud (pago por usuario).
+- **Necesita unos 4 GB de RAM** (Chatwoot con su Postgres y Redis, más WAHA). El VPS de DonWeb que tenía Mindlin (1 GB) no alcanzaba: el 07/11 Axel eligió un Hostinger KVM 1 (1 vCPU, 4 GB, 50 GB), con swap y menos hilos en Chatwoot (ver `infra/README.md`). Si queda corto, el KVM 2.
 
 ## 3. El bot es un Agent Bot de Chatwoot
 
@@ -44,7 +44,7 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 
 - Se publica sola: si el bot falla o tiene carga, no afecta al hub. Tampoco depende de la cuenta de GitHub suspendida.
 - Mismo stack y convenciones que el hub, para poder sumarlo como módulo más adelante si lo quieren adentro.
-- Su panel: conversaciones del bot, fichas de proyecto, tono y ejemplos, reglas de seguimiento.
+- Su panel (`/panel`, con clave): conversaciones del bot, fichas de proyecto, tono y ejemplos, reglas de seguimiento. Ver [`panel.md`](panel.md).
 
 ## 5. CRM: el del hub
 
@@ -63,6 +63,8 @@ Cómo se usa:
 - El asistente usa **su propia cuenta de servicio de Google**, para tener su propio límite de pedidos y no comerle cuota al hub.
 - Mientras el hub esté bloqueado, el asistente escribe directo en la planilla, con las mismas columnas que el hub. Cuando vuelva, conviene pasarlo a un endpoint del hub.
 - Si el volumen crece, el paso siguiente es pasar el CRM del hub a Postgres.
+- Las etapas, las columnas y los orígenes son los del hub de noviembre de 2026 (etapas Nuevo → Contacto inicial → Seguimiento → Visita / reunión → Negociación → Reserva → Vendido, más Descartado y En pausa; columna Tags; origen WhatsApp). Revisado el 10/11 contra `lib/crm/modelo.ts` del hub.
+- Qué lee y escribe, y qué necesitaría del hub cuando su CRM deje la planilla: [`integracion-crm.md`](integracion-crm.md). Lo construye Mindlin de su lado; el asistente solo cambia cómo se conecta.
 
 ## 6. Base del asistente: Postgres en Neon (creado desde Vercel)
 
@@ -72,24 +74,37 @@ Fichas de cada proyecto, tono y ejemplos, reglas de seguimiento con sus versione
 
 También guarda el historial de mensajes (solo el texto). El token del Agent Bot no puede leer el historial de Chatwoot, así que el asistente lo arma con los avisos.
 
-## 7. El agente: Claude con herramientas
+## 7. El agente: OpenAI o Claude, con herramientas
 
-- Claude Opus 5.5 con esfuerzo medio, y reintento automático en otro modelo si rechaza una consulta. Se cambia con variables (ver `asistente.md`).
-- Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van en el caché de Anthropic. Si no sabe de qué proyecto se trata, pregunta.
+- Responde la IA que tenga clave en Vercel. **Hoy, Claude** (Opus 5.5): Axel cargó `ANTHROPIC_API_KEY` el 10/11. OpenAI (GPT-6.1 Sol, por la API «Responses») queda como alternativa sin tocar código: el agente arma los pedidos siempre igual y un adaptador los traduce. Se cambia con variables (ver `asistente.md`).
+- Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van primero, para aprovechar el caché del proveedor. Si no sabe de qué proyecto se trata, pregunta.
 - El contacto del CRM se busca por teléfono antes de responder.
 - Herramientas:
   - registrar al interesado y lo que busca;
   - elegir el proyecto, si hay más de uno;
   - pasar la conversación a una persona.
 - Espera 6 segundos antes de contestar, por si la persona sigue escribiendo.
-- Audios: por ahora pide que lo escriba. Falta transcribirlos.
+- Audios: Claude no los escucha. Con `OPENAI_API_KEY` (más adelante) se transcriben con OpenAI y responde por escrito; mientras tanto, pide que lo escriban.
+- El equipo interviene con los estados de Chatwoot: tomar una conversación, devolvérsela al asistente o pausarlo entero desde el panel (ver `asistente.md`, «Cuando interviene el equipo»).
 
 ## 8. Seguimientos
 
 - Reglas del tipo «si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones para comparar cuál convierte mejor.
 - Solo a quien ya escribió, de 9 a 20, con tope de intentos. Frenan si el interesado responde o si una persona tomó la conversación.
 - Salen por Chatwoot, así quedan a la vista en la bandeja.
-- Corren cada 15 minutos con un cron (Vercel o el servidor de DonWeb, según el plan de Vercel).
+- Corren cada 15 minutos con el cron de Vercel (plan Pro de Axel). La etapa sale del CRM del hub. Detalle en [`seguimientos.md`](seguimientos.md).
+
+## 9. Email (previsto, no hecho)
+
+La propuesta pide empezar por WhatsApp y dejar prevista la incorporación del email. Así quedó:
+
+- En Chatwoot, el email es **otra bandeja**: se conecta una casilla (por ejemplo, de Zoho, donde están los correos de Mindlin) y los mails entran como conversaciones, igual que los WhatsApp.
+- El asistente ya recibe los avisos de cualquier bandeja que tenga el Agent Bot. Para sumar email faltaría: que el tono permita mensajes más largos y con saludo cuando la bandeja es de mail; buscar el contacto del CRM por mail además de por teléfono; y que los seguimientos salgan por la misma bandeja de la conversación (ya salen por Chatwoot, así que esto viene solo).
+- Antes hace falta el correo de salida de Chatwoot (la decisión abierta en `PENDIENTES.md`).
+
+## 10. Más adelante: el hub conectado a Chatwoot
+
+Mindlin construye el hub (pantallas y funciones). Si más adelante lo conectan a Chatwoot, el asistente no cambia: sigue atendiendo por Chatwoot, y el hub encuentra ahí las conversaciones y las notas del asistente (ver [`integracion-crm.md`](integracion-crm.md)).
 
 ## Lo que se reutiliza de otros proyectos de Axel
 
@@ -101,4 +116,4 @@ Se adapta, no se copia a ciegas:
 
 ## Fuera del MVP
 
-Línea de outreach, scoring, agenda automática, clasificación de proveedores y postulantes, terrenos, email.
+Lo que la propuesta deja para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos, línea de outreach y email (previsto, ver sección 9).

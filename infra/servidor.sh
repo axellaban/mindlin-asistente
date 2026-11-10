@@ -2,7 +2,8 @@
 # Servidor del asistente comercial de Mindlin: WhatsApp (WAHA) + la bandeja del equipo (Chatwoot),
 # con HTTPS (Caddy). Todo en Docker, en una carpeta: /opt/mindlin-asistente.
 #
-# Uso, como root en el servidor (Ubuntu 22.04 o 24.04, 4 GB de RAM o más):
+# Uso, como root en el servidor (Ubuntu 22.04 o 24.04, 4 GB de RAM o más; con menos de 6 GB
+# suma 2 GB de swap y baja los hilos de Chatwoot para que entre todo):
 #
 #   bash servidor.sh instalar     Instala Docker si falta, genera las claves y levanta todo.
 #   bash servidor.sh verificar    Revisa que todo ande y dice qué falta.
@@ -86,6 +87,36 @@ instalar_paquetes() {
   docker compose version >/dev/null 2>&1 || morir "Docker no tiene el plugin compose (docker compose)."
 }
 
+# Memoria total en MB.
+ram_mb() { awk '/^MemTotal:/ {print int($2 / 1024)}' /proc/meminfo; }
+# Con menos de 6 GB (por ejemplo, 4 GB del piloto) Chatwoot va con menos hilos.
+memoria_baja() { [ "$(ram_mb)" -lt 6000 ]; }
+
+preparar_swap() {
+  # Un archivo de swap de 2 GB si no hay ninguno: con 4 GB de RAM, evita que el sistema mate
+  # un contenedor en un pico (una actualización, un respaldo). Se puede saltear con SALTEAR_SWAP=1.
+  [ -z "${SALTEAR_SWAP:-}" ] || return 0
+  memoria_baja || return 0
+  if [ "$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo)" -gt 0 ]; then
+    ok "Swap ya activo: $(awk '/^SwapTotal:/ {print int($2 / 1024)}' /proc/meminfo) MB"
+    return 0
+  fi
+  info "Creando 2 GB de swap (/swapfile)"
+  if fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none; then
+    chmod 600 /swapfile
+    if mkswap /swapfile >/dev/null && swapon /swapfile; then
+      grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >>/etc/fstab
+      # Que use el swap solo cuando hace falta.
+      echo 'vm.swappiness=10' >/etc/sysctl.d/90-mindlin-swap.conf
+      sysctl -q -p /etc/sysctl.d/90-mindlin-swap.conf || true
+      ok "Swap de 2 GB activo (queda configurado para cada arranque)"
+      return 0
+    fi
+  fi
+  rm -f /swapfile
+  mal "No se pudo crear el swap: seguí igual, pero vigilá la memoria con «verificar»."
+}
+
 escribir_env() {
   # Si ya existe, se conservan las claves (volver a instalar no rompe nada).
   if [ -f "$DIR/.env" ]; then
@@ -101,6 +132,9 @@ escribir_env() {
   : "${SECRET_KEY_BASE:=$(clave 64)}"
   : "${WAHA_API_KEY:=$(clave)}"
   : "${WAHA_DASHBOARD_PASSWORD:=$(clave 16)}"
+  # Hilos de Chatwoot: con poca memoria, menos (un piloto con una línea no necesita más).
+  local hilos_web=5 hilos_cola=10
+  if memoria_baja; then hilos_web=3; hilos_cola=5; fi
   umask 077
   cat >"$DIR/.env" <<EOF
 # Generado por servidor.sh. Contiene claves: no copiarlo a ningún lado.
@@ -126,7 +160,11 @@ FORCE_SSL=false
 RAILS_ENV=production
 NODE_ENV=production
 INSTALLATION_ENV=docker
-RAILS_MAX_THREADS=5
+RAILS_MAX_THREADS=$hilos_web
+SIDEKIQ_CONCURRENCY=$hilos_cola
+# Un solo proceso web (sin workers extra de Puma) y menos memoria fragmentada en Ruby.
+WEB_CONCURRENCY=0
+MALLOC_ARENA_MAX=2
 RAILS_LOG_TO_STDOUT=true
 LOG_LEVEL=info
 POSTGRES_HOST=postgres
@@ -288,6 +326,7 @@ instalar() {
   # Una copia del script queda junto a la instalación (para el respaldo nocturno y los próximos comandos).
   [ "$(realpath "$0")" = "$(realpath "$DIR/servidor.sh" 2>/dev/null || true)" ] || cp "$0" "$DIR/servidor.sh"
   instalar_paquetes
+  preparar_swap
   escribir_env
   escribir_compose
   info "Bajando las imágenes (la primera vez tarda unos minutos)"
@@ -369,6 +408,7 @@ for x in s:
 
   info "Recursos"
   free -m | awk '/^Mem:/ {printf "  RAM: %s MB usados de %s MB\n", $3, $2}'
+  free -m | awk '/^Swap:/ {if ($2 > 0) printf "  Swap: %s MB usados de %s MB\n", $3, $2; else print "  Swap: no hay (con 4 GB de RAM conviene: bash servidor.sh instalar lo crea)"}'
   df -h / | awk 'NR==2 {printf "  Disco: %s usados de %s (%s libre)\n", $3, $2, $4}'
 
   echo
@@ -534,6 +574,7 @@ respaldo() {
 actualizar() {
   respaldo
   cargar_env
+  preparar_swap
   escribir_env
   escribir_compose
   [ -n "${SALTEAR_DESCARGA:-}" ] || compose pull

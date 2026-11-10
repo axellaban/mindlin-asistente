@@ -7,7 +7,7 @@ import { COLUMNAS_CONTACTOS, crearCRM, type Hoja } from "../crm/planilla";
 import { almacenEnMemoria } from "../datos/memoria";
 import type { Proyecto } from "../datos/tipos";
 import type { Modelo } from "./agente";
-import { atender, laTomoUnaPersona } from "./servicio";
+import { atender, conTranscripciones, laTomoUnaPersona, nombreDeAudio } from "./servicio";
 
 type Responder = Extract<Accion, { tipo: "responder" }>;
 const AHORA = new Date("2026-11-07T21:05:00Z");
@@ -24,6 +24,10 @@ function chatwootFalso() {
     },
     async pasarAPersona(c) {
       hechos.push(`abrir ${c}`);
+    },
+    async bajarAdjunto(url) {
+      hechos.push(`bajar ${url}`);
+      return new Blob(["audio"], { type: "audio/ogg" });
     },
   };
   return { chatwoot, hechos };
@@ -120,7 +124,7 @@ describe("atender un mensaje", () => {
   });
 
   it("si la persona ya está en el CRM, no la duplica: suma actividad", async () => {
-    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Interesado", Responsable: "Mati" })[c as "ID"] ?? "");
+    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Seguimiento", Responsable: "Mati" })[c as "ID"] ?? "");
     const p = preparar({ contactos: [existente], historial: [msg(1, "interesado", "Hola")] });
     const m = modeloFalso(
       respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "Invertir", ambientes: "", presupuesto_usd: "90000", forma_de_pago: "", plazo: "", resumen: "Ahora busca para invertir." } }]),
@@ -128,7 +132,7 @@ describe("atender un mensaje", () => {
     );
     await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: p.crm }, accion(1, "Hola"));
     expect(p.hoja.pestanias["CRM Contactos"]).toHaveLength(1);
-    expect(p.hoja.pestanias["CRM Actividad"][0].slice(2, 7)).toEqual(["c1", "Ana", "WhatsApp", "Ahora busca para invertir. (para: Invertir, presupuesto: USD 90000)", "Interesado"]);
+    expect(p.hoja.pestanias["CRM Actividad"][0].slice(2, 7)).toEqual(["c1", "Ana", "WhatsApp", "Ahora busca para invertir. (para: Invertir, presupuesto: USD 90000)", "Seguimiento"]);
     expect(m.pedidos[0].system[1].text).toContain("Responsable: Mati");
   });
 
@@ -227,6 +231,69 @@ describe("atender un mensaje", () => {
       respuesta([{ type: "text", text: "¡Hola!" }]),
     );
     expect(await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null }, accion(1))).toBe("respondió");
+  });
+});
+
+describe("audios", () => {
+  const conAudio = (mensaje: number, texto = ""): Responder => ({ ...accion(mensaje, texto), audios: ["https://chat.ejemplo.com/audio-1.oga"] });
+
+  it("transcribe el audio, lo guarda en el historial y contesta por escrito", async () => {
+    const p = preparar({ historial: [msg(1, "interesado", "[audio]")] });
+    const m = modeloFalso(respuesta([{ type: "text", text: "¡Sí! Hay cocheras." }]));
+    const oidos: string[] = [];
+    const transcribir = async (audio: Blob, nombre: string) => {
+      oidos.push(`${await audio.text()} ${nombre}`);
+      return "Hola, ¿tienen cochera?";
+    };
+    expect(await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null, transcribir }, conAudio(1))).toBe("respondió");
+    expect(oidos).toEqual(["audio audio.ogg"]);
+    expect(p.cw.hechos[0]).toBe("bajar https://chat.ejemplo.com/audio-1.oga");
+    expect(p.datos.mensajes.get(1)?.texto).toBe("[audio: «Hola, ¿tienen cochera?»]");
+    expect(m.pedidos[0].messages).toEqual([{ role: "user", content: "[audio: «Hola, ¿tienen cochera?»]" }]);
+  });
+
+  it("si no se puede transcribir (o falta la clave de OpenAI), queda [audio] y el bot pide que lo escriba", async () => {
+    const p = preparar({ historial: [msg(1, "interesado", "[audio]")] });
+    const m = modeloFalso(respuesta([{ type: "text", text: "¿Me lo escribís?" }]));
+    const transcribir = async () => {
+      throw new Error("OpenAI no responde");
+    };
+    await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null, transcribir }, conAudio(1));
+    expect(m.pedidos[0].messages).toEqual([{ role: "user", content: "[audio]" }]);
+    expect(p.datos.registro.find((r) => r.tipo === "error")?.detalle).toContain("Audio (transcribir)");
+    expect(m.pedidos[0].system[0].text).toContain("Si aparece solo [audio]");
+
+    const sinClave = preparar({ historial: [msg(1, "interesado", "[audio]")] });
+    const m2 = modeloFalso(respuesta([{ type: "text", text: "¿Me lo escribís?" }]));
+    await atender({ ...sinEspera, almacen: sinClave.datos.almacen, chatwoot: sinClave.cw.chatwoot, modelo: m2.modelo, crm: null }, conAudio(1));
+    expect(sinClave.cw.hechos).toEqual(["enviar 7: ¿Me lo escribís?"]);
+  });
+
+  it("pone cada transcripción en su lugar y elige la extensión que entiende OpenAI", () => {
+    expect(conTranscripciones("Mirá [audio] [audio]", ["uno", ""])).toBe("Mirá [audio: «uno»] [audio]");
+    expect(conTranscripciones("Sin audios", [])).toBe("Sin audios");
+    expect(["audio/ogg; codecs=opus", "audio/mpeg", "audio/mp4", "audio/wav", "", "application/octet-stream"].map(nombreDeAudio)).toEqual([
+      "audio.ogg",
+      "audio.mp3",
+      "audio.m4a",
+      "audio.wav",
+      "audio.ogg",
+      "audio.ogg",
+    ]);
+  });
+});
+
+describe("cuando el equipo le devuelve la conversación al asistente", () => {
+  it("vuelve a responder, lo anota y la conversación vuelve a llevar seguimientos", async () => {
+    const p = preparar({ historial: [msg(1, "interesado", "Hola"), msg(2, "persona", "Hola Ana, soy Mati"), msg(3, "interesado", "¿Y la cochera?")] });
+    expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+    const m = modeloFalso(respuesta([{ type: "text", text: "Sí, hay cocheras." }]));
+    // Chatwoot solo manda «responder» si la conversación está pendiente: el equipo la devolvió.
+    expect(await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null }, accion(3, "¿Y la cochera?"))).toBe("respondió");
+    expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(false);
+    expect(p.datos.registro.map((r) => r.tipo)).toEqual(["volvio_al_bot", "respuesta"]);
+    // Lo que escribió el equipo le llega a la IA, para seguir su línea.
+    expect(m.pedidos[0].messages[1]).toEqual({ role: "assistant", content: "[Equipo] Hola Ana, soy Mati" });
   });
 });
 

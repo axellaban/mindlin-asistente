@@ -18,6 +18,11 @@ describe("estadoConfig", () => {
     expect(estadoConfig({ ANTHROPIC_API_KEY: "   " }).faltan).toContain("ANTHROPIC_API_KEY");
   });
 
+  it("la IA cuenta como cargada con la clave de OpenAI o con la de Anthropic", () => {
+    expect(estadoConfig({ OPENAI_API_KEY: "x" }).faltan).not.toContain("ANTHROPIC_API_KEY");
+    expect(estadoConfig({ ANTHROPIC_API_KEY: "x" }).faltan).not.toContain("ANTHROPIC_API_KEY");
+  });
+
   it("con todo cargado, está listo", () => {
     const env = Object.fromEntries(GRUPOS.flatMap((g) => g.variables).map((v) => [v.nombre, "x"]));
     expect(estadoConfig(env)).toMatchObject({ listo: true, faltan: [] });

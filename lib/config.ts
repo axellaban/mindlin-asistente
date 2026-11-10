@@ -20,7 +20,13 @@ export interface Grupo {
 export const GRUPOS: Grupo[] = [
   {
     nombre: "IA",
-    variables: [{ nombre: "ANTHROPIC_API_KEY", para: "Que Claude arme las respuestas." }],
+    variables: [
+      {
+        nombre: "ANTHROPIC_API_KEY",
+        para: "La clave de Claude, que arma las respuestas. También sirve OPENAI_API_KEY (ver docs/asistente.md).",
+        alternativas: ["OPENAI_API_KEY"],
+      },
+    ],
   },
   {
     nombre: "Chatwoot",
@@ -47,7 +53,11 @@ export const GRUPOS: Grupo[] = [
   },
   {
     nombre: "Tareas programadas",
-    variables: [{ nombre: "CRON_SECRET", para: "Que solo el cron pueda disparar los seguimientos." }],
+    variables: [{ nombre: "CRON_SECRET", para: "Que solo el cron de Vercel pueda disparar los seguimientos." }],
+  },
+  {
+    nombre: "Panel",
+    variables: [{ nombre: "PANEL_CLAVE", para: "La clave para entrar al panel (fichas, tono, ejemplos, seguimientos). La comparte Axel con el equipo." }],
   },
 ];
 

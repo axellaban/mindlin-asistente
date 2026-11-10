@@ -23,6 +23,10 @@ function armar({ modelo = (async () => respuesta([{ type: "text", text: "¡Hola!
     async pasarAPersona(c) {
       hechos.push(`abrir ${c}`);
     },
+    async bajarAdjunto(url) {
+      hechos.push(`bajar ${url}`);
+      return new Blob(["audio"], { type: "audio/ogg" });
+    },
   };
   const llamar = (evento: unknown, { clave = CLAVE, firmaCon = CLAVE } = {}) => {
     const cuerpo = JSON.stringify(evento);
@@ -85,11 +89,25 @@ describe("webhook del Agent Bot", () => {
     expect(a.datos.mensajes.has(24)).toBe(false);
   });
 
-  it("sin Claude configurado, pasa la conversación al equipo con una nota", async () => {
+  it("sin la IA configurada, pasa la conversación al equipo con una nota", async () => {
     const a = armar({ modelo: null });
     const r = await a.llamar(evento());
     await r.tarea!();
-    expect(a.hechos).toEqual(["nota 2: 🙋 El asistente todavía no está configurado (falta ANTHROPIC_API_KEY en Vercel): atiende el equipo.", "abrir 2"]);
+    expect(a.hechos).toEqual(["nota 2: 🙋 El asistente todavía no está configurado (falta la clave de la IA en Vercel): atiende el equipo.", "abrir 2"]);
+  });
+
+  it("con el asistente pausado, la conversación pasa al equipo con una nota y la IA no responde", async () => {
+    let llamadas = 0;
+    const a = armar({ modelo: async () => (llamadas++, respuesta([{ type: "text", text: "x" }])) });
+    a.datos.estado.pausado = true;
+    const r = await a.llamar(evento());
+    expect(r.json).toEqual({ accion: "pasar_a_persona", motivo: "el asistente está pausado" });
+    await r.tarea!();
+    expect(a.hechos).toEqual(["nota 2: ⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.", "abrir 2"]);
+    expect(llamadas).toBe(0);
+    expect(a.datos.seguimiento.get(2)?.sin_seguimientos).toBe(true);
+    // Igual queda en el historial.
+    expect(a.datos.mensajes.has(21)).toBe(true);
   });
 
   it("ignora la conversación de avisos de WAHA y no la guarda", async () => {

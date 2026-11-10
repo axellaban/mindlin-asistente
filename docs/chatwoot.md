@@ -13,6 +13,12 @@ Probado el 07/11/2026 con Chatwoot 4.19.1 y WAHA 2026.10.1 levantados con `infra
 - **Avisos firmados.** Llegan con `X-Chatwoot-Timestamp` y `X-Chatwoot-Signature = sha256=HMAC(clave del bot, "hora.cuerpo")`. La clave es el `secret` del Agent Bot; `servidor.sh bot` la deja en `asistente.env` como `CHATWOOT_WEBHOOK_SECRET`.
 - **Tiempo de respuesta.** Chatwoot espera **5 segundos**. Si el webhook responde 429 o 500, reintenta. Si falla de otra forma, **pasa la conversación pendiente a abierta**, así que si el asistente se cae, atiende el equipo. Por eso la app responde enseguida y hace el trabajo después (`after`).
 
+## Tomar, devolver y pausar (10/11)
+
+- **Devolver una conversación al bot:** en Chatwoot, **Marcar como pendiente**. Chatwoot vuelve a mandar los mensajes del interesado con estado `pending` y el asistente responde (y reactiva sus seguimientos). No hace falta otro aviso: se da cuenta con el primer mensaje.
+- **Pausa general:** es del asistente, no de Chatwoot (panel → Resumen). Pausado, el asistente pasa cada conversación a abierta con una nota.
+- Falta confirmar con la línea real que una conversación **resuelta** que vuelve a recibir un mensaje entra como pendiente (con el Agent Bot en la bandeja, así lo hace Chatwoot): en ese caso la atiende el asistente de nuevo.
+
 ## WAHA → Chatwoot
 
 - **Hay que habilitar las direcciones internas.** Desde la 4.13, Chatwoot no manda webhooks a direcciones internas («Hostname 'waha' has no public ip addresses»). Sin `SAFE_FETCH_ALLOW_PRIVATE_NETWORK=true`, lo que se escribe en Chatwoot no llega a WhatsApp. El instalador ya lo configura.

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { estadoConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,9 @@ export default function Inicio() {
       <h1>Asistente comercial</h1>
       <p className="sub">
         Mindlin Developers · {listo ? "La configuración está completa." : "En construcción: falta cargar algunas variables en Vercel."}
+      </p>
+      <p>
+        <Link href="/panel">Entrar al panel</Link> (fichas, tono, ejemplos, seguimientos y conversaciones).
       </p>
       {grupos.map((g) => (
         <section key={g.nombre}>

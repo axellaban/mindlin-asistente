@@ -1,6 +1,17 @@
 # Servidor: WAHA + Chatwoot
 
-`servidor.sh` instala y opera todo en un VPS con Ubuntu (22.04 o 24.04), 2 vCPU, 4 GB de RAM y 30 GB libres. El paso a paso para hacerlo está en [`IA_DE_PANELES.md`](../IA_DE_PANELES.md), tareas 4 a 6.
+`servidor.sh` instala y opera todo en un VPS con Ubuntu (22.04 o 24.04), con 4 GB de RAM y 30 GB libres como mínimo. El paso a paso para hacerlo está en [`IA_DE_PANELES.md`](../IA_DE_PANELES.md), tareas 4 a 6.
+
+## El servidor del piloto
+
+Hostinger KVM 1 (elegido por Axel el 07/11/2026, comprado el 09/11): 1 vCPU, 4 GB de RAM, 50 GB NVMe, Ubuntu 24.04, en Campinas (Brasil). Está en `https://chat.mindlindevelopers.com`. El detalle y los precios comparados con DonWeb, en [`docs/estado-paneles.md`](../docs/estado-paneles.md).
+
+Alcanza para el piloto (una línea y pocas conversaciones a la vez), con lo que el script hace solo cuando el servidor tiene menos de 6 GB de RAM:
+
+- **Swap de 2 GB** (`/swapfile`, con `vm.swappiness=10`), si no hay. Se saltea con `SALTEAR_SWAP=1`.
+- **Menos hilos en Chatwoot:** 3 en la web (`RAILS_MAX_THREADS`) y 5 en la cola (`SIDEKIQ_CONCURRENCY`), en vez de 5 y 10. Siempre: un solo proceso web (`WEB_CONCURRENCY=0`) y `MALLOC_ARENA_MAX=2`, que baja la memoria de Ruby.
+
+`verificar` muestra la RAM y el swap usados. Si la RAM pasa del 85 % seguido o el swap se usa mucho, el paso siguiente es el KVM 2 (2 vCPU, 8 GB): con más de 6 GB, `instalar` o `actualizar` vuelven solos a los hilos normales.
 
 ## Qué levanta
 
@@ -19,8 +30,8 @@ Solo Caddy queda expuesto a internet. Chatwoot y WAHA escuchan además en `127.0
 ## Comandos
 
 ```
-bash servidor.sh instalar     # Docker si falta, claves nuevas (o las que ya había), base de Chatwoot y todo arriba
-bash servidor.sh verificar    # contenedores, versiones, HTTPS, líneas de WhatsApp, RAM y disco
+bash servidor.sh instalar     # Docker si falta, swap si hace falta, claves nuevas (o las que ya había), base de Chatwoot y todo arriba
+bash servidor.sh verificar    # contenedores, versiones, HTTPS, líneas de WhatsApp, RAM, swap y disco
 bash servidor.sh conectar <línea> "<bandeja>"   # sesión de WAHA + bandeja API en Chatwoot + la conexión entre las dos
 bash servidor.sh bot          # Agent Bot en Chatwoot apuntando al asistente de Vercel; deja las 4 variables en asistente.env
 bash servidor.sh respaldo     # pg_dumpall comprimido en respaldos/ (se guardan los últimos 14; corre solo todas las noches a las 3)

@@ -2,6 +2,7 @@
  * Atender un mensaje del interesado, de punta a punta:
  *
  * 1. No contestar dos veces el mismo mensaje (Chatwoot puede reintentar el aviso).
+ *    Si trae audios, transcribirlos (con OpenAI) y guardar el texto en el historial.
  * 2. Esperar unos segundos: la gente manda varios mensajes seguidos. Si llegó otro, contesta ese.
  * 3. Armar el contexto: tono, ficha del proyecto, lo que dice el CRM y el historial.
  * 4. Claude responde (y puede registrar al interesado, elegir el proyecto o pasar a una persona).
@@ -16,6 +17,7 @@ import type { Accion } from "../chatwoot/evento";
 import type { ContactoCRM, CRM } from "../crm/planilla";
 import type { Almacen, Proyecto } from "../datos/tipos";
 import { responder, type Herramientas, type Modelo, type Resultado } from "./agente";
+import type { Transcriptor } from "./openai";
 import { ficha, instrucciones, situacion } from "./contexto";
 
 export interface Servicios {
@@ -23,6 +25,8 @@ export interface Servicios {
   chatwoot: Chatwoot;
   modelo: Modelo;
   crm: CRM | null;
+  /** Sin él (falta OPENAI_API_KEY), los audios quedan como [audio] y el bot pide que lo escriban. */
+  transcribir?: Transcriptor | null;
   ahora?: () => Date;
   dormir?: (ms: number) => Promise<void>;
   /** Cuánto esperar por si la persona sigue escribiendo. */
@@ -43,6 +47,13 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
   const conv = a.conversacion;
   if (a.mensaje != null && !(await s.almacen.reclamarMensaje(a.mensaje, conv))) return "ya se había atendido";
 
+  // Antes de esperar: si mientras tanto llega otro mensaje, ese ya lee la transcripción.
+  const transcripciones = await transcribirAudios(s, a);
+  const textoDelAviso = conTranscripciones([a.texto, ...a.audios.map(() => "[audio]")].filter(Boolean).join(" "), transcripciones);
+  if (transcripciones.some(Boolean) && a.mensaje != null) {
+    await s.almacen.actualizarTextoMensaje(a.mensaje, textoDelAviso).catch(() => {});
+  }
+
   await (s.dormir ?? dormirReal)(s.esperaMs ?? ESPERA_MS);
 
   try {
@@ -53,8 +64,12 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     }
     // Si el mensaje no quedó guardado (por ejemplo, falló la base), se responde igual con lo que trae el aviso.
     if (!historial.some((m) => m.id === a.mensaje)) {
-      const texto = [a.texto, ...a.audios.map(() => "[audio]")].filter(Boolean).join(" ");
-      historial.push({ id: a.mensaje ?? -1, conversacion: conv, rol: "interesado", texto, fecha: ahora().toISOString() });
+      historial.push({ id: a.mensaje ?? -1, conversacion: conv, rol: "interesado", texto: textoDelAviso, fecha: ahora().toISOString() });
+    }
+
+    // Si el equipo había tomado la conversación y la volvió a poner pendiente, se la devolvió al bot.
+    if (await s.almacen.volvioAlBot(conv)) {
+      await s.almacen.registrar({ tipo: "volvio_al_bot", conversacion: conv, detalle: "El equipo le devolvió la conversación al asistente: vuelve a responder y a llevar seguimientos." });
     }
 
     const [guardada, proyectos, tono, ejemplos] = await Promise.all([
@@ -63,7 +78,10 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
       s.almacen.tono(),
       s.almacen.ejemplos(),
     ]);
-    if (!guardada) await s.almacen.guardarConversacion({ chatwoot_id: conv, telefono: a.contacto.telefono || null, nombre: a.contacto.nombre || null });
+    // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
+    const telefono = a.contacto.telefono || guardada?.telefono || null;
+    const nombre = a.contacto.nombre || guardada?.nombre || null;
+    if (!guardada || guardada.telefono !== telefono || guardada.nombre !== nombre) await s.almacen.guardarConversacion({ chatwoot_id: conv, telefono, nombre });
     let proyectoId = guardada?.proyecto ?? (proyectos.length === 1 ? proyectos[0].id : null);
     const proyecto = (id: string | null): Proyecto | null => proyectos.find((p) => p.id === id) ?? null;
 
@@ -148,21 +166,68 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
   }
 }
 
+/** Transcribe los audios del mensaje, en orden. Un audio que no se pudo transcribir queda en "". */
+async function transcribirAudios(s: Servicios, a: Responder): Promise<string[]> {
+  const transcribir = s.transcribir;
+  if (!transcribir || !a.audios.length) return a.audios.map(() => "");
+  return Promise.all(
+    a.audios.map(async (url) => {
+      try {
+        const audio = await s.chatwoot.bajarAdjunto(url);
+        return await transcribir(audio, nombreDeAudio(audio.type));
+      } catch (e) {
+        await s.almacen.registrar({ tipo: "error", conversacion: a.conversacion, detalle: `Audio (transcribir): ${detalle(e)}` }).catch(() => {});
+        return "";
+      }
+    }),
+  );
+}
+
+/** OpenAI reconoce el formato por la extensión: las notas de voz de WhatsApp son ogg (opus). */
+export function nombreDeAudio(tipo: string): string {
+  const t = tipo.toLowerCase();
+  if (t.includes("mpeg") || t.includes("mp3")) return "audio.mp3";
+  if (t.includes("mp4") || t.includes("m4a") || t.includes("aac")) return "audio.m4a";
+  if (t.includes("wav")) return "audio.wav";
+  if (t.includes("webm")) return "audio.webm";
+  return "audio.ogg";
+}
+
+/** Cambia cada «[audio]» del texto por su transcripción, en orden: «[audio: «…»]». Puro. */
+export function conTranscripciones(texto: string, transcripciones: string[]): string {
+  let i = 0;
+  return texto.replace(/\[audio\]/g, (marca) => {
+    const t = transcripciones[i++]?.trim();
+    return t ? `[audio: «${t.replace(/\s+/g, " ")}»]` : marca;
+  });
+}
+
 async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; resumen: string }, contacto: ContactoCRM | null, ahora: () => Date) {
   const nota = [`🙋 El asistente pasó esta conversación al equipo: ${p.motivo}`, p.resumen && `Resumen: ${p.resumen}`, contacto?.responsable && `Responsable en el CRM: ${contacto.responsable}`]
     .filter(Boolean)
     .join("\n");
   await s.chatwoot.notaInterna(conv, nota);
   await s.chatwoot.pasarAPersona(conv);
+  await s.almacen.sinSeguimientos(conv).catch(() => {});
   await s.almacen.registrar({ tipo: "paso_a_persona", conversacion: conv, detalle: p.motivo, datos: p });
   if (s.crm && contacto) {
     await s.crm.anotarActividad({ contacto, detalle: `Pasó al equipo: ${p.motivo}. ${p.resumen}`.trim(), ahora: ahora().toISOString() }).catch(() => {});
   }
 }
 
+/** El asistente está pausado: la conversación pasa al equipo con una nota, sin que responda la IA. */
+export async function pasarPorPausa(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
+  await s.chatwoot.notaInterna(conversacion, "⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.");
+  await s.chatwoot.pasarAPersona(conversacion);
+  await s.almacen.sinSeguimientos(conversacion);
+  await s.almacen.registrar({ tipo: "paso_a_persona", conversacion, detalle: "El asistente está pausado." });
+  return "pasó al equipo: el asistente está pausado";
+}
+
 /** Una persona escribió en una conversación que atendía el bot: pasa a abierta y queda anotado. */
 export async function laTomoUnaPersona(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
   await s.chatwoot.pasarAPersona(conversacion);
+  await s.almacen.sinSeguimientos(conversacion);
   await s.almacen.registrar({ tipo: "la_tomo_una_persona", conversacion, detalle: "Una persona del equipo escribió: el asistente deja de responder." });
   return "pasó a abierta";
 }
