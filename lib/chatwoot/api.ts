@@ -48,7 +48,7 @@ export function crearChatwoot(cfg: ConfigChatwoot, pedir: typeof fetch = fetch):
   async function post(ruta: string, cuerpo: unknown): Promise<unknown> {
     const r = await pedir(`${base}${ruta}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", api_access_token: cfg.token },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.token}` },
       body: JSON.stringify(cuerpo),
       // Si Chatwoot no contesta, mejor un error a tiempo (pasa al equipo) que colgar la función.
       signal: AbortSignal.timeout(TIEMPO_MAXIMO_MS),
