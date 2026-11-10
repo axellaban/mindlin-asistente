@@ -77,7 +77,7 @@ La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud`
 
 - `CRON_SECRET` guardado como Secret solo en Production de `mindlin-asistente`. Vercel ejecuta el cron en Production y agrega la autorización al llamar a la ruta.
 - En [Cron Jobs](https://vercel.com/labans-projects-c5c64fdc/mindlin-asistente/schedules/cron-jobs), `/api/cron/seguimientos` figura activo cada 15 minutos (`*/15 * * * *`).
-- La republicación del `main` vigente (`3efb2c9`) quedó esperando la verificación de identidad de Axel en Vercel. Hasta que termine, `/api/salud` sigue indicando `faltan: ["CRON_SECRET"]` y la ruta del cron devuelve `503`.
+- La [republicación de `main` (`3efb2c9`)](https://vercel.com/labans-projects-c5c64fdc/mindlin-asistente/EymacWQQ29sYoikJGzDH4ZKij8oy) quedó Ready y Current. `/api/salud` devuelve `configuracionCompleta: true`, `faltan: []` y reporta Claude (`claude-opus-5-5`) con `audios: false`. La ruta del cron rechaza las solicitudes sin autorización con `401`. Queda pendiente validar un seguimiento con un contacto de prueba.
 
 ## Google (tarea 3)
 
