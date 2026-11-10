@@ -46,8 +46,9 @@ export function pasaronLosDias(c: Pick<CandidatoSeguimiento, "ultima_salida">, r
 /** «ANA maría» → «Ana». */
 export function nombreDePila(nombre: string | null | undefined): string {
   const primero = (nombre ?? "").trim().split(/\s+/)[0] ?? "";
-  // Los nombres que puso el asistente cuando no sabía cómo se llamaba («WhatsApp +54…») no cuentan.
-  if (!primero || /^(whatsapp|\+?\d)/i.test(primero)) return "";
+  // Los nombres que puso el asistente cuando no sabía cómo se llamaba («WhatsApp +54…»), los
+  // números y los que empiezan con un emoji no cuentan.
+  if (!primero || /^whatsapp$/i.test(primero) || !/^\p{L}/u.test(primero)) return "";
   return primero.charAt(0).toUpperCase() + primero.slice(1).toLowerCase();
 }
 

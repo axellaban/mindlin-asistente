@@ -1,6 +1,6 @@
 // Aplica las migraciones de db/migraciones/ que falten, en orden. Corre antes del armado en cada
-// publicación de Vercel (npm run build). Sin DATABASE_URL (por ejemplo en el control de GitHub),
-// no hace nada.
+// publicación de Vercel a producción (npm run build). Sin DATABASE_URL (por ejemplo en el control
+// de GitHub) o en una vista previa, no hace nada.
 //
 // Cada archivo se aplica una sola vez y queda anotado en la tabla _migraciones. Un candado evita
 // que dos publicaciones a la vez las apliquen juntas.
@@ -11,6 +11,11 @@ import pg from "pg";
 const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || process.env.POSTGRES_URL;
 if (!url) {
   console.log("migrar: no hay DATABASE_URL, no se aplica nada.");
+  process.exit(0);
+}
+// Las vistas previas de cada PR usan la misma base que producción: no se migra hasta el merge.
+if (process.env.VERCEL_ENV === "preview" && process.env.MIGRAR_EN_PREVIEW !== "1") {
+  console.log("migrar: es una vista previa, no se toca la base (se migra al publicar en producción).");
   process.exit(0);
 }
 

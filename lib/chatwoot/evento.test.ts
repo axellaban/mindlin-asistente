@@ -23,6 +23,7 @@ describe("accionPara", () => {
       mensaje: 10,
       texto: "Hola, ¿tienen 2 ambientes en Lerma?",
       audios: [],
+      adjuntos: [],
       contacto: { nombre: "Ana Prueba", telefono: "5491155550000" },
       bandeja: 1,
     });
@@ -36,11 +37,22 @@ describe("accionPara", () => {
 
   it("pasa los audios para transcribirlos, aunque no haya texto", () => {
     const a = accionPara(mensaje({ content: null, attachments: [{ file_type: "audio", data_url: "https://chat/a.ogg" }, { file_type: "image", data_url: "https://chat/f.jpg" }] }));
-    expect(a).toMatchObject({ tipo: "responder", texto: "", audios: ["https://chat/a.ogg"] });
+    expect(a).toMatchObject({ tipo: "responder", texto: "", audios: ["https://chat/a.ogg"], adjuntos: ["[foto]"] });
   });
 
-  it("ignora un mensaje sin texto ni audio (por ejemplo, solo una foto)", () => {
-    expect(accionPara(mensaje({ content: "  ", attachments: [{ file_type: "image", data_url: "https://chat/f.jpg" }] })).tipo).toBe("ignorar");
+  it("contesta también una foto o un archivo sin texto (para pedir que lo escriba); sin nada, no", () => {
+    expect(accionPara(mensaje({ content: "  ", attachments: [{ file_type: "image", data_url: "https://chat/f.jpg" }] }))).toMatchObject({ tipo: "responder", adjuntos: ["[foto]"] });
+    expect(accionPara(mensaje({ content: null, attachments: [{ file_type: "location" }] }))).toMatchObject({ tipo: "responder", adjuntos: ["[ubicación]"] });
+    expect(accionPara(mensaje({ content: "  ", attachments: [] })).tipo).toBe("ignorar");
+  });
+
+  it("avisa cuando el equipo resuelve, abre o vuelve a poner pendiente una conversación", () => {
+    const aviso = (event: string, status: string) => ({ event, id: 7, status, meta: { sender: { name: "Ana Prueba" } }, messages: [] });
+    expect(accionPara(aviso("conversation_resolved", "resolved"))).toEqual({ tipo: "cambio_de_estado", conversacion: 7, estado: "resolved" });
+    expect(accionPara(aviso("conversation_opened", "open"))).toEqual({ tipo: "cambio_de_estado", conversacion: 7, estado: "open" });
+    expect(accionPara(aviso("conversation_status_changed", "pending"))).toEqual({ tipo: "cambio_de_estado", conversacion: 7, estado: "pending" });
+    expect(accionPara({ event: "conversation_resolved", status: "resolved" }).tipo).toBe("ignorar");
+    expect(accionPara({ ...aviso("conversation_resolved", "resolved"), meta: { sender: { identifier: "whatsapp.integration" } } }).tipo).toBe("ignorar");
   });
 
   it("si una persona escribe en una conversación pendiente, la tomó ella", () => {
@@ -61,7 +73,7 @@ describe("accionPara", () => {
   it("ignora notas internas, avisos y otros eventos", () => {
     expect(accionPara(mensaje({ private: true })).tipo).toBe("ignorar");
     expect(accionPara(mensaje({ message_type: "activity" })).tipo).toBe("ignorar");
-    expect(accionPara(mensaje({ event: "conversation_status_changed" })).tipo).toBe("ignorar");
+    expect(accionPara(mensaje({ event: "conversation_updated" })).tipo).toBe("ignorar");
     expect(accionPara(mensaje({ conversation: null })).tipo).toBe("ignorar");
     expect(accionPara(null).tipo).toBe("ignorar");
   });
@@ -85,7 +97,7 @@ describe("mensajeParaHistorial", () => {
   });
 
   it("anota los adjuntos y deja afuera notas internas y avisos", () => {
-    expect(mensajeParaHistorial(mensaje({ content: "", attachments: [{ file_type: "audio" }, { file_type: "image" }] }))?.texto).toBe("[audio] [foto]");
+    expect(mensajeParaHistorial(mensaje({ content: "", attachments: [{ file_type: "audio" }, { file_type: "image" }, { file_type: "file" }] }))?.texto).toBe("[audio] [foto] [archivo]");
     expect(mensajeParaHistorial(mensaje({ private: true }))).toBeNull();
     expect(mensajeParaHistorial(mensaje({ message_type: "activity" }))).toBeNull();
     expect(mensajeParaHistorial(mensaje({ id: undefined }))).toBeNull();

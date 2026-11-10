@@ -141,17 +141,17 @@ export class ErrorOpenAI extends Error {
 const reintentable = (status: number) => status === 429 || status >= 500;
 const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** Un POST a la API de OpenAI con dos reintentos si está saturada o falla. */
+/** Un POST a la API de OpenAI con un reintento si está saturada o falla (60 segundos cada uno, como Claude). */
 async function postOpenAI(pedir: typeof fetch, clave: string, ruta: string, cuerpo: BodyInit, json: boolean, esperar = dormir): Promise<unknown> {
   for (let intento = 0; ; intento++) {
     const r = await pedir(`${URL_OPENAI}${ruta}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${clave}`, ...(json ? { "Content-Type": "application/json" } : {}) },
       body: cuerpo,
-      signal: AbortSignal.timeout(90_000),
+      signal: AbortSignal.timeout(60_000),
     });
     if (r.ok) return r.json();
-    if (intento < 2 && reintentable(r.status)) {
+    if (intento < 1 && reintentable(r.status)) {
       await esperar(1000 * 3 ** intento);
       continue;
     }

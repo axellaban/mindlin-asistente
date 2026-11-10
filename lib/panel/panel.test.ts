@@ -42,6 +42,7 @@ describe("validaciones del panel", () => {
     expect(validarProyecto(form({ nombre: "Lerma", precios: "x".repeat(8001) }))).toEqual({ ok: false, error: expect.stringContaining("Precios") });
     expect(validarProyecto(form({ nombre: "Lerma 439" }))).toMatchObject({ valor: { activo: false } });
     expect(idDesdeNombre("  Torre Ñandú (etapa 2) ")).toBe("torre-nandu-etapa-2");
+    expect(validarProyecto(form({ nombre: "Nuevo" }))).toEqual({ ok: false, error: expect.stringContaining("«nuevo»") });
   });
 
   it("el tono necesita al menos cómo habla; un ejemplo, título y conversación", () => {

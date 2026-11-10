@@ -49,6 +49,24 @@ export async function manejarWebhook(
   }
 
   if (accion.tipo === "ignorar") return { status: 200, json: { accion: "ignorar", motivo: accion.motivo } };
+
+  // El equipo cambió el estado en Chatwoot: si la resolvió o la tomó, no lleva más seguimientos;
+  // si la volvió a poner pendiente, se la devolvió al asistente.
+  if (accion.tipo === "cambio_de_estado") {
+    if (!almacen) return { status: 200, json: { accion: "ignorar", motivo: "falta configurar la base (DATABASE_URL) en Vercel" } };
+    try {
+      if (accion.estado === "pending") {
+        if (await almacen.volvioAlBot(accion.conversacion)) {
+          await almacen.registrar({ tipo: "volvio_al_bot", conversacion: accion.conversacion, detalle: "El equipo le devolvió la conversación al asistente (la puso pendiente)." });
+        }
+      } else {
+        await almacen.sinSeguimientos(accion.conversacion);
+      }
+    } catch (e) {
+      return { status: 500, json: { error: `No se pudo anotar el cambio de estado: ${e instanceof Error ? e.message : String(e)}` } };
+    }
+    return { status: 200, json: { accion: accion.tipo, estado: accion.estado } };
+  }
   if (!chatwoot) return { status: 200, json: { accion: "ignorar", motivo: "falta configurar Chatwoot en Vercel" } };
 
   if (accion.tipo === "la_tomo_una_persona") {

@@ -19,6 +19,7 @@ import type { Almacen, Proyecto } from "../datos/tipos";
 import { responder, type Herramientas, type Modelo, type Resultado } from "./agente";
 import type { Transcriptor } from "./openai";
 import { ficha, instrucciones, situacion } from "./contexto";
+import { motivoParaFrenar } from "./limites";
 
 export interface Servicios {
   almacen: Almacen;
@@ -49,7 +50,7 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
 
   // Antes de esperar: si mientras tanto llega otro mensaje, ese ya lee la transcripción.
   const transcripciones = await transcribirAudios(s, a);
-  const textoDelAviso = conTranscripciones([a.texto, ...a.audios.map(() => "[audio]")].filter(Boolean).join(" "), transcripciones);
+  const textoDelAviso = conTranscripciones([a.texto, ...a.audios.map(() => "[audio]"), ...a.adjuntos].filter(Boolean).join(" "), transcripciones);
   if (transcripciones.some(Boolean) && a.mensaje != null) {
     await s.almacen.actualizarTextoMensaje(a.mensaje, textoDelAviso).catch(() => {});
   }
@@ -65,6 +66,13 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     // Si el mensaje no quedó guardado (por ejemplo, falló la base), se responde igual con lo que trae el aviso.
     if (!historial.some((m) => m.id === a.mensaje)) {
       historial.push({ id: a.mensaje ?? -1, conversacion: conv, rol: "interesado", texto: textoDelAviso, fecha: ahora().toISOString() });
+    }
+
+    // Un contestador automático o alguien que escribe sin parar: atiende el equipo, sin gastar la IA.
+    const frenar = motivoParaFrenar(historial, ahora());
+    if (frenar) {
+      await pasarAPersona(s, conv, { motivo: `El asistente dejó de responder: ${frenar}.`, resumen: "" }, null, ahora);
+      return `frenó: ${frenar}`;
     }
 
     // Si el equipo había tomado la conversación y la volvió a poner pendiente, se la devolvió al bot.

@@ -46,6 +46,8 @@ export function validarProyecto(f: Formulario): Resultado<FichaEditable> {
   if (!nombre || nombre.length > 120) return { ok: false, error: "El nombre del proyecto va de 1 a 120 letras." };
   const id = texto(f, "id") || idDesdeNombre(nombre);
   if (!/^[a-z0-9-]+$/.test(id)) return { ok: false, error: "El identificador va en minúsculas, números y guiones (por ejemplo «lerma-439»)." };
+  // «nuevo» es la dirección de la pantalla para dar de alta (/panel/proyectos/nuevo).
+  if (id === "nuevo") return { ok: false, error: "«nuevo» no puede ser el identificador: elegí otro." };
   const campos = {} as Record<(typeof CAMPOS_FICHA)[number][0], string>;
   for (const [campo, titulo] of CAMPOS_FICHA) {
     const valor = texto(f, campo);

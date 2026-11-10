@@ -83,6 +83,7 @@ const accion = (mensaje: number, texto = "Hola, ¿tienen 2 ambientes?"): Respond
   mensaje,
   texto,
   audios: [],
+  adjuntos: [],
   contacto: { nombre: "Ana Prueba", telefono: "5491155550000" },
   bandeja: 1,
 });
@@ -280,6 +281,18 @@ describe("audios", () => {
       "audio.ogg",
       "audio.ogg",
     ]);
+  });
+});
+
+describe("límites", () => {
+  it("si del otro lado hay un contestador automático, deja de responder y pasa al equipo sin llamar a la IA", async () => {
+    const auto = "Gracias por escribirnos, en breve te respondemos.";
+    const p = preparar({ historial: [msg(1, "interesado", auto), msg(2, "bot", "¡Hola!"), msg(3, "interesado", auto), msg(4, "bot", "¿Me contás?"), msg(5, "interesado", auto)] });
+    const m = modeloFalso();
+    const r = await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null }, accion(5, auto));
+    expect(r).toContain("frenó");
+    expect(m.pedidos).toHaveLength(0);
+    expect(p.cw.hechos).toEqual(["nota 7: 🙋 El asistente pasó esta conversación al equipo: El asistente dejó de responder: repite el mismo mensaje: puede ser un contestador automático.", "abrir 7"]);
   });
 });
 

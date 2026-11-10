@@ -10,7 +10,8 @@ type Esfuerzo = "low" | "medium" | "high" | "xhigh" | "max";
 
 /** Se arma desde lib/servicios.ts con lo que eligió elegirIA() (lib/agente/proveedor.ts). */
 export function crearModeloClaude({ clave, modelo, esfuerzo }: { clave: string; modelo: string; esfuerzo: string }): Modelo {
-  const cliente = new Anthropic({ apiKey: clave, maxRetries: 2, timeout: 90_000 });
+  // 60 segundos y un reintento: entra holgado en los 300 de la función (ver LIMITE_MS en agente.ts).
+  const cliente = new Anthropic({ apiKey: clave, maxRetries: 1, timeout: 60_000 });
   return ({ system, tools, messages }) =>
     cliente.beta.messages.create({
       model: modelo,
