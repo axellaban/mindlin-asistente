@@ -2,8 +2,11 @@ import { after, NextResponse } from "next/server";
 import { conexionesDesdeEnv } from "@/lib/servicios";
 import { manejarWebhook } from "@/lib/webhook";
 
-/** Claude puede tardar: la respuesta a Chatwoot sale enseguida y el resto corre después (after). */
-export const maxDuration = 120;
+/**
+ * La IA puede tardar: la respuesta a Chatwoot sale enseguida y el resto corre después (after).
+ * 300 segundos: la espera, los audios y hasta LIMITE_MS de vueltas con la IA (lib/agente/agente.ts).
+ */
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const cuerpo = await req.text();

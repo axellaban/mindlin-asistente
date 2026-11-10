@@ -22,6 +22,10 @@ describe("contexto del agente", () => {
     const i = instrucciones({ tono, proyectos: [lerma(), otroProyecto()], proyecto: null, ejemplos: [{ titulo: "Saludo", conversacion: "—Hola\n—¡Hola! ¿En qué te ayudo?" }] });
     expect(i).toContain("elegir_proyecto");
     expect(i).toContain("- Otro 1 (id: otro-1): Palermo.");
+    // Las palabras para reconocerlo (las de la ficha), así entiende «lo de Lerma».
+    expect(instrucciones({ tono, proyectos: [lerma({ palabras_clave: ["lerma", "villa crespo"] }), otroProyecto()], proyecto: null, ejemplos: [] })).toContain(
+      "- Lerma 439 (id: lerma-439): Villa Crespo, CABA. También lo pueden nombrar así: lerma, villa crespo.",
+    );
     expect(i).not.toContain("Monoambientes");
     expect(i).toContain("## Saludo");
   });

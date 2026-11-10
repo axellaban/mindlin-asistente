@@ -36,11 +36,16 @@ export interface Resultado {
   texto: string;
   pasarAPersona: { motivo: string; resumen: string } | null;
   /** Por qué terminó: para el registro. */
-  fin: "respuesta" | "rechazo" | "sin_texto" | "demasiadas_vueltas";
+  fin: "respuesta" | "rechazo" | "sin_texto" | "demasiadas_vueltas" | "demasiado_tiempo";
 }
 
 /** Vueltas máximas entre Claude y las herramientas en un mismo mensaje. */
 export const MAX_VUELTAS = 5;
+/**
+ * Pasado este tiempo no se empieza otra vuelta: la conversación pasa al equipo. La función de
+ * Vercel corta a los 300 segundos (maxDuration) y cada pedido a la IA puede tardar hasta 60.
+ */
+export const LIMITE_MS = 150_000;
 
 const texto = (descripcion: string) => ({ type: "string", description: descripcion }) as const;
 
@@ -125,7 +130,11 @@ export async function responder({
   historial,
   proyectos,
   herramientas,
+  reloj = Date.now,
+  limiteMs = LIMITE_MS,
 }: {
+  reloj?: () => number;
+  limiteMs?: number;
   modelo: Modelo;
   instrucciones: string;
   situacion: string;
@@ -144,7 +153,11 @@ export async function responder({
   // última herramienta si después no escribió nada (así no se duplica el mensaje).
   let ultimo = "";
 
+  const inicio = reloj();
   for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
+    if (vuelta > 0 && reloj() - inicio > limiteMs) {
+      return { texto: ultimo, pasarAPersona: pasarAPersona ?? { motivo: "El asistente tardó demasiado en responder.", resumen: "" }, fin: "demasiado_tiempo" };
+    }
     const r = await modelo({ system, tools, messages });
     if (r.stop_reason === "refusal") {
       return { texto: "", pasarAPersona: { motivo: "El asistente no pudo responder esta consulta.", resumen: "" }, fin: "rechazo" };

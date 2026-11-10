@@ -53,7 +53,12 @@ export function instrucciones({ tono, proyectos, proyecto, ejemplos }: { tono: T
   if (proyecto) {
     partes.push(`# El proyecto de esta conversación\n\n${ficha(proyecto)}`);
   } else if (proyectos.length) {
-    const lista = proyectos.map((p) => `- ${p.nombre} (id: ${p.id})${p.ubicacion ? `: ${p.ubicacion}` : ""}`).join("\n");
+    const lista = proyectos
+      .map((p) => {
+        const otros = p.palabras_clave.filter((k) => k.toLowerCase() !== p.nombre.toLowerCase());
+        return `- ${p.nombre} (id: ${p.id})${p.ubicacion ? `: ${p.ubicacion}` : ""}${otros.length ? ` También lo pueden nombrar así: ${otros.join(", ")}.` : ""}`;
+      })
+      .join("\n");
     partes.push(
       `# Proyectos de Mindlin\n\nTodavía no sabés por cuál consulta la persona. Si no queda claro, preguntale. Cuando lo sepas, usá la herramienta elegir_proyecto: te devuelve la ficha. Hasta entonces, no des datos de ningún proyecto.\n\n${lista}`,
     );

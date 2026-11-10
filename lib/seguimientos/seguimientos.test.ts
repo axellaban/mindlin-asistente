@@ -64,7 +64,7 @@ describe("reglas de seguimiento", () => {
     expect(textoSeguimiento("Hola {{nombre}}, ¿pudiste ver lo de {{proyecto}}?", { nombre: "Ana", proyecto: "Lerma 439" })).toBe("Hola Ana, ¿pudiste ver lo de Lerma 439?");
     expect(textoSeguimiento("Hola {{nombre}}, ¿pudiste ver lo de {{proyecto}}?", { nombre: "", proyecto: "" })).toBe("Hola, ¿pudiste ver lo de el proyecto?");
     expect(textoSeguimiento("{{nombre}}, ¿seguís buscando?", { nombre: "", proyecto: "" })).toBe("¿seguís buscando?");
-    expect(["ANA maría", "  juan ", "WhatsApp +5491155550000", "+54 9 11", "", null].map(nombreDePila)).toEqual(["Ana", "Juan", "", "", "", ""]);
+    expect(["ANA maría", "  juan ", "WhatsApp +5491155550000", "+54 9 11", "🌸 Flor", "Ñandú", "", null].map(nombreDePila)).toEqual(["Ana", "Juan", "", "", "", "Ñandú", "", ""]);
   });
 });
 

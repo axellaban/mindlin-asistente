@@ -125,6 +125,11 @@ describe("OpenAI con la forma de Claude", () => {
     const modelo = crearModeloOpenAI({ clave: "k", modelo: "m", esfuerzo: "low" }, saturado.pedir, async () => {});
     expect((await modelo({ system: [], tools: [], messages: [{ role: "user", content: "Hola" }] })).stop_reason).toBe("end_turn");
     expect(saturado.pedidos).toHaveLength(2);
+    // Un solo reintento: si vuelve a fallar, avisa.
+    const siempre = openaiFalso({ status: 503, texto: "caído" }, { status: 503, texto: "caído" });
+    const caido = crearModeloOpenAI({ clave: "k", modelo: "m", esfuerzo: "low" }, siempre.pedir, async () => {});
+    await expect(caido({ system: [], tools: [], messages: [{ role: "user", content: "Hola" }] })).rejects.toBeInstanceOf(ErrorOpenAI);
+    expect(siempre.pedidos).toHaveLength(2);
 
     const sinPermiso = openaiFalso({ status: 401, texto: "clave inválida" });
     const otro = crearModeloOpenAI({ clave: "k", modelo: "m", esfuerzo: "low" }, sinPermiso.pedir, async () => {});

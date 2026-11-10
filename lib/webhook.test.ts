@@ -110,6 +110,20 @@ describe("webhook del Agent Bot", () => {
     expect(a.datos.mensajes.has(21)).toBe(true);
   });
 
+  it("si el equipo resuelve o abre la conversación, se terminan los seguimientos; si la vuelve a poner pendiente, se retoman", async () => {
+    const a = armar();
+    await a.llamar(evento());
+    expect(a.datos.seguimiento.get(2)?.sin_seguimientos).toBe(false);
+    const aviso = (event: string, status: string) => ({ event, id: 2, status, meta: { sender: { name: "Ana Prueba" } } });
+    expect((await a.llamar(aviso("conversation_resolved", "resolved"))).json).toEqual({ accion: "cambio_de_estado", estado: "resolved" });
+    expect(a.datos.seguimiento.get(2)?.sin_seguimientos).toBe(true);
+    await a.llamar(aviso("conversation_status_changed", "pending"));
+    expect(a.datos.seguimiento.get(2)?.sin_seguimientos).toBe(false);
+    expect(a.datos.registro.map((r) => r.tipo)).toEqual(["volvio_al_bot"]);
+    // Ningún cambio de estado hace responder a la IA ni toca Chatwoot.
+    expect(a.hechos).toEqual([]);
+  });
+
   it("ignora la conversación de avisos de WAHA y no la guarda", async () => {
     const a = armar();
     const r = await a.llamar(evento({ conversation: { id: 1, status: "pending", meta: { sender: { identifier: "whatsapp.integration" } } } }));

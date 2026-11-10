@@ -11,6 +11,8 @@
  * - Mensaje saliente que no mandó el bot (una persona escribió desde Chatwoot o desde el
  *   celular de la línea) en una conversación pendiente → la tomó una persona: pasarla a abierta.
  * - La conversación «Integración de WhatsApp» que crea WAHA (avisos y QR) → nada.
+ * - Cambio de estado de la conversación (el equipo la resolvió, la abrió o la volvió a poner
+ *   pendiente) → avisarle al asistente, para frenar o retomar los seguimientos.
  * - Todo lo demás (notas internas, avisos de Chatwoot, conversaciones que ya atiende una
  *   persona, mensajes del propio bot) → nada.
  *
@@ -42,7 +44,13 @@ export interface EventoChatwoot {
   conversation?: { id?: number; status?: string; meta?: { sender?: ContactoChatwoot | null } | null } | null;
   inbox?: { id?: number; name?: string } | null;
   attachments?: Adjunto[] | null;
+  /** En los eventos de conversación (conversation_*): el estado actual y el contacto, en la raíz. */
+  status?: string;
+  meta?: { sender?: ContactoChatwoot | null } | null;
 }
+
+/** Los avisos de Chatwoot cuando cambia el estado de una conversación (app/listeners/agent_bot_listener.rb). */
+const EVENTOS_DE_ESTADO = ["conversation_status_changed", "conversation_resolved", "conversation_opened"];
 
 export interface Contacto {
   nombre: string;
@@ -50,8 +58,20 @@ export interface Contacto {
 }
 
 export type Accion =
-  | { tipo: "responder"; conversacion: number; mensaje: number | null; texto: string; audios: string[]; contacto: Contacto; bandeja: number | null }
+  | {
+      tipo: "responder";
+      conversacion: number;
+      mensaje: number | null;
+      texto: string;
+      audios: string[];
+      /** Los demás adjuntos, como quedan en el historial: «[foto]», «[archivo]»… */
+      adjuntos: string[];
+      contacto: Contacto;
+      bandeja: number | null;
+    }
   | { tipo: "la_tomo_una_persona"; conversacion: number }
+  /** pending: la atiende el bot; open, resolved o snoozed: el equipo (o ya terminó). */
+  | { tipo: "cambio_de_estado"; conversacion: number; estado: string }
   | { tipo: "ignorar"; motivo: string };
 
 /** Quién escribió un mensaje del historial. */
@@ -78,7 +98,7 @@ const loMandoElBot = (e: EventoChatwoot) => /^agent_?bot$/i.test(e.sender?.type 
 export const CONTACTO_INTEGRACION = "whatsapp.integration";
 
 function esIntegracion(e: EventoChatwoot): boolean {
-  const c = e.conversation?.meta?.sender;
+  const c = e.conversation?.meta?.sender ?? e.meta?.sender;
   return c?.identifier === CONTACTO_INTEGRACION || c?.custom_attributes?.waha_whatsapp_chat_id === CONTACTO_INTEGRACION;
 }
 
@@ -86,6 +106,10 @@ function contactoDe(e: EventoChatwoot): Contacto {
   const c = e.conversation?.meta?.sender;
   return { nombre: (c?.name ?? "").trim(), telefono: (c?.phone_number ?? "").replace(/[^\d]/g, "") };
 }
+
+const NOMBRE_ADJUNTO: Record<string, string> = { audio: "audio", image: "foto", video: "video", location: "ubicación", contact: "contacto" };
+/** Cómo queda un adjunto en el historial: «[foto]», «[audio]», «[archivo]»… */
+export const etiquetaAdjunto = (a: Adjunto) => `[${NOMBRE_ADJUNTO[a.file_type ?? ""] ?? "archivo"}]`;
 
 function fechaDe(e: EventoChatwoot): string {
   const f = e.created_at;
@@ -96,6 +120,11 @@ function fechaDe(e: EventoChatwoot): string {
 export function accionPara(evento: unknown): Accion {
   if (!evento || typeof evento !== "object") return { tipo: "ignorar", motivo: "no es un evento" };
   const e = evento as EventoChatwoot;
+  if (EVENTOS_DE_ESTADO.includes(e.event ?? "")) {
+    if (typeof e.id !== "number" || !e.status) return { tipo: "ignorar", motivo: "el aviso no trae la conversación" };
+    if (esIntegracion(e)) return { tipo: "ignorar", motivo: "es la conversación de avisos de WAHA" };
+    return { tipo: "cambio_de_estado", conversacion: e.id, estado: e.status };
+  }
   if (e.event !== "message_created") return { tipo: "ignorar", motivo: "no es un mensaje nuevo" };
   const conversacion = e.conversation?.id;
   if (typeof conversacion !== "number") return { tipo: "ignorar", motivo: "el evento no trae la conversación" };
@@ -108,9 +137,12 @@ export function accionPara(evento: unknown): Accion {
   if (tipo === "incoming") {
     if (!pendiente) return { tipo: "ignorar", motivo: "la conversación la atiende una persona" };
     const texto = (e.content ?? "").trim();
-    const audios = (e.attachments ?? []).filter((a) => a.file_type === "audio" && a.data_url).map((a) => a.data_url!);
-    if (!texto && !audios.length) return { tipo: "ignorar", motivo: "el mensaje no trae texto ni audio" };
-    return { tipo: "responder", conversacion, mensaje: e.id ?? null, texto, audios, contacto: contactoDe(e), bandeja: e.inbox?.id ?? null };
+    const adjuntos = e.attachments ?? [];
+    const audios = adjuntos.filter((a) => a.file_type === "audio" && a.data_url).map((a) => a.data_url!);
+    // Una foto o un archivo sin texto también se contesta (pidiendo que lo cuente por escrito).
+    if (!texto && !adjuntos.length) return { tipo: "ignorar", motivo: "el mensaje no trae texto ni adjuntos" };
+    const otros = adjuntos.filter((a) => !(a.file_type === "audio" && a.data_url)).map(etiquetaAdjunto);
+    return { tipo: "responder", conversacion, mensaje: e.id ?? null, texto, audios, adjuntos: otros, contacto: contactoDe(e), bandeja: e.inbox?.id ?? null };
   }
 
   if (tipo === "outgoing") {
@@ -134,10 +166,7 @@ export function mensajeParaHistorial(evento: unknown): MensajeHistorial | null {
   if (typeof conversacion !== "number" || esIntegracion(e)) return null;
   const tipo = tipoDeMensaje(e.message_type);
   if (tipo !== "incoming" && tipo !== "outgoing") return null;
-  const adjuntos = (e.attachments ?? []).map((a) => a.file_type ?? "archivo");
-  const texto = [(e.content ?? "").trim(), ...adjuntos.map((a) => `[${a === "audio" ? "audio" : a === "image" ? "foto" : "archivo"}]`)]
-    .filter(Boolean)
-    .join(" ");
+  const texto = [(e.content ?? "").trim(), ...(e.attachments ?? []).map(etiquetaAdjunto)].filter(Boolean).join(" ");
   if (!texto) return null;
   const rol: Rol = tipo === "incoming" ? "interesado" : loMandoElBot(e) ? "bot" : "persona";
   return { id: e.id, conversacion, rol, texto, fecha: fechaDe(e) };
