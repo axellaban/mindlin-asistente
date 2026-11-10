@@ -23,7 +23,21 @@ const NOMBRES: Partial<Record<keyof FichaEditable, string>> = {
   ubicacion: "ubicación",
 };
 
-export function queFalta({ tono, proyectos, reglas, faltan }: { tono: Tono; proyectos: FichaEditable[]; reglas: number; faltan: string[] }): Paso[] {
+export function queFalta({
+  tono,
+  proyectos,
+  reglas,
+  archivadas = 0,
+  faltan,
+}: {
+  tono: Tono;
+  proyectos: FichaEditable[];
+  /** Reglas de seguimiento activas o a prueba. */
+  reglas: number;
+  /** Reglas cargadas pero archivadas (por ejemplo, los borradores de Kommo). */
+  archivadas?: number;
+  faltan: string[];
+}): Paso[] {
   const pasos: Paso[] = [];
   const activos = proyectos.filter((p) => p.activo);
   pasos.push(
@@ -48,7 +62,9 @@ export function queFalta({ tono, proyectos, reglas, faltan }: { tono: Tono; proy
   pasos.push(
     reglas
       ? { listo: true, texto: `Hay ${reglas === 1 ? "1 regla" : `${reglas} reglas`} de seguimiento.` }
-      : { listo: false, texto: "Todavía no hay reglas de seguimiento: nadie recibe un segundo mensaje si deja de responder.", link: "/panel/seguimientos" },
+      : archivadas
+        ? { listo: false, texto: `Hay ${archivadas === 1 ? "1 regla de seguimiento cargada, pero está archivada" : `${archivadas} reglas de seguimiento cargadas, pero están archivadas`}: revisalas y pasá a «Activa» las que quieras usar.`, link: "/panel/seguimientos" }
+        : { listo: false, texto: "Todavía no hay reglas de seguimiento: nadie recibe un segundo mensaje si deja de responder.", link: "/panel/seguimientos" },
   );
   return pasos;
 }

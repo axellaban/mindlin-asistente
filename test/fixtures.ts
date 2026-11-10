@@ -6,6 +6,7 @@ export const lerma = (cambios: Partial<Proyecto> = {}): Proyecto => ({
   id: "lerma-439",
   nombre: "Lerma 439",
   palabras_clave: ["lerma"],
+  presentacion: "",
   descripcion: "Edificio de departamentos de 1 a 3 ambientes.",
   ubicacion: "Villa Crespo, CABA.",
   etapa_obra: "En obra.",

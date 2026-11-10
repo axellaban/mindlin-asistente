@@ -15,6 +15,8 @@ export const CAMPOS_ANOTADOS = [
   ["presupuesto_usd", "presupuesto (USD)"],
   ["forma_de_pago", "forma de pago"],
   ["plazo", "plazo"],
+  ["zona", "de dónde es"],
+  ["busca_desde", "busca hace"],
 ] as const satisfies readonly (readonly [keyof Anotado & keyof DatosRegistro, string])[];
 
 const limpio = (v: unknown) => (typeof v === "string" ? v.trim().replace(/\s+/g, " ").slice(0, 300) : "");

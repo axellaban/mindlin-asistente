@@ -32,7 +32,7 @@ export default async function Resumen({ searchParams }: { searchParams: Avisos }
     );
   }
   const [r, registro, estado, tono, proyectos, reglas] = await Promise.all([d.resumen(7), d.registro({ limite: 30 }), d.estado(), d.tono(), d.proyectos(), d.reglas()]);
-  const pasos = queFalta({ tono, proyectos, reglas: reglas.filter((x) => x.estado !== "archivada").length, faltan });
+  const pasos = queFalta({ tono, proyectos, reglas: reglas.filter((x) => x.estado !== "archivada").length, archivadas: reglas.filter((x) => x.estado === "archivada").length, faltan });
   const pendientes = pasos.filter((p) => !p.listo);
   return (
     <Marco nombre={nombre} actual="/panel" titulo="Resumen" avisos={searchParams}>

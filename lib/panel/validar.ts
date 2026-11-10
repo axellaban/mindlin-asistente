@@ -16,6 +16,7 @@ const texto = (f: Formulario, campo: string) => String(f.get(campo) ?? "").repla
 export const MAX_CAMPO_FICHA = 8000;
 
 export const CAMPOS_FICHA = [
+  ["presentacion", "Presentación (lo primero que cuenta del proyecto)"],
   ["descripcion", "Descripción"],
   ["ubicacion", "Ubicación"],
   ["etapa_obra", "Etapa de obra"],
@@ -68,9 +69,10 @@ export function validarProyecto(f: Formulario): Resultado<FichaEditable> {
 }
 
 export function validarTono(f: Formulario): Resultado<Tono> {
-  const t = { instrucciones: texto(f, "instrucciones"), criterios_comerciales: texto(f, "criterios_comerciales"), cuando_pasar_a_persona: texto(f, "cuando_pasar_a_persona") };
+  const textos = { instrucciones: texto(f, "instrucciones"), criterios_comerciales: texto(f, "criterios_comerciales"), cuando_pasar_a_persona: texto(f, "cuando_pasar_a_persona") };
+  const t = { ...textos, pasar_al_responder: f.get("pasar_al_responder") === "on" };
   if (!t.instrucciones) return { ok: false, error: "Falta «Quién es y cómo habla»: sin eso el asistente no sabe qué tono usar." };
-  if (Object.values(t).some((v) => v.length > MAX_CAMPO_FICHA)) return { ok: false, error: `Cada texto puede tener hasta ${MAX_CAMPO_FICHA} letras.` };
+  if (Object.values(textos).some((v) => v.length > MAX_CAMPO_FICHA)) return { ok: false, error: `Cada texto puede tener hasta ${MAX_CAMPO_FICHA} letras.` };
   return { ok: true, valor: t };
 }
 

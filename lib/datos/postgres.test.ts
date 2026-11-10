@@ -25,9 +25,31 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
   it("trae Lerma 439 y el borrador del tono que deja la migración", async () => {
     const a = crearAlmacen(pool);
     expect((await a.proyectosActivos()).map((p) => p.id)).toEqual(["lerma-439"]);
-    expect((await a.proyectosActivos())[0].palabras_clave).toEqual(["lerma", "lerma 439"]);
     expect((await a.tono()).instrucciones).toContain("Mindlin Developers");
     expect(await a.ejemplos()).toEqual([]);
+  });
+
+  it("los borradores de Kommo: Lerma completa lo vacío; los demás proyectos y los seguimientos quedan apagados", async () => {
+    const a = crearAlmacen(pool);
+    const [lerma] = await a.proyectosActivos();
+    expect(lerma.palabras_clave).toEqual(["lerma", "lerma 439", "queens", "villa crespo"]);
+    expect(lerma.precios).toContain("USD 88.000");
+    expect(lerma.presentacion).toContain("entre Villa Crespo y Palermo");
+    expect(lerma.links).toBe("Brochure: https://drive.google.com/file/d/1ZtdTA8n5gqpvP3_DbxAZpiI_SD7CF12q/view?usp=sharing");
+    // Cinco proyectos más, apagados: el asistente no los ofrece hasta que alguien los active.
+    const { rows } = await pool.query("select id, activo from proyectos order by id");
+    expect(rows).toEqual([
+      { id: "17-y-43", activo: false },
+      { id: "guemes", activo: false },
+      { id: "lerma-439", activo: true },
+      { id: "ramblas-del-plata", activo: false },
+      { id: "torre-cuatro-vientos", activo: false },
+      { id: "via-53", activo: false },
+    ]);
+    // Un seguimiento por proyecto, archivado: no sale ninguno.
+    expect((await pool.query("select count(*)::int as n from reglas_seguimiento where estado = 'archivada' and dias_sin_respuesta = 1")).rows[0].n).toBe(6);
+    expect(await a.reglasVigentes()).toEqual([]);
+    expect((await a.tono()).criterios_comerciales).toContain("solo vende");
   });
 
   it("guarda el historial sin repetir y devuelve los últimos en orden", async () => {

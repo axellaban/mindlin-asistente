@@ -30,7 +30,7 @@ function pool(url: string): pg.Pool {
 }
 
 const COLUMNAS_PROYECTO =
-  "id, nombre, palabras_clave, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links";
+  "id, nombre, palabras_clave, presentacion, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links";
 
 interface FilaMensaje {
   id: string;
@@ -115,8 +115,8 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rows as Proyecto[];
     },
     async tono() {
-      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona from tono where id = 1");
-      return (rows[0] as Tono | undefined) ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "" };
+      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder from tono where id = 1");
+      return (rows[0] as Tono | undefined) ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false };
     },
     async ejemplos() {
       const { rows } = await db.query("select titulo, conversacion from ejemplos where activo order by id");

@@ -101,9 +101,16 @@ La propuesta pide empezar por WhatsApp y dejar prevista la incorporación del em
 - El asistente ya recibe los avisos de cualquier bandeja que tenga el Agent Bot. Para sumar email faltaría: que el tono permita mensajes más largos y con saludo cuando la bandeja es de mail; buscar el contacto del CRM por mail además de por teléfono; y que los seguimientos salgan por la misma bandeja de la conversación (ya salen por Chatwoot, así que esto viene solo).
 - Antes hace falta el correo de salida de Chatwoot (la decisión abierta en `PENDIENTES.md`).
 
-## 10. Más adelante: el hub conectado a Chatwoot
+## 10. El hub: configurar el asistente y, más adelante, Chatwoot
 
-Mindlin construye el hub (pantallas y funciones). Si más adelante lo conectan a Chatwoot, el asistente no cambia: sigue atendiendo por Chatwoot, y el hub encuentra ahí las conversaciones y las notas del asistente (ver [`integracion-crm.md`](integracion-crm.md)).
+Mindlin construye el hub (pantallas y funciones). **Todo lo comercial del asistente se configura sin tocar código** (fichas, presentación, tono, criterios, modo de atención, ejemplos, reglas de seguimiento, pausa), por dos caminos que usan los mismos datos:
+
+- el panel del asistente (`/panel`), que ya funciona;
+- la API para el hub ([`api-hub.md`](api-hub.md)), con una clave compartida (`HUB_CLAVE`), para que el hub tenga sus propias pantallas. El asistente es el dueño de esa configuración (está en su base); el hub la lee y la cambia. Así no hay dos copias que se desfasen.
+
+Qué hacían los bots de Kommo y cómo quedó cada cosa: [`kommo.md`](kommo.md).
+
+Si más adelante lo conectan a Chatwoot, el asistente no cambia: sigue atendiendo por Chatwoot, y el hub encuentra ahí las conversaciones y las notas del asistente (ver [`integracion-crm.md`](integracion-crm.md)).
 
 ## Lo que se reutiliza de otros proyectos de Axel
 

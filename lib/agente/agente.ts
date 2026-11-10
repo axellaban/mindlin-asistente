@@ -23,6 +23,9 @@ export interface DatosRegistro {
   presupuesto_usd: string;
   forma_de_pago: string;
   plazo: string;
+  /** Opcionales en el tipo: los modelos los mandan siempre (el esquema los exige), las pruebas viejas no. */
+  zona?: string;
+  busca_desde?: string;
   resumen: string;
 }
 
@@ -59,7 +62,7 @@ export function definirHerramientas(proyectos: string[]): Tool[] {
       input_schema: {
         type: "object",
         additionalProperties: false,
-        required: ["nombre", "para", "ambientes", "presupuesto_usd", "forma_de_pago", "plazo", "resumen"],
+        required: ["nombre", "para", "ambientes", "presupuesto_usd", "forma_de_pago", "plazo", "zona", "busca_desde", "resumen"],
         properties: {
           nombre: texto("Nombre y apellido, si lo dijo."),
           para: { type: "string", enum: ["Vivir", "Invertir", "A definir", ""], description: "Para qué busca." },
@@ -67,6 +70,8 @@ export function definirHerramientas(proyectos: string[]): Tool[] {
           presupuesto_usd: texto("Presupuesto en dólares, solo el número (por ejemplo «120000»)."),
           forma_de_pago: { type: "string", enum: ["Al costo (cuotas)", "Contado", "A definir", ""], description: "Cómo piensa pagar." },
           plazo: { type: "string", enum: ["Menos de 2 meses", "2 a 6 meses", "Más de 6 meses", "A definir", ""], description: "Cuándo piensa comprar." },
+          zona: texto("De dónde es o en qué zona vive, si lo dijo."),
+          busca_desde: texto("Hace cuánto está buscando, si lo dijo (por ejemplo «3 meses» o «recién empieza»)."),
           resumen: texto("Qué busca y qué se habló, en una o dos oraciones para el equipo comercial."),
         },
       },

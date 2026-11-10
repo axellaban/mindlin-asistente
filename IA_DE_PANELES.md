@@ -54,13 +54,14 @@ Ya está todo: el proyecto en la cuenta de Vercel de Axel (`https://mindlin-asis
 - **Las tablas se crean solas en cada publicación** (`scripts/migrar.mjs`). No hay que pegar nada a mano.
 - **Lo que queda de esta tarea** (actualizado el 10/11). Cada variable, en **Settings → Environment Variables**, para Production y Preview, como **Secret**:
   1. ~~`ANTHROPIC_API_KEY`~~: **cargada por Axel el 10/11.** El asistente responde con Claude.
-  2. `PANEL_CLAVE`: la clave del panel del equipo (`/panel`). Que la elija Axel (larga, por ejemplo cuatro palabras al azar) y la guarde en su gestor de contraseñas. La comparte él con el equipo, no por este chat.
+  2. ~~`PANEL_CLAVE`~~: **cargada por Axel el 10/11.** Es la clave del panel del equipo (`/panel`); la comparte él con el equipo, no por este chat.
   3. `CRON_SECRET`: una clave al azar para los seguimientos. Se puede generar en la terminal con `openssl rand -hex 24` y pegarla directo en Vercel. Nadie más la necesita.
-  4. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
-  5. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: base al día (5 migraciones).` y anotarla.
-  6. En **Settings → Cron Jobs**, confirmar que aparece `/api/cron/seguimientos` cada 15 minutos. Si Vercel no deja publicar por el cron («Hobby accounts are limited to daily cron jobs»), anotalo y frená: el proyecto tiene que estar en el equipo con plan Pro.
-  7. Abrir `/api/salud` y anotar la lista `faltan` y lo que dice `ia` (tiene que decir `"proveedor": "anthropic"`; `"audios": false` es lo esperado hasta que se cargue `OPENAI_API_KEY`).
-  8. Abrir `/panel`, entrar con tu nombre («IA de paneles») y la clave, y anotar si se ve el resumen y que diga «El asistente está respondiendo». **No cambies las fichas, el tono ni la pausa:** eso lo maneja Mindlin.
+  4. `HUB_CLAVE` (opcional, cuando el hub se conecte): otra clave al azar, la misma en este proyecto y en el del hub. Prende la API para configurar el asistente desde el hub (`docs/api-hub.md`). Sin ella, esa API está apagada.
+  5. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
+  6. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: base al día (7 migraciones).` y anotarla.
+  7. En **Settings → Cron Jobs**, confirmar que aparece `/api/cron/seguimientos` cada 15 minutos. Si Vercel no deja publicar por el cron («Hobby accounts are limited to daily cron jobs»), anotalo y frená: el proyecto tiene que estar en el equipo con plan Pro.
+  8. Abrir `/api/salud` y anotar la lista `faltan` y lo que dice `ia` (tiene que decir `"proveedor": "anthropic"`; `"audios": false` es lo esperado hasta que se cargue `OPENAI_API_KEY`).
+  9. Abrir `/panel`, entrar con tu nombre («IA de paneles») y la clave, y anotar si se ve el resumen y que diga «El asistente está respondiendo». **No cambies las fichas, el tono ni la pausa:** eso lo maneja Mindlin.
   9. **Más adelante (Axel decide cuándo):** `OPENAI_API_KEY`, solo para transcribir los audios. Mientras no esté, el bot pide que lo escriban.
 
 ### Tarea 3 · Cuenta de Google para el CRM

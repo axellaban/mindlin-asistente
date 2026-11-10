@@ -78,7 +78,8 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     }
 
     // Si el equipo había tomado la conversación y la volvió a poner pendiente, se la devolvió al bot.
-    if (await s.almacen.volvioAlBot(conv)) {
+    const devuelta = await s.almacen.volvioAlBot(conv);
+    if (devuelta) {
       await s.almacen.registrar({ tipo: "volvio_al_bot", conversacion: conv, detalle: "El equipo le devolvió la conversación al asistente: vuelve a responder y a llevar seguimientos." });
     }
 
@@ -88,6 +89,13 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
       s.almacen.tono(),
       s.almacen.ejemplos(),
     ]);
+
+    // Modo «presenta y pasa» (como los bots de Kommo): el asistente ya le escribió y la persona
+    // respondió → sigue el equipo. Si el equipo se la devolvió a propósito, responde.
+    if (tono.pasar_al_responder && !devuelta && historial.some((m) => m.rol === "bot")) {
+      await pasarAPersona(s, conv, { motivo: "La persona respondió después de la presentación (modo «presenta y pasa»).", resumen: guardada?.interesado?.resumen ?? "" }, null, ahora);
+      return "pasó al equipo: respondió después de la presentación";
+    }
     // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
     const telefono = a.contacto.telefono || guardada?.telefono || null;
     const nombre = a.contacto.nombre || guardada?.nombre || null;
@@ -131,7 +139,7 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
               presupuestoUsd: anotado.presupuesto_usd ?? "",
               formaDePago: anotado.forma_de_pago ?? "",
               plazo: anotado.plazo ?? "",
-              notas: d.resumen,
+              notas: [d.resumen, anotado.zona && `Es de: ${anotado.zona}.`, anotado.busca_desde && `Busca hace: ${anotado.busca_desde}.`].filter(Boolean).join(" "),
             },
             cuando,
           );

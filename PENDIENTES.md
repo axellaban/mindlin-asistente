@@ -12,18 +12,22 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 
 ## Lo próximo, en orden (para atender consultas reales)
 
-1. **Axel y Panel:** cargar `PANEL_CLAVE` y `CRON_SECRET` en Vercel y volver a publicar (`ANTHROPIC_API_KEY` ya está). Tarea 2 de `IA_DE_PANELES.md`.
+1. **Axel y Panel:** cargar `CRON_SECRET` en Vercel y volver a publicar (`ANTHROPIC_API_KEY` y `PANEL_CLAVE` ya están). Tarea 2 de `IA_DE_PANELES.md`.
 2. **Axel y Panel:** escanear el QR con el celular de la línea de prueba y probar un mensaje (tarea 5).
 3. **Panel:** asignar el Agent Bot a la bandeja y probar de punta a punta con datos inventados (tarea 6): respuesta, paso a una persona, devolverla al bot y la fila en el CRM.
-4. **Mindlin:** cargar la ficha de Lerma 439 y revisar el tono en `/panel` (el Resumen dice qué falta), y probarlo en `/panel/probar` antes de abrir la línea.
-5. **Claude con Axel:** probar las respuestas con Claude de verdad y ajustar el tono con el material de Mindlin.
-6. **Panel:** actualizar el instalador en el servidor (tarea 8).
+4. **Mindlin:** revisar los borradores que se cargaron desde Kommo ([`docs/kommo.md`](docs/kommo.md)): la ficha de Lerma 439 y las cinco apagadas, el modo («presenta y pasa» o conversar) y los seguimientos archivados. Probarlo en `/panel/probar` antes de abrir la línea.
+5. **Axel y Mindlin:** cuando quieran configurarlo desde el hub: cargar `HUB_CLAVE` en los dos proyectos de Vercel y armar las pantallas del hub sobre la API ([`docs/api-hub.md`](docs/api-hub.md)). Mientras tanto se configura todo desde `/panel`.
+6. **Claude con Axel:** probar las respuestas con Claude de verdad y ajustar el tono con el material de Mindlin.
+7. **Panel:** actualizar el instalador en el servidor (tarea 8).
 
 ## Decisiones abiertas
 
 - [ ] Correo para Chatwoot (invitaciones a agentes y avisos; también hace falta para el email más adelante). Opciones: Zoho (donde están los correos de Mindlin), Google Workspace o un servicio como Brevo. — Axel
 - [ ] Los contactos que da de alta el asistente entran en etapa **Nuevo**, y en el hub eso dispara la alarma «nuevo sin contactar en 2 h». ¿Está bien así (que el equipo lo mire enseguida) o tienen que entrar en «Contacto inicial», porque ya les habló el asistente? — Mindlin
-- [ ] Seguimientos: qué mensajes, en qué etapas y a los cuántos días. Se cargan en `/panel/seguimientos`; sin reglas no sale ninguno. — Mindlin
+- [ ] Seguimientos: quedaron cargados y **archivados** los de Kommo (uno por proyecto, a las 24 h). Falta que Mindlin los revise, los pase a «Activa» y decida si suma más pasos. Sin reglas activas no sale ninguno. — Mindlin
+- [ ] Modo de atención: ¿«presenta y pasa» (como Kommo: cuando la persona responde, sigue el equipo) o que el asistente siga la conversación (como está hoy)? Se cambia en Tono. — Mindlin
+- [ ] ¿El asistente puede **mover de etapa** en el CRM (como hacía Kommo cuando alguien respondía o no respondía)? Hoy solo agrega filas y nunca cambia lo que cargó una persona. — Mindlin y Axel
+- [ ] ¿Quién arma las pantallas del hub para configurar el asistente? La API ya está (`docs/api-hub.md`); hoy se configura desde `/panel`. — Axel y Mindlin
 - [ ] Audios: cargar `OPENAI_API_KEY` para transcribirlos (Axel: «luego»). Mientras tanto, el bot pide que lo escriban. — Axel
 - [ ] Horario del equipo comercial: el asistente supone de lunes a viernes de 9 a 20 (fuera de eso, si pasa la conversación avisa que le escriben apenas vuelvan). ¿Es así? Se cambia en `HORARIO_EQUIPO` (`lib/agente/contexto.ts`). — Mindlin
 - [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
@@ -39,6 +43,8 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 - [x] Audios: transcripción lista con OpenAI; sin esa clave, pide que lo escriban. — Claude, 10/11
 - [x] Recuerda lo que ya anotó de cada persona (no repite preguntas ni filas en el CRM), responde con el formato de WhatsApp, cambia de proyecto si preguntan por otro y tiene en cuenta el horario del equipo. — Claude, 11/11
 - [x] «Probar» en el panel: chatear con el asistente sin WhatsApp ni CRM, para ajustar tono y fichas. — Claude, 11/11
+- [x] Lo que hacían los bots de Kommo, configurable (`docs/kommo.md`): presentación por proyecto, modo «presenta y pasa», calificación con «de dónde es» y «hace cuánto busca», y el criterio de alquiler. — Claude, 11/11
+- [x] API para que el hub lea y cambie toda la configuración (`docs/api-hub.md`). — Claude, 11/11
 - [ ] Tono: revisar el borrador y sumar 10 a 20 conversaciones reales de ejemplo, sin datos personales. — Mindlin
 - [ ] Probar con Claude de verdad (en las pruebas se usó uno simulado) y ajustar. — Claude con Axel
 - [ ] Con la línea real, confirmar que los mensajes del bot no vuelven a entrar como si los hubiera escrito una persona (el webhook ya descarta ese eco). — Claude y Panel
@@ -47,7 +53,8 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 
 - [x] Una ficha por proyecto; si hay más de uno, la IA pregunta por cuál consulta y nunca mezcla sus datos. Lo vacío no lo dice. — Claude, 07/11
 - [x] Cargar y modificar fichas, y dar de alta proyectos, desde el panel (`/panel/proyectos`). — Claude, 10/11
-- [ ] Material de Lerma 439: descripción, ubicación, tipologías y superficies, precios, disponibilidad, financiación, etapa de obra y entrega, amenities y preguntas frecuentes. — Mindlin
+- [x] Borradores desde Kommo: Lerma 439 completada en lo vacío y cinco fichas nuevas apagadas (Güemes, 17 y 43, Ramblas del Plata, VIA 53, Torre Cuatro Vientos). — Claude, 11/11
+- [ ] Revisar y completar cada ficha (lo que cambia: precios, disponibilidad, avance de obra; lo que venía cortado: ver las notas internas de cada una) y activar las que correspondan. — Mindlin
 
 ## 3. Conexión con el CRM de Mindlin
 
@@ -95,4 +102,4 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 
 ## Fuera de esta versión
 
-Lo deja la propuesta para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos, email (previsto), avisos al responsable por el hub y la conexión del hub con Chatwoot.
+Lo deja la propuesta para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos (el «bot para lotes» de Kommo), email (previsto; incluye los correos de VIA 53 de Kommo), avisos al responsable por el hub y la conexión del hub con Chatwoot.

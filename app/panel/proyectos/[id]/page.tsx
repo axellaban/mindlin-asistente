@@ -8,6 +8,7 @@ import { Marco, SinBase, type Avisos } from "../../marco";
 export const dynamic = "force-dynamic";
 
 const AYUDA: Partial<Record<keyof FichaEditable, string>> = {
+  presentacion: "Lo que le contás a alguien la primera vez que pregunta por el proyecto (lo que antes mandaba el bot de Kommo). El asistente lo adapta a lo que le preguntaron.",
   precios: "Tal como se le pueden decir a un interesado. Si está vacío, el asistente no da precios.",
   disponibilidad: "Qué unidades quedan. Conviene actualizarla cuando se vende algo.",
   preguntas_frecuentes: "Pregunta y respuesta, una debajo de la otra.",

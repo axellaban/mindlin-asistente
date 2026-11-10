@@ -35,6 +35,13 @@ export default async function Tono({ searchParams }: { searchParams: Avisos }) {
           Cuándo pasar la conversación al equipo <small>Por ejemplo: si quiere visitar, reservar o negociar el precio.</small>
         </label>
         <textarea id="cuando_pasar_a_persona" name="cuando_pasar_a_persona" maxLength={MAX_CAMPO_FICHA} defaultValue={t.cuando_pasar_a_persona} />
+        <label className="casilla">
+          <input type="checkbox" name="pasar_al_responder" defaultChecked={t.pasar_al_responder === true} /> Modo «presenta y pasa»: el asistente presenta el proyecto y, cuando la persona
+          responde, la conversación pasa al equipo
+        </label>
+        <p className="nota">
+          Así trabajaban los bots de Kommo. Apagado, el asistente sigue la charla (responde dudas, anota lo que busca) y pasa la conversación solo cuando corresponde, según el texto de arriba.
+        </p>
         <div className="acciones">
           <button type="submit">Guardar el tono</button>
         </div>

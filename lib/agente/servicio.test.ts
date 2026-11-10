@@ -266,6 +266,45 @@ describe("atender un mensaje", () => {
     expect(p.cw.hechos).toEqual(["enviar 7: *Perfecto.* Te cuento:\n\n*Precios*\n- Ver el folleto: https://ejemplo.com/f.pdf"]);
   });
 
+  it("modo «presenta y pasa»: presenta y, cuando la persona responde, sigue el equipo sin usar la IA", async () => {
+    const conModo = (historial: MensajeHistorial[]) => {
+      const datos = almacenEnMemoria({ proyectos: [lerma()], tono: { ...tono, pasar_al_responder: true } });
+      for (const m of historial) void datos.almacen.guardarMensaje(m);
+      return { datos, cw: chatwootFalso() };
+    };
+    // Primer mensaje: todavía no le escribió, así que presenta.
+    const primero = conModo([msg(1, "interesado", "Hola, vi lo de Lerma")]);
+    const m = modeloFalso(respuesta([{ type: "text", text: "¡Hola! Lerma 439 es un desarrollo en pozo…" }]));
+    expect(await atender({ ...sinEspera, almacen: primero.datos.almacen, chatwoot: primero.cw.chatwoot, modelo: m.modelo, crm: null }, accion(1, "Hola, vi lo de Lerma"))).toBe("respondió");
+
+    // La persona responde después de la presentación: pasa al equipo.
+    const despues = conModo([msg(1, "interesado", "Hola"), msg(2, "bot", "¡Hola! Lerma 439 es…"), msg(3, "interesado", "Me interesa el de 2 ambientes")]);
+    const sinUso = modeloFalso();
+    expect(await atender({ ...sinEspera, almacen: despues.datos.almacen, chatwoot: despues.cw.chatwoot, modelo: sinUso.modelo, crm: null }, accion(3, "Me interesa el de 2 ambientes"))).toBe(
+      "pasó al equipo: respondió después de la presentación",
+    );
+    expect(sinUso.pedidos).toHaveLength(0);
+    expect(despues.cw.hechos).toEqual(["nota 7: 🙋 El asistente pasó esta conversación al equipo: La persona respondió después de la presentación (modo «presenta y pasa»).", "abrir 7"]);
+    expect(despues.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+
+    // Si el equipo se la devolvió al asistente a propósito, responde.
+    const devuelta = conModo([msg(1, "interesado", "Hola"), msg(2, "bot", "¡Hola!"), msg(3, "persona", "Te paso con el asistente"), msg(4, "interesado", "¿Y la cochera?")]);
+    const m3 = modeloFalso(respuesta([{ type: "text", text: "Eso lo confirma el equipo." }]));
+    expect(await atender({ ...sinEspera, almacen: devuelta.datos.almacen, chatwoot: devuelta.cw.chatwoot, modelo: m3.modelo, crm: null }, accion(4, "¿Y la cochera?"))).toBe("respondió");
+  });
+
+  it("de dónde es y hace cuánto busca: quedan anotados y van a las notas del contacto nuevo", async () => {
+    const p = preparar({ historial: [msg(1, "interesado", "Soy de La Plata, busco hace 3 meses")] });
+    const m = modeloFalso(
+      respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "", ambientes: "", presupuesto_usd: "", forma_de_pago: "", plazo: "", zona: "La Plata", busca_desde: "3 meses", resumen: "Es de La Plata." } }]),
+      respuesta([{ type: "text", text: "¡Genial!" }]),
+    );
+    await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: p.crm }, accion(1, "Soy de La Plata, busco hace 3 meses"));
+    expect(p.datos.conversaciones.get(7)?.interesado).toMatchObject({ zona: "La Plata", busca_desde: "3 meses" });
+    expect(p.hoja.pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Notas")]).toBe("Entró por WhatsApp (asistente). Es de La Plata. Es de: La Plata. Busca hace: 3 meses.");
+    expect(m.pedidos[0].tools[0].input_schema.required).toContain("zona");
+  });
+
   it("sin CRM conectado, igual contesta", async () => {
     const p = preparar({ historial: [msg(1, "interesado", "Hola")] });
     const m = modeloFalso(

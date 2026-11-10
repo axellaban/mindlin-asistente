@@ -54,7 +54,7 @@ export interface RegistroPanel {
 const iso = (f: Date | string | null) => (f ? new Date(f).toISOString() : null);
 
 const COLUMNAS_FICHA =
-  "id, nombre, activo, palabras_clave, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links, notas_internas";
+  "id, nombre, activo, palabras_clave, presentacion, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links, notas_internas";
 
 export function datosPanel(db: Db) {
   return {
@@ -72,10 +72,10 @@ export function datosPanel(db: Db) {
     async guardarProyecto(p: FichaEditable, por: string): Promise<void> {
       await db.query(
         `insert into proyectos (${COLUMNAS_FICHA}, actualizado, actualizado_por)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now(), $17)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now(), $18)
          on conflict (id) do update set
            nombre = excluded.nombre, activo = excluded.activo, palabras_clave = excluded.palabras_clave,
-           descripcion = excluded.descripcion, ubicacion = excluded.ubicacion, etapa_obra = excluded.etapa_obra,
+           presentacion = excluded.presentacion, descripcion = excluded.descripcion, ubicacion = excluded.ubicacion, etapa_obra = excluded.etapa_obra,
            entrega = excluded.entrega, tipologias = excluded.tipologias, precios = excluded.precios,
            financiacion = excluded.financiacion, disponibilidad = excluded.disponibilidad, amenities = excluded.amenities,
            preguntas_frecuentes = excluded.preguntas_frecuentes, links = excluded.links, notas_internas = excluded.notas_internas,
@@ -85,6 +85,7 @@ export function datosPanel(db: Db) {
           p.nombre,
           p.activo,
           p.palabras_clave,
+          p.presentacion,
           p.descripcion,
           p.ubicacion,
           p.etapa_obra,
@@ -103,19 +104,20 @@ export function datosPanel(db: Db) {
     },
 
     async tono(): Promise<Tono & { actualizado: string | null; actualizado_por: string | null }> {
-      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, actualizado, actualizado_por from tono where id = 1");
+      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, actualizado, actualizado_por from tono where id = 1");
       const t = rows[0];
       return t
         ? { ...t, actualizado: iso(t.actualizado) }
-        : { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", actualizado: null, actualizado_por: null };
+        : { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, actualizado: null, actualizado_por: null };
     },
 
     async guardarTono(t: Tono, por: string): Promise<void> {
       await db.query(
-        `insert into tono (id, instrucciones, criterios_comerciales, cuando_pasar_a_persona, actualizado, actualizado_por) values (1, $1, $2, $3, now(), $4)
+        `insert into tono (id, instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, actualizado, actualizado_por) values (1, $1, $2, $3, $4, now(), $5)
          on conflict (id) do update set instrucciones = excluded.instrucciones, criterios_comerciales = excluded.criterios_comerciales,
-           cuando_pasar_a_persona = excluded.cuando_pasar_a_persona, actualizado = now(), actualizado_por = excluded.actualizado_por`,
-        [t.instrucciones, t.criterios_comerciales, t.cuando_pasar_a_persona, por],
+           cuando_pasar_a_persona = excluded.cuando_pasar_a_persona, pasar_al_responder = excluded.pasar_al_responder,
+           actualizado = now(), actualizado_por = excluded.actualizado_por`,
+        [t.instrucciones, t.criterios_comerciales, t.cuando_pasar_a_persona, t.pasar_al_responder === true, por],
       );
     },
 
