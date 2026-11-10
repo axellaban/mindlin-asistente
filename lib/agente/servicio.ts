@@ -73,7 +73,10 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
       s.almacen.tono(),
       s.almacen.ejemplos(),
     ]);
-    if (!guardada) await s.almacen.guardarConversacion({ chatwoot_id: conv, telefono: a.contacto.telefono || null, nombre: a.contacto.nombre || null });
+    // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
+    const telefono = a.contacto.telefono || guardada?.telefono || null;
+    const nombre = a.contacto.nombre || guardada?.nombre || null;
+    if (!guardada || guardada.telefono !== telefono || guardada.nombre !== nombre) await s.almacen.guardarConversacion({ chatwoot_id: conv, telefono, nombre });
     let proyectoId = guardada?.proyecto ?? (proyectos.length === 1 ? proyectos[0].id : null);
     const proyecto = (id: string | null): Proyecto | null => proyectos.find((p) => p.id === id) ?? null;
 
@@ -200,6 +203,7 @@ async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; re
     .join("\n");
   await s.chatwoot.notaInterna(conv, nota);
   await s.chatwoot.pasarAPersona(conv);
+  await s.almacen.sinSeguimientos(conv).catch(() => {});
   await s.almacen.registrar({ tipo: "paso_a_persona", conversacion: conv, detalle: p.motivo, datos: p });
   if (s.crm && contacto) {
     await s.crm.anotarActividad({ contacto, detalle: `Pasó al equipo: ${p.motivo}. ${p.resumen}`.trim(), ahora: ahora().toISOString() }).catch(() => {});
@@ -209,6 +213,7 @@ async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; re
 /** Una persona escribió en una conversación que atendía el bot: pasa a abierta y queda anotado. */
 export async function laTomoUnaPersona(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
   await s.chatwoot.pasarAPersona(conversacion);
+  await s.almacen.sinSeguimientos(conversacion);
   await s.almacen.registrar({ tipo: "la_tomo_una_persona", conversacion, detalle: "Una persona del equipo escribió: el asistente deja de responder." });
   return "pasó a abierta";
 }
