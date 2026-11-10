@@ -61,10 +61,9 @@ Cómo se usa:
 
 - Al CRM va solo lo que el equipo mira: el alta del contacto, la etapa, el responsable y un resumen por conversación (pestañas «CRM Contactos» y «CRM Actividad»).
 - El asistente usa **su propia cuenta de servicio de Google**, para tener su propio límite de pedidos y no comerle cuota al hub.
-- Mientras el hub esté bloqueado, el asistente escribe directo en la planilla, con las mismas columnas que el hub. Cuando vuelva, conviene pasarlo a un endpoint del hub.
-- Si el volumen crece, el paso siguiente es pasar el CRM del hub a Postgres.
+- **Decidido (Axel, 10/11): el CRM es una planilla de Google.** El asistente escribe directo en la planilla, con las mismas columnas que el hub. No hace falta que Mindlin construya nada de su lado.
 - Las etapas, las columnas y los orígenes son los del hub de noviembre de 2026 (etapas Nuevo → Contacto inicial → Seguimiento → Visita / reunión → Negociación → Reserva → Vendido, más Descartado y En pausa; columna Tags; origen WhatsApp). Revisado el 10/11 contra `lib/crm/modelo.ts` del hub.
-- Qué lee y escribe, y qué necesitaría del hub cuando su CRM deje la planilla: [`integracion-crm.md`](integracion-crm.md). Lo construye Mindlin de su lado; el asistente solo cambia cómo se conecta.
+- Qué lee y escribe, qué tiene que cuidar Mindlin y cómo apuntarlo a otra planilla: [`integracion-crm.md`](integracion-crm.md).
 
 ## 6. Base del asistente: Postgres en Neon (creado desde Vercel)
 
