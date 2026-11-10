@@ -137,7 +137,8 @@ Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 - El webhook de Production devolvió `401` a un aviso sin firma y `200` con `accion: ignorar` a un aviso de prueba firmado.
 - OpenAI quedó activo en Production (`gpt-6.1-sol`). El simulador respondió y un envío puntual con el token del Agent Bot desde el VPS llegó a WhatsApp. WAHA confirmó `READ`.
 - Con autorización de Axel, se reenvió al webhook un único mensaje entrante de la conversación de prueba, junto con el mensaje anterior del bot para darle contexto. El webhook devolvió `accion: responder`, el asistente anotó el interés y el panel mostró un contacto de CRM vinculado. Al mandar la respuesta, Vercel registró `Chatwoot respondió 401 en /2/messages`.
-- Se reprodujo el problema con una lectura de la misma conversación y la misma credencial: `api_access_token` da `200` contra Chatwoot local y `401` contra la URL pública. `Authorization: Bearer` da `200` contra la URL pública. Queda adaptar el encabezado en `lib/chatwoot/api.ts`, publicar el cambio y repetir la prueba solo en esa conversación. El Agent Bot sigue sin asignar a la bandeja.
+- Se reprodujo el problema con una lectura de la misma conversación y la misma credencial. `api_access_token` dio `200` contra Chatwoot local y `401` contra la URL pública. `Authorization: Bearer` dio `200` contra la URL pública.
+- El [PR #12](https://github.com/axellaban/mindlin-asistente/pull/12) corrigió el encabezado. Tras publicar `116c585`, se reenvió un mensaje nuevo de la misma conversación de prueba. El webhook generó y mandó una respuesta del Agent Bot. Chatwoot la marcó `delivered` y WAHA confirmó `DEVICE`. El Agent Bot sigue sin asignar a la bandeja.
 
 ## Pendientes para retomar (09/11/2026)
 
