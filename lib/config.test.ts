@@ -15,12 +15,12 @@ describe("estadoConfig", () => {
   });
 
   it("un valor con solo espacios no cuenta", () => {
-    expect(estadoConfig({ OPENAI_API_KEY: "   " }).faltan).toContain("OPENAI_API_KEY");
+    expect(estadoConfig({ ANTHROPIC_API_KEY: "   " }).faltan).toContain("ANTHROPIC_API_KEY");
   });
 
   it("la IA cuenta como cargada con la clave de OpenAI o con la de Anthropic", () => {
-    expect(estadoConfig({ OPENAI_API_KEY: "x" }).faltan).not.toContain("OPENAI_API_KEY");
-    expect(estadoConfig({ ANTHROPIC_API_KEY: "x" }).faltan).not.toContain("OPENAI_API_KEY");
+    expect(estadoConfig({ OPENAI_API_KEY: "x" }).faltan).not.toContain("ANTHROPIC_API_KEY");
+    expect(estadoConfig({ ANTHROPIC_API_KEY: "x" }).faltan).not.toContain("ANTHROPIC_API_KEY");
   });
 
   it("con todo cargado, está listo", () => {

@@ -22,9 +22,9 @@ export const GRUPOS: Grupo[] = [
     nombre: "IA",
     variables: [
       {
-        nombre: "OPENAI_API_KEY",
-        para: "La clave de la IA que arma las respuestas y transcribe los audios. Para usar Claude, ANTHROPIC_API_KEY (ver docs/asistente.md).",
-        alternativas: ["ANTHROPIC_API_KEY"],
+        nombre: "ANTHROPIC_API_KEY",
+        para: "La clave de Claude, que arma las respuestas. También sirve OPENAI_API_KEY (ver docs/asistente.md).",
+        alternativas: ["OPENAI_API_KEY"],
       },
     ],
   },

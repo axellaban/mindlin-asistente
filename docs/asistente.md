@@ -25,11 +25,18 @@
 
 Además, cada mensaje anota en la conversación cuándo escribió cada uno: con eso salen los [seguimientos](seguimientos.md).
 
-Si una persona del equipo escribe en una conversación pendiente, desde Chatwoot o desde el celular, la conversación pasa a abierta y el bot deja de contestar ahí.
+## Cuando interviene el equipo
+
+Todo se maneja con los estados de Chatwoot: **pendiente** la atiende el asistente, **abierta** la atiende el equipo.
+
+- **Tomar una conversación:** escribir en ella (desde Chatwoot o desde el celular de la línea) o abrirla. Pasa a abierta y el asistente se calla ahí; tampoco le manda seguimientos.
+- **El asistente la pasa solo** cuando hace falta una persona (quiere visitar, reservar, negociar, algo que no está en la ficha, o si falla algo), con una nota interna del motivo y el resumen.
+- **Devolvérsela al asistente:** en Chatwoot, **Marcar como pendiente**. Con el próximo mensaje del interesado vuelve a responder (leyendo lo que escribió el equipo, para seguir su línea) y vuelve a llevar seguimientos. Queda en el registro como «Volvió al asistente».
+- **Pausar el asistente entero:** panel → Resumen → **Pausar el asistente**. Cada conversación nueva pasa al equipo con la nota «El asistente está pausado» y no salen seguimientos. Se reactiva con el mismo botón. Queda quién y cuándo.
 
 ## Modelo
 
-Responde **OpenAI o Claude**, según la clave que esté cargada en Vercel. Axel pidió OpenAI (09/11); Claude queda como alternativa sin tocar código.
+Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy responde Claude:** Axel cargó `ANTHROPIC_API_KEY` el 10/11. OpenAI queda como alternativa sin tocar código, y se va a usar para transcribir los audios cuando se cargue `OPENAI_API_KEY`.
 
 - **OpenAI** (`lib/agente/openai.ts`): por defecto `gpt-6.1-sol`, la opción de menor costo de la familia GPT-6, que OpenAI recomienda para producción. Usa la API «Responses» (con los modelos nuevos de OpenAI, las herramientas solo andan por ahí), con herramientas estrictas y `store: false` (OpenAI no guarda las conversaciones). Le devuelve a OpenAI su razonamiento cifrado entre una herramienta y la siguiente, como pide su documentación. Reintenta dos veces si OpenAI está saturado.
 - **Claude** (`lib/agente/claude.ts`): por defecto `claude-opus-5-5` con esfuerzo `medium` y `fallbacks: "default"`: si el modelo rechaza una consulta por sus filtros de seguridad, Anthropic la reintenta en el modelo que recomienda para ese caso.

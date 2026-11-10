@@ -7,6 +7,7 @@ El agente que atiende las consultas comerciales de los desarrollos por WhatsApp,
 - Lo que se confirmó probando con Chatwoot y WAHA: [`docs/chatwoot.md`](docs/chatwoot.md)
 - Seguimientos (reglas, versiones, cron): [`docs/seguimientos.md`](docs/seguimientos.md)
 - Panel del equipo (`/panel`): [`docs/panel.md`](docs/panel.md)
+- Integración con el CRM de Mindlin (qué lee, qué escribe, qué haría falta del hub): [`docs/integracion-crm.md`](docs/integracion-crm.md)
 - Qué falta y quién lo hace: [`PENDIENTES.md`](PENDIENTES.md)
 - Instrucciones para la IA de paneles (Hostinger, Vercel, Neon, Google, Chatwoot): [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
 - Instalador del servidor (WAHA + Chatwoot): [`infra/`](infra/README.md)
