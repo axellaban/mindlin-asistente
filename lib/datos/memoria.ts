@@ -22,7 +22,7 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
   const registro: { tipo: TipoRegistro; conversacion: number | null; detalle: string; datos?: unknown }[] = [];
   const reglas = inicial.reglas ?? [];
   const tono: Tono = inicial.tono ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "" };
-  const conv = (id: number) => conversaciones.get(id) ?? { chatwoot_id: id, proyecto: null, crm_contacto_id: null, telefono: null, nombre: null };
+  const conv = (id: number): Conversacion => conversaciones.get(id) ?? { chatwoot_id: id, proyecto: null, crm_contacto_id: null, telefono: null, nombre: null, interesado: {} };
   const seg = (id: number): Seguimiento => {
     let s = seguimiento.get(id);
     if (!s) {

@@ -49,7 +49,7 @@ const mensajeDeFila = (f: FilaMensaje): MensajeHistorial => ({
   fecha: new Date(f.fecha).toISOString(),
 });
 
-const CAMPOS_CONVERSACION = ["proyecto", "crm_contacto_id", "telefono", "nombre"] as const;
+const CAMPOS_CONVERSACION = ["proyecto", "crm_contacto_id", "telefono", "nombre", "interesado"] as const;
 
 export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
   return {
@@ -95,7 +95,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rowCount === 1;
     },
     async conversacion(id) {
-      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre from conversaciones where chatwoot_id = $1", [id]);
+      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado from conversaciones where chatwoot_id = $1", [id]);
       return rows[0] ? ({ ...rows[0], chatwoot_id: Number(rows[0].chatwoot_id) } as Conversacion) : null;
     },
     async guardarConversacion(c) {
@@ -106,7 +106,8 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       const cambios = [...campos.map((k) => `${k} = excluded.${k}`), "actualizada = now()"].join(", ");
       await db.query(`insert into conversaciones (${columnas}) values (${marcadores}) on conflict (chatwoot_id) do update set ${cambios}`, [
         c.chatwoot_id,
-        ...campos.map((k) => c[k] ?? null),
+        // interesado es jsonb: va como texto JSON.
+        ...campos.map((k) => (k === "interesado" ? JSON.stringify(c.interesado ?? {}) : (c[k] ?? null))),
       ]);
     },
     async proyectosActivos() {

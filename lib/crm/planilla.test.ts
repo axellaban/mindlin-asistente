@@ -39,11 +39,23 @@ describe("CRM del hub", () => {
       filaDe({ ID: "c1", Nombre: "Otro", Teléfono: "11 4444-0000" }),
       filaDe({ ID: "c2", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Interesado", Responsable: "Mati", Proyectos: "lerma-439, guemes-4676" }),
     ]);
-    const c = await crearCRM(hoja).buscarPorTelefono("5491155550000");
+    const c = await crearCRM(hoja).buscar({ telefono: "5491155550000" });
     // «Interesado» es una etapa de antes de noviembre: se lee como la de ahora, como en el hub.
     expect(c).toMatchObject({ id: "c2", nombre: "Ana", etapa: "Seguimiento", responsable: "Mati", proyectos: ["lerma-439", "guemes-4676"] });
-    expect(await crearCRM(hoja).buscarPorTelefono("5491166660000")).toBeNull();
-    expect(await crearCRM(hoja).buscarPorTelefono("123")).toBeNull();
+    expect(await crearCRM(hoja).buscar({ telefono: "5491166660000" })).toBeNull();
+    expect(await crearCRM(hoja).buscar({ telefono: "123" })).toBeNull();
+  });
+
+  it("busca primero por el ID anotado (WhatsApp a veces no pasa el teléfono) y lee lo que ya se sabe", async () => {
+    const { hoja } = hojaFalsa([
+      filaDe({ ID: "c1", Nombre: "Ana", Teléfono: "", Para: "Invertir", Ambientes: "2", "Presupuesto USD": "90000", "Próximo paso": "Mandar planos" }),
+      filaDe({ ID: "c2", Nombre: "Otra", Teléfono: "+54 9 11 5555-0000" }),
+    ]);
+    const crm = crearCRM(hoja);
+    expect(await crm.buscar({ id: "c1", telefono: "" })).toMatchObject({ id: "c1", para: "Invertir", ambientes: "2", presupuestoUsd: "90000", proximoPaso: "Mandar planos" });
+    expect(await crm.buscar({ id: "c1", telefono: "5491155550000" })).toMatchObject({ id: "c1" });
+    expect(await crm.buscar({ id: "no-esta", telefono: "5491155550000" })).toMatchObject({ id: "c2" });
+    expect(await crm.buscar({ id: null, telefono: null })).toBeNull();
   });
 
   it("da de alta al interesado con las columnas del hub y anota la actividad", async () => {

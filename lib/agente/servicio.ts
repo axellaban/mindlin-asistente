@@ -18,8 +18,10 @@ import type { ContactoCRM, CRM } from "../crm/planilla";
 import type { Almacen, Proyecto } from "../datos/tipos";
 import { responder, type Herramientas, type Modelo, type Resultado } from "./agente";
 import type { Transcriptor } from "./openai";
+import { sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
 import { motivoParaFrenar } from "./limites";
+import { paraWhatsApp } from "./whatsapp";
 
 export interface Servicios {
   almacen: Almacen;
@@ -93,32 +95,42 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     let proyectoId = guardada?.proyecto ?? (proyectos.length === 1 ? proyectos[0].id : null);
     const proyecto = (id: string | null): Proyecto | null => proyectos.find((p) => p.id === id) ?? null;
 
+    // El contacto del CRM: por el ID que ya quedó anotado o por teléfono.
+    const buscarEnCRM = () => s.crm!.buscar({ id: guardada?.crm_contacto_id, telefono });
     let contactoCRM: ContactoCRM | null | undefined = undefined;
-    if (s.crm && a.contacto.telefono) {
+    if (s.crm) {
       try {
-        contactoCRM = await s.crm.buscarPorTelefono(a.contacto.telefono);
+        contactoCRM = await buscarEnCRM();
+        if (contactoCRM && contactoCRM.id !== guardada?.crm_contacto_id) await s.almacen.guardarConversacion({ chatwoot_id: conv, crm_contacto_id: contactoCRM.id });
       } catch (e) {
         await s.almacen.registrar({ tipo: "error", conversacion: conv, detalle: `CRM (buscar): ${detalle(e)}` });
       }
     }
+    let anotado = guardada?.interesado ?? {};
 
     const herramientas: Herramientas = {
       async registrarInteresado(d) {
-        if (!s.crm) return "El CRM no está conectado todavía: seguí la conversación igual.";
+        // Primero en la base del asistente: así lo tiene a mano en los próximos mensajes.
+        const suma = sumarAnotado(anotado, d);
+        const nuevo = suma.cambios.length > 0;
+        anotado = suma.anotado;
+        await s.almacen.guardarConversacion({ chatwoot_id: conv, interesado: anotado });
+        if (!s.crm) return "Anotado. (El CRM no está conectado todavía: seguí la conversación igual.)";
         const cuando = ahora().toISOString();
         // Si al principio no se pudo consultar el CRM, se vuelve a buscar: nunca se crea un repetido.
-        if (contactoCRM === undefined && a.contacto.telefono) contactoCRM = await s.crm.buscarPorTelefono(a.contacto.telefono);
+        if (contactoCRM === undefined) contactoCRM = await buscarEnCRM();
+        if (contactoCRM && !nuevo) return "Eso ya estaba anotado: no hace falta registrarlo de nuevo. Seguí la conversación.";
         if (!contactoCRM) {
           contactoCRM = await s.crm.crearContacto(
             {
-              nombre: d.nombre || a.contacto.nombre,
-              telefono: a.contacto.telefono,
+              nombre: anotado.nombre || nombre || "",
+              telefono: telefono ?? "",
               proyecto: proyectoId,
-              para: d.para,
-              ambientes: d.ambientes,
-              presupuestoUsd: d.presupuesto_usd,
-              formaDePago: d.forma_de_pago,
-              plazo: d.plazo,
+              para: anotado.para ?? "",
+              ambientes: anotado.ambientes ?? "",
+              presupuestoUsd: anotado.presupuesto_usd ?? "",
+              formaDePago: anotado.forma_de_pago ?? "",
+              plazo: anotado.plazo ?? "",
               notas: d.resumen,
             },
             cuando,
@@ -128,15 +140,8 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
           await s.almacen.registrar({ tipo: "crm", conversacion: conv, detalle: `Contacto nuevo ${contactoCRM.id}`, datos: d });
           return "Listo: quedó en el CRM como contacto nuevo.";
         }
-        const datos = [
-          d.nombre && `nombre: ${d.nombre}`,
-          d.para && `para: ${d.para}`,
-          d.ambientes && `ambientes: ${d.ambientes}`,
-          d.presupuesto_usd && `presupuesto: USD ${d.presupuesto_usd}`,
-          d.forma_de_pago && `pago: ${d.forma_de_pago}`,
-          d.plazo && `plazo: ${d.plazo}`,
-        ].filter(Boolean);
-        await s.crm.anotarActividad({ contacto: contactoCRM, detalle: [d.resumen, datos.length ? `(${datos.join(", ")})` : ""].filter(Boolean).join(" "), ahora: cuando });
+        // Solo lo que cambió: lo que ya estaba anotado no se repite en la actividad.
+        await s.crm.anotarActividad({ contacto: contactoCRM, detalle: [d.resumen?.trim(), `(${suma.cambios.join(", ")})`].filter(Boolean).join(" "), ahora: cuando });
         await s.almacen.registrar({ tipo: "crm", conversacion: conv, detalle: `Actividad en ${contactoCRM.id}`, datos: d });
         return "Listo: quedó anotado en el CRM (el contacto ya existía).";
       },
@@ -152,16 +157,17 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     const resultado: Resultado = await responder({
       modelo: s.modelo,
       instrucciones: instrucciones({ tono, proyectos, proyecto: proyecto(proyectoId), ejemplos }),
-      situacion: situacion({ ahora: ahora(), nombre: a.contacto.nombre, telefono: a.contacto.telefono, crm: contactoCRM }),
+      situacion: situacion({ ahora: ahora(), nombre: nombre ?? "", telefono: telefono ?? "", crm: contactoCRM, anotado }),
       historial,
       proyectos: proyectos.map((p) => p.id),
       herramientas,
     });
 
-    if (resultado.texto) await s.chatwoot.enviar(conv, resultado.texto);
-    await s.almacen.registrar({ tipo: "respuesta", conversacion: conv, detalle: resultado.texto.slice(0, 500), datos: { fin: resultado.fin } });
+    const texto = paraWhatsApp(resultado.texto);
+    if (texto) await s.chatwoot.enviar(conv, texto);
+    await s.almacen.registrar({ tipo: "respuesta", conversacion: conv, detalle: texto.slice(0, 500), datos: { fin: resultado.fin } });
 
-    const pasar = resultado.pasarAPersona ?? (resultado.texto ? null : { motivo: "El asistente no supo qué responder.", resumen: "" });
+    const pasar = resultado.pasarAPersona ?? (texto ? null : { motivo: "El asistente no supo qué responder.", resumen: "" });
     if (pasar) {
       await pasarAPersona(s, conv, pasar, contactoCRM ?? null, ahora);
       return `respondió y pasó a una persona: ${pasar.motivo}`;

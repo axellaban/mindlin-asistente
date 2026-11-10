@@ -225,6 +225,47 @@ describe("atender un mensaje", () => {
     expect(p.datos.conversaciones.get(7)?.proyecto).toBe("lerma-439");
   });
 
+  it("sin teléfono (WhatsApp no lo pasa), no crea repetidos: la segunda vez lo encuentra por el ID anotado", async () => {
+    const p = preparar({ historial: [msg(1, "interesado", "Hola, busco 2 ambientes"), msg(2, "bot", "¡Hola! ¿Para vivir o invertir?"), msg(3, "interesado", "Para invertir")] });
+    const sinTelefono = (mensaje: number, texto: string): Responder => ({ ...accion(mensaje, texto), contacto: { nombre: "Ana Prueba", telefono: "" } });
+    const registrar = (para: string, resumen: string) =>
+      respuesta([{ type: "tool_use", id: `t${para}`, name: "registrar_interesado", input: { nombre: "", para, ambientes: "2", presupuesto_usd: "", forma_de_pago: "", plazo: "", resumen } }]);
+    const m = modeloFalso(registrar("", "Busca 2 ambientes."), respuesta([{ type: "text", text: "¿Para vivir o invertir?" }]), registrar("Invertir", "Busca 2 ambientes para invertir."), respuesta([{ type: "text", text: "¡Bárbaro!" }]));
+    const s = { ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: p.crm };
+
+    // Primer mensaje (como si el historial terminara ahí).
+    p.datos.mensajes.delete(2);
+    p.datos.mensajes.delete(3);
+    await atender(s, sinTelefono(1, "Hola, busco 2 ambientes"));
+    void p.datos.almacen.guardarMensaje(msg(2, "bot", "¿Para vivir o invertir?"));
+    void p.datos.almacen.guardarMensaje(msg(3, "interesado", "Para invertir"));
+    await atender(s, sinTelefono(3, "Para invertir"));
+
+    expect(p.hoja.pestanias["CRM Contactos"]).toHaveLength(1);
+    const id = p.hoja.pestanias["CRM Contactos"][0][0];
+    expect(p.datos.conversaciones.get(7)).toMatchObject({ crm_contacto_id: id, interesado: { ambientes: "2", para: "Invertir", resumen: "Busca 2 ambientes para invertir." } });
+    // En la actividad, solo lo nuevo (los ambientes ya estaban).
+    expect(p.hoja.pestanias["CRM Actividad"].map((f) => f[5])).toEqual(["Alta por WhatsApp. Busca 2 ambientes.", "Busca 2 ambientes para invertir. (para: Invertir)"]);
+    // En el segundo mensaje ya sabía lo anotado y que estaba en el CRM.
+    expect(m.pedidos[2].system[1].text).toContain("Lo que ya sabés de esta persona (lo anotaste vos): ambientes: 2.");
+    expect(m.pedidos[2].system[1].text).toContain("ya es contacto");
+  });
+
+  it("si vuelve a registrar lo mismo, no lo repite en el CRM", async () => {
+    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+5491155550000" })[c as "ID"] ?? "");
+    const p = preparar({ contactos: [existente], historial: [msg(1, "interesado", "Hola")] });
+    await p.datos.almacen.guardarConversacion({ chatwoot_id: 7, crm_contacto_id: "c1", interesado: { para: "Invertir", ambientes: "2" } });
+    const m = modeloFalso(
+      respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "Invertir", ambientes: "2", presupuesto_usd: "", forma_de_pago: "", plazo: "", resumen: "Sigue igual." } }]),
+      respuesta([{ type: "text", text: "**Perfecto.** Te cuento:\n\n\n## Precios\n* Ver [el folleto](https://ejemplo.com/f.pdf)" }]),
+    );
+    await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: p.crm }, accion(1, "Hola"));
+    expect(p.hoja.pestanias["CRM Actividad"]).toHaveLength(0);
+    expect(JSON.stringify(m.pedidos[1].messages.at(-1))).toContain("ya estaba anotado");
+    // Y la respuesta sale con el formato de WhatsApp.
+    expect(p.cw.hechos).toEqual(["enviar 7: *Perfecto.* Te cuento:\n\n*Precios*\n- Ver el folleto: https://ejemplo.com/f.pdf"]);
+  });
+
   it("sin CRM conectado, igual contesta", async () => {
     const p = preparar({ historial: [msg(1, "interesado", "Hola")] });
     const m = modeloFalso(

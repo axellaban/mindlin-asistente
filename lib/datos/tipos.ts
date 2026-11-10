@@ -29,6 +29,18 @@ export interface Ejemplo {
   conversacion: string;
 }
 
+/** Lo que el asistente ya anotó de la persona (lo mismo que manda al CRM). Lo que no sabe, no está. */
+export interface Anotado {
+  nombre?: string;
+  para?: string;
+  ambientes?: string;
+  presupuesto_usd?: string;
+  forma_de_pago?: string;
+  plazo?: string;
+  /** El último resumen que escribió para el equipo. */
+  resumen?: string;
+}
+
 /** Lo que el asistente recuerda de cada conversación de Chatwoot. */
 export interface Conversacion {
   chatwoot_id: number;
@@ -36,6 +48,7 @@ export interface Conversacion {
   crm_contacto_id: string | null;
   telefono: string | null;
   nombre: string | null;
+  interesado?: Anotado;
 }
 
 /** «Si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones. */
