@@ -8,13 +8,15 @@ El CRM del hub guarda en una planilla de Google, con las pestañas **«CRM Conta
 
 ### Qué lee
 
-En «CRM Contactos» busca a la persona por **teléfono** (compara los últimos 10 dígitos, así «+54 9 11 5555-0000» y «11 5555 0000» son el mismo). De ese contacto usa:
+En «CRM Contactos» busca a la persona primero por el **ID** que ya quedó anotado en la conversación (WhatsApp a veces no pasa el número) y si no, por **teléfono** (compara los últimos 10 dígitos, así «+54 9 11 5555-0000» y «11 5555 0000» son el mismo). De ese contacto usa:
 
 | Dato | Para qué |
 | --- | --- |
 | Etapa | Se la dice a la IA y elige con ella las reglas de seguimiento. |
 | Responsable | Se la dice a la IA y la pone en la nota cuando pasa la conversación al equipo. |
 | Notas | Para que la IA sepa lo que el equipo ya sabe de la persona (los primeros 600 caracteres). |
+| Para, ambientes, presupuesto, forma de pago, plazo | Para que la IA no vuelva a preguntar lo que el equipo ya sabe. |
+| Próximo paso y su fecha | Para que la IA no contradiga lo que acordó el equipo. |
 | Último contacto, proyectos | Contexto para la IA. |
 
 Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto inicial, Seguimiento, Visita / reunión, Negociación, Reserva, Vendido, Descartado y En pausa. Las de antes (Contactado, Interesado…) las lee como las de ahora.
@@ -26,7 +28,7 @@ Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto in
 - **Un contacto nuevo** en «CRM Contactos», si la persona no estaba: ID, proyecto, nombre (o «WhatsApp +54…» si no lo dijo), teléfono, tipo «Beneficiario al costo», origen **WhatsApp**, etapa **Nuevo**, presupuesto, forma de pago, plazo, para qué busca, ambientes, notas («Entró por WhatsApp (asistente).» y el resumen), responsable (`CRM_RESPONSABLE`, si está) y las fechas. Las opciones son las mismas listas del hub: si la IA entiende algo que no es una opción, deja la celda vacía.
 - **Actividad** en «CRM Actividad», tipo WhatsApp y usuario «Asistente WhatsApp»:
   - el alta («Alta por WhatsApp…»);
-  - cada dato nuevo que cuenta la persona, si ya era contacto;
+  - cada dato nuevo que cuenta la persona, si ya era contacto (solo lo que cambió: lo que ya estaba anotado no se repite);
   - cuando pasa la conversación al equipo, con el motivo y el resumen;
   - cada seguimiento automático.
 
@@ -41,12 +43,12 @@ El hub ya puede guardar el CRM en su propia base de datos. Cuando lo activen, lo
 
 | Operación | Qué recibe | Qué devuelve |
 | --- | --- | --- |
-| Buscar un contacto por teléfono | el teléfono | id, nombre, teléfono, etapa, responsable, proyectos, último contacto y notas; o «no está» |
+| Buscar un contacto | el id (si ya se conoce) o el teléfono | id, nombre, teléfono, etapa, responsable, proyectos, último contacto, notas, para, ambientes, presupuesto, forma de pago, plazo y próximo paso; o «no está» |
 | La etapa de varios contactos | una lista de teléfonos o ids (para los seguimientos, cada 15 minutos) | id, teléfono y etapa de cada uno |
 | Dar de alta un contacto | los mismos datos que hoy van a la fila nueva | el id |
 | Sumar actividad | id del contacto, tipo («WhatsApp»), detalle y fecha | — |
 
-Del lado del asistente, el cambio es chico: todo pasa por cuatro funciones (`buscarPorTelefono`, `contactos`, `crearContacto` y `anotarActividad` en `lib/crm/planilla.ts`), así que se cambia cómo se conectan sin tocar el resto.
+Del lado del asistente, el cambio es chico: todo pasa por cuatro funciones (`buscar`, `contactos`, `crearContacto` y `anotarActividad` en `lib/crm/planilla.ts`), así que se cambia cómo se conectan sin tocar el resto.
 
 ## Lo que queda en Chatwoot
 

@@ -8,8 +8,8 @@ import { TextoWhatsApp } from "../texto-whatsapp";
 type Linea = { rol: "interesado" | "bot"; texto: string } | { rol: "accion"; texto: string };
 
 /** La charla de prueba: vive en el navegador (se pierde al recargar) y nada sale por WhatsApp. */
-export function ChatDePrueba({ proyectos }: { proyectos: { id: string; nombre: string }[] }) {
-  const [estado, setEstado] = useState<EstadoPrueba>(estadoInicial());
+export function ChatDePrueba({ proyectos, inicial = null }: { proyectos: { id: string; nombre: string }[]; inicial?: string | null }) {
+  const [estado, setEstado] = useState<EstadoPrueba>(estadoInicial(inicial));
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [texto, setTexto] = useState("");
   const [error, setError] = useState("");
@@ -63,7 +63,7 @@ export function ChatDePrueba({ proyectos }: { proyectos: { id: string; nombre: s
           </div>
         )}
         <div className="acciones abajo">
-          <button type="button" className="secundario" onClick={() => reiniciar()} disabled={pensando || !lineas.length}>
+          <button type="button" className="secundario" onClick={() => reiniciar(estado.proyecto)} disabled={pensando || !lineas.length}>
             Empezar de nuevo
           </button>
         </div>

@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 // Cada mensaje es un pedido a la IA (con herramientas puede llevar más de una vuelta).
 export const maxDuration = 300;
 
-export default async function Probar({ searchParams }: { searchParams: Avisos }) {
+export default async function Probar({ searchParams }: { searchParams: Promise<Awaited<Avisos> & { proyecto?: string }> }) {
   const nombre = await exigirSesion();
+  const { proyecto: elegido } = await searchParams;
   const d = datos();
   const ia = describirIA(process.env);
   const proyectos = d ? (await d.proyectos()).filter((p) => p.activo).map((p) => ({ id: p.id, nombre: p.nombre })) : [];
@@ -29,7 +30,7 @@ export default async function Probar({ searchParams }: { searchParams: Avisos })
           No hay ningún proyecto activo: el asistente no tiene qué ofrecer. <Link href="/panel/proyectos">Cargá o activá una ficha</Link>.
         </p>
       ) : (
-        <ChatDePrueba proyectos={proyectos} />
+        <ChatDePrueba proyectos={proyectos} inicial={proyectos.some((p) => p.id === elegido) ? elegido! : null} />
       )}
     </Marco>
   );

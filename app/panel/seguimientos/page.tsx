@@ -1,6 +1,6 @@
 import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { ETAPAS_SEGUIMIENTO } from "@/lib/panel/validar";
-import { HORARIO, MAX_PASOS } from "@/lib/seguimientos/reglas";
+import { HORARIO, MAX_PASOS, textoSeguimiento } from "@/lib/seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "@/lib/seguimientos/correr";
 import { agregarRegla, borrarRegla, cambiarEstadoRegla } from "../acciones";
 import { Marco, SinBase, type Avisos } from "../marco";
@@ -43,7 +43,12 @@ export default async function Seguimientos({ searchParams }: { searchParams: Avi
                   <td>{r.etapa} · {r.paso}.º</td>
                   <td className="num">{r.dias_sin_respuesta}</td>
                   <td>{nombreProyecto(r.proyecto)}</td>
-                  <td>{r.mensaje}</td>
+                  <td>
+                    {r.mensaje}
+                    {/\{\{/.test(r.mensaje) && (
+                      <div className="nota">Así le llega a Ana: «{textoSeguimiento(r.mensaje, { nombre: "Ana", proyecto: r.proyecto ? nombreProyecto(r.proyecto) : (proyectos.find((p) => p.activo)?.nombre ?? "") })}»</div>
+                    )}
+                  </td>
                   <td>
                     v{r.version} <span className={`etiqueta ${r.estado === "activa" ? "activa" : ""}`}>{ESTADOS[r.estado]}</span>
                   </td>

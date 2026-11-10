@@ -14,12 +14,12 @@
    - Espera 6 segundos por si la persona sigue escribiendo. Si llegó otro mensaje, contesta ese; si ya escribió alguien del equipo, no contesta.
    - Arma el contexto (`lib/agente/contexto.ts`):
      - **Instrucciones estables:** tono, reglas, la ficha del proyecto y los ejemplos. Van en el caché de Anthropic.
-     - **La situación:** fecha y hora, quién es y qué dice el CRM.
+     - **La situación:** fecha y hora (y si el equipo está trabajando), quién es, qué dice el CRM (etapa, responsable, para qué busca, presupuesto, próximo paso, notas) y **lo que el asistente ya anotó** de esa persona.
    - La IA responde (`lib/agente/agente.ts`), con Claude u OpenAI (ver «Modelo»). Puede usar tres herramientas:
-     - `registrar_interesado`: alta en el CRM del hub si no existe; si ya existe, solo suma actividad.
+     - `registrar_interesado`: lo guarda en la conversación (`conversaciones.interesado`) y da de alta en el CRM del hub si no existe; si ya existe, suma actividad **solo con lo que cambió** (si no hay nada nuevo, no escribe).
      - `pasar_a_persona`.
-     - `elegir_proyecto`: solo si hay más de un proyecto activo.
-   - Manda la respuesta por Chatwoot.
+     - `elegir_proyecto`: solo si hay más de un proyecto activo. Con un proyecto ya elegido, ve los nombres de los otros (sin sus datos) para poder cambiar si preguntan por otro.
+   - Manda la respuesta por Chatwoot, con el formato de WhatsApp (`lib/agente/whatsapp.ts`: `**negrita**` → `*negrita*`, sin `#` ni `[links](…)`).
    - **Si pasa a una persona:** deja una nota interna con el motivo y el resumen, abre la conversación y lo anota en el CRM.
 4. **Si algo falla** (la IA, la base, Chatwoot), la conversación pasa al equipo con una nota. Nadie queda sin respuesta.
 
@@ -62,11 +62,19 @@ Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy
 - Si no se puede (falta la clave, falla la descarga o la transcripción), queda `[audio]` y el bot pide con amabilidad que lo escriba, como antes. El error queda en el registro.
 - Falta confirmar con la línea real que la dirección del audio llega completa en el aviso (en la prueba local con Chatwoot 4.19.1, los adjuntos traían `data_url`).
 
+## Lo que tiene en cuenta además
+
+- **Lo que ya sabe de la persona.** Lo que anota con `registrar_interesado` queda en la conversación y lo ve en cada mensaje, aunque la charla sea larga y el principio ya no entre en los últimos 40 mensajes. Así no vuelve a preguntar lo mismo.
+- **El CRM, buscado bien.** Primero por el ID que ya quedó anotado en la conversación y después por teléfono. WhatsApp a veces no pasa el número (contactos con privacidad): antes eso creaba un contacto repetido en cada mensaje.
+- **El horario del equipo** (`HORARIO_EQUIPO` en `lib/agente/contexto.ts`: de lunes a viernes de 9 a 20). Fuera de ese horario sigue atendiendo igual, pero si pasa la conversación a una persona avisa que le escriben apenas vuelvan, sin prometer una hora.
+- **Respuestas cortadas.** Si la IA llega al tope de largo, no manda el mensaje a medias: pasa la conversación al equipo.
+- **Tiempos.** Cada pedido a Chatwoot y a Google tiene 20 segundos como máximo; a la IA, 60 con un reintento.
+
 ## Qué guarda
 
 - **La base (Neon):**
   - historial de mensajes;
-  - qué proyecto y qué contacto del CRM tiene cada conversación;
+  - qué proyecto y qué contacto del CRM tiene cada conversación, y lo que el asistente anotó de la persona;
   - mensajes ya respondidos;
   - registro de lo que hizo el bot.
 - **CRM del hub:** contacto nuevo (etapa Nuevo, origen WhatsApp, con «Entró por WhatsApp (asistente)» en las notas) y actividad tipo WhatsApp con el usuario «Asistente WhatsApp» (también cada seguimiento automático). Nunca cambia lo que cargó una persona. Las etapas y columnas son las del hub desde noviembre de 2026 (con la columna Tags); las etapas de antes se leen como las de ahora.
