@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { aplicarCeldas } from "../../test/fixtures";
 import { claveTelefono, COLUMNAS_CONTACTOS, contactoDeFila, crearCRM, etapaDe, filaContactoNuevo, RANGO_CONTACTOS, type DatosInteresado, type Hoja } from "./planilla";
 
 const AHORA = "2026-11-07T21:00:00.000Z";
@@ -12,6 +13,9 @@ function hojaFalsa(contactos: string[][] = []) {
     },
     async agregar(pestania, filas) {
       pestanias[pestania].push(...filas);
+    },
+    async actualizar(celdas) {
+      aplicarCeldas(pestanias, celdas);
     },
   };
   return { hoja, pestanias };
@@ -72,6 +76,41 @@ describe("CRM del hub", () => {
     expect(v("Notas")).toBe("Entró por WhatsApp (asistente). Busca 2 ambientes con balcón.");
     expect(v("ID")).toMatch(/^c[a-z0-9]+$/);
     expect(pestanias["CRM Actividad"]).toEqual([[AHORA, "Asistente WhatsApp", c.id, "Ana Prueba", "WhatsApp", "Consultó por 2 ambientes.", "Nuevo"]]);
+  });
+
+  it("mueve de etapa: cambia la etapa y las fechas en la fila, y lo anota como el hub («Cambio de etapa»)", async () => {
+    const { hoja, pestanias } = hojaFalsa([
+      filaDe({ ID: "c1", Nombre: "Otro", Etapa: "Nuevo" }),
+      filaDe({ ID: "c2", Nombre: "Ana", Etapa: "Nuevo", Notas: "La cargó Tadeo.", "Próximo paso": "Llamar", "Fecha próximo paso": "2026-11-12", Creado: "2026-11-01T10:00:00.000Z" }),
+    ]);
+    const crm = crearCRM(hoja);
+    const v = (fila: number, n: (typeof COLUMNAS_CONTACTOS)[number]) => pestanias["CRM Contactos"][fila][COLUMNAS_CONTACTOS.indexOf(n)];
+
+    const movido = await crm.cambiarEtapa({ id: "c2", permitido: (actual) => (actual === "Nuevo" ? "Contacto inicial" : null), por: "el asistente le respondió por primera vez", ahora: AHORA });
+    expect(movido).toMatchObject({ id: "c2", etapa: "Contacto inicial" });
+    expect([v(1, "Etapa"), v(1, "Entró a la etapa"), v(1, "Actualizado")]).toEqual(["Contacto inicial", AHORA, AHORA]);
+    // Lo que cargó una persona no se toca; la otra fila, tampoco.
+    expect([v(1, "Notas"), v(1, "Próximo paso"), v(1, "Creado"), v(0, "Etapa")]).toEqual(["La cargó Tadeo.", "Llamar", "2026-11-01T10:00:00.000Z", "Nuevo"]);
+    expect(pestanias["CRM Actividad"]).toEqual([[AHORA, "Asistente WhatsApp", "c2", "Ana", "Cambio de etapa", "Nuevo → Contacto inicial. Automático: el asistente le respondió por primera vez", "Contacto inicial"]]);
+
+    // Si con la etapa que tiene ahora no corresponde, no toca nada.
+    expect(await crm.cambiarEtapa({ id: "c2", permitido: () => null, por: "x", ahora: AHORA })).toBeNull();
+    expect(await crm.cambiarEtapa({ id: "c2", permitido: () => "Contacto inicial", por: "x", ahora: AHORA })).toBeNull();
+    expect(await crm.cambiarEtapa({ id: "no-esta", permitido: () => "Seguimiento", por: "x", ahora: AHORA })).toBeNull();
+    expect(pestanias["CRM Actividad"]).toHaveLength(1);
+
+    // Descartado: lleva motivo y no queda un próximo paso colgado, como en el hub.
+    await crm.cambiarEtapa({ id: "c2", permitido: () => "Descartado", por: "dijo que no le interesa", motivoDeDescarte: "Otro", ahora: AHORA });
+    expect([v(1, "Etapa"), v(1, "Motivo de pérdida"), v(1, "Próximo paso"), v(1, "Fecha próximo paso")]).toEqual(["Descartado", "Otro", "", ""]);
+    expect(pestanias["CRM Actividad"][1][5]).toBe("Contacto inicial → Descartado (Otro). Automático: dijo que no le interesa");
+  });
+
+  it("el contacto nuevo puede entrar en otra etapa (la del primer contacto)", async () => {
+    const { hoja, pestanias } = hojaFalsa();
+    const c = await crearCRM(hoja).crearContacto(datos(), AHORA, "Contacto inicial");
+    expect(c.etapa).toBe("Contacto inicial");
+    expect(pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Etapa")]).toBe("Contacto inicial");
+    expect((await crearCRM(hoja).crearContacto(datos(), AHORA, "Inventada")).etapa).toBe("Nuevo");
   });
 
   it("deja vacío lo que no es una opción del hub, y sin nombre usa el teléfono", () => {

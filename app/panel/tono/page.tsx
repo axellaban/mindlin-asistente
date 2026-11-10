@@ -35,6 +35,14 @@ export default async function Tono({ searchParams }: { searchParams: Avisos }) {
           Cuándo pasar la conversación al equipo <small>Por ejemplo: si quiere visitar, reservar o negociar el precio.</small>
         </label>
         <textarea id="cuando_pasar_a_persona" name="cuando_pasar_a_persona" maxLength={MAX_CAMPO_FICHA} defaultValue={t.cuando_pasar_a_persona} />
+        <label htmlFor="sobre_la_empresa">
+          Sobre la empresa <small>Quiénes son, la trayectoria, Borok, preguntas frecuentes. Vale para todos los proyectos.</small>
+        </label>
+        <textarea id="sobre_la_empresa" name="sobre_la_empresa" className="alto" maxLength={MAX_CAMPO_FICHA} defaultValue={t.sobre_la_empresa} />
+        <label htmlFor="objeciones">
+          Objeciones, perfiles y señales <small>Cómo responder «me parece caro», cómo hablarle a un inversor o a quien compra para vivir, señales de compra y qué no decir.</small>
+        </label>
+        <textarea id="objeciones" name="objeciones" className="alto" maxLength={MAX_CAMPO_FICHA} defaultValue={t.objeciones} />
         <label className="casilla">
           <input type="checkbox" name="pasar_al_responder" defaultChecked={t.pasar_al_responder === true} /> Modo «presenta y pasa»: el asistente presenta el proyecto y, cuando la persona
           responde, la conversación pasa al equipo

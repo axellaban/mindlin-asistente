@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { REGLAS_POR_DEFECTO } from "../etapas/reglas";
 import { crearAlmacen } from "./postgres";
 
 /**
@@ -52,6 +53,17 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     expect((await a.tono()).criterios_comerciales).toContain("solo vende");
   });
 
+  it("las etapas automáticas de fábrica y la base comercial que deja la migración", async () => {
+    const a = crearAlmacen(pool);
+    expect(await a.reglasEtapa()).toEqual(REGLAS_POR_DEFECTO);
+    const tono = await a.tono();
+    expect(tono.sobre_la_empresa).toContain("más de 100.000 m² construidos");
+    expect(tono.objeciones).toContain("«Me parece caro»");
+    expect((await pool.query("select tipologias from proyectos where id = '17-y-43'")).rows[0].tipologias).toContain("Tipo C");
+    // El registro acepta el tipo nuevo.
+    await a.registrar({ tipo: "etapa", conversacion: 1, detalle: "Nuevo → Contacto inicial", datos: { evento: "primer_contacto" } });
+  });
+
   it("guarda el historial sin repetir y devuelve los últimos en orden", async () => {
     const a = crearAlmacen(pool);
     for (let i = 1; i <= 5; i++) await a.guardarMensaje({ id: 100 + i, conversacion: 9, rol: i % 2 ? "interesado" : "bot", texto: `m${i}`, fecha: `2026-11-07T21:0${i}:00.000Z` });
@@ -73,7 +85,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await a.guardarConversacion({ chatwoot_id: 19, telefono: "5491155550000", nombre: "Ana" });
     await a.guardarConversacion({ chatwoot_id: 19, proyecto: "lerma-439" });
     await a.guardarConversacion({ chatwoot_id: 19, crm_contacto_id: "c1" });
-    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {} });
+    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null });
     // Lo que anotó el asistente (jsonb) va y vuelve igual, y no borra lo demás.
     await a.guardarConversacion({ chatwoot_id: 19, interesado: { nombre: "Ana Prueba", presupuesto_usd: "90000" } });
     expect(await a.conversacion(19)).toMatchObject({ proyecto: "lerma-439", interesado: { nombre: "Ana Prueba", presupuesto_usd: "90000" } });

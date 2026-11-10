@@ -20,6 +20,8 @@ import { responder, type Herramientas, type Modelo, type Resultado } from "./age
 import type { Transcriptor } from "./openai";
 import { sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
+import { moverEtapa } from "../etapas/mover";
+import { etapaDeAlta, type Evento, type ReglasEtapa, type Senal } from "../etapas/reglas";
 import { motivoParaFrenar } from "./limites";
 import { paraWhatsApp } from "./whatsapp";
 
@@ -83,19 +85,14 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
       await s.almacen.registrar({ tipo: "volvio_al_bot", conversacion: conv, detalle: "El equipo le devolvió la conversación al asistente: vuelve a responder y a llevar seguimientos." });
     }
 
-    const [guardada, proyectos, tono, ejemplos] = await Promise.all([
+    const [guardada, proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([
       s.almacen.conversacion(conv),
       s.almacen.proyectosActivos(),
       s.almacen.tono(),
       s.almacen.ejemplos(),
+      // Sin las reglas de etapas, el asistente atiende igual: solo no mueve a nadie.
+      s.almacen.reglasEtapa().catch((): ReglasEtapa => ({})),
     ]);
-
-    // Modo «presenta y pasa» (como los bots de Kommo): el asistente ya le escribió y la persona
-    // respondió → sigue el equipo. Si el equipo se la devolvió a propósito, responde.
-    if (tono.pasar_al_responder && !devuelta && historial.some((m) => m.rol === "bot")) {
-      await pasarAPersona(s, conv, { motivo: "La persona respondió después de la presentación (modo «presenta y pasa»).", resumen: guardada?.interesado?.resumen ?? "" }, null, ahora);
-      return "pasó al equipo: respondió después de la presentación";
-    }
     // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
     const telefono = a.contacto.telefono || guardada?.telefono || null;
     const nombre = a.contacto.nombre || guardada?.nombre || null;
@@ -115,6 +112,21 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
       }
     }
     let anotado = guardada?.interesado ?? {};
+
+    // Lo que pasó con este mensaje, para mover al lead de etapa en el CRM (lib/etapas/reglas.ts).
+    const eventos: Evento[] = [eventoDelMensaje(historial, guardada?.ultimo_seguimiento)];
+    const mover = async (mas: Evento[] = []) => {
+      const movido = await moverEtapa({ crm: s.crm, almacen: s.almacen, conversacion: conv, contacto: contactoCRM, eventos: [...eventos, ...mas], reglas: reglasEtapa, ahora: ahora().toISOString() });
+      if (movido) contactoCRM = movido;
+    };
+
+    // Modo «presenta y pasa» (como los bots de Kommo): el asistente ya le escribió y la persona
+    // respondió → sigue el equipo. Si el equipo se la devolvió a propósito, responde.
+    if (tono.pasar_al_responder && !devuelta && historial.some((m) => m.rol === "bot")) {
+      await mover(["paso_al_equipo"]);
+      await pasarAPersona(s, conv, { motivo: "La persona respondió después de la presentación (modo «presenta y pasa»).", resumen: guardada?.interesado?.resumen ?? "" }, contactoCRM ?? null, ahora);
+      return "pasó al equipo: respondió después de la presentación";
+    }
 
     const herramientas: Herramientas = {
       async registrarInteresado(d) {
@@ -142,6 +154,8 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
               notas: [d.resumen, anotado.zona && `Es de: ${anotado.zona}.`, anotado.busca_desde && `Busca hace: ${anotado.busca_desde}.`].filter(Boolean).join(" "),
             },
             cuando,
+            // Ya le está hablando el asistente: entra con la etapa del «primer contacto», no como «Nuevo».
+            etapaDeAlta(reglasEtapa),
           );
           await s.almacen.guardarConversacion({ chatwoot_id: conv, crm_contacto_id: contactoCRM.id });
           await s.crm.anotarActividad({ contacto: contactoCRM, detalle: `Alta por WhatsApp. ${d.resumen}`.trim(), ahora: cuando });
@@ -160,6 +174,12 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
         await s.almacen.guardarConversacion({ chatwoot_id: conv, proyecto: p.id });
         return `Quedó elegido. Ficha:\n\n${ficha(p)}`;
       },
+      async marcarSenal(senal: Senal) {
+        if (!eventos.includes(senal)) eventos.push(senal);
+        // Si pidió que no le escriban, no le salen más seguimientos, mueva o no de etapa.
+        if (senal === "no_le_interesa") await s.almacen.sinSeguimientos(conv);
+        return "Anotado para el equipo. Seguí la conversación sin mencionarlo.";
+      },
     };
 
     const resultado: Resultado = await responder({
@@ -176,6 +196,7 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     await s.almacen.registrar({ tipo: "respuesta", conversacion: conv, detalle: texto.slice(0, 500), datos: { fin: resultado.fin } });
 
     const pasar = resultado.pasarAPersona ?? (texto ? null : { motivo: "El asistente no supo qué responder.", resumen: "" });
+    await mover(pasar ? ["paso_al_equipo"] : []);
     if (pasar) {
       await pasarAPersona(s, conv, pasar, contactoCRM ?? null, ahora);
       return `respondió y pasó a una persona: ${pasar.motivo}`;
@@ -186,6 +207,21 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     await pasarAPersona(s, conv, { motivo: "El asistente tuvo un error y no pudo responder.", resumen: detalle(e).slice(0, 300) }, null, ahora).catch(() => {});
     return `error: ${detalle(e)}`;
   }
+}
+
+/**
+ * Qué fue este mensaje del interesado para las etapas: el primero que le contesta el asistente,
+ * la respuesta a un seguimiento automático, o una respuesta más de la conversación.
+ */
+export function eventoDelMensaje(historial: { rol: string; fecha: string }[], ultimoSeguimiento: string | null | undefined): Evento {
+  // Lo último que le mandamos antes de lo que escribió ahora.
+  let i = historial.length - 1;
+  while (i >= 0 && historial[i].rol === "interesado") i--;
+  if (i < 0) return "primer_contacto";
+  const saliente = historial[i];
+  // El seguimiento se anota un instante antes de mandarlo; Chatwoot le pone su propia hora al mensaje.
+  const fueSeguimiento = saliente.rol === "bot" && !!ultimoSeguimiento && Math.abs(Date.parse(saliente.fecha) - Date.parse(ultimoSeguimiento)) <= 5 * 60_000;
+  return fueSeguimiento ? "respondio_seguimiento" : "respondio";
 }
 
 /** Transcribe los audios del mensaje, en orden. Un audio que no se pudo transcribir queda en "". */

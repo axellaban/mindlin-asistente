@@ -18,6 +18,16 @@ describe("contexto del agente", () => {
     expect(ficha(lerma())).not.toContain("Cómo presentarlo");
   });
 
+  it("la base comercial (empresa y objeciones) va antes de las reglas, y solo si está cargada", () => {
+    const con = instrucciones({ tono: { ...tono, sobre_la_empresa: "Borok Construcciones existe desde 1990.", objeciones: "«Me parece caro»: poner en contexto." }, proyectos: [lerma()], proyecto: lerma(), ejemplos: [] });
+    expect(con).toContain("# Sobre Mindlin Developers (vale para todos los proyectos)\n\nBorok Construcciones existe desde 1990.");
+    expect(con).toContain("Si choca con las reglas de abajo, valen las reglas.");
+    expect(con.indexOf("«Me parece caro»")).toBeLessThan(con.indexOf("# Reglas que no se rompen"));
+    const sin = instrucciones({ tono, proyectos: [lerma()], proyecto: lerma(), ejemplos: [] });
+    expect(sin).not.toContain("Sobre Mindlin Developers");
+    expect(sin).not.toContain("Objeciones, perfiles");
+  });
+
   it("con un proyecto elegido, solo va su ficha", () => {
     const i = instrucciones({ tono, proyectos: [lerma(), otroProyecto()], proyecto: lerma(), ejemplos: [] });
     expect(i).toContain("Sos parte del equipo comercial de Mindlin");

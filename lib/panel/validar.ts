@@ -4,6 +4,7 @@
  */
 
 import { ETAPAS } from "../crm/planilla";
+import { esEvento, ETAPAS_DESTINO, type Evento } from "../etapas/reglas";
 import type { Proyecto, ReglaSeguimiento, Tono } from "../datos/tipos";
 import { MAX_PASOS } from "../seguimientos/reglas";
 
@@ -69,7 +70,13 @@ export function validarProyecto(f: Formulario): Resultado<FichaEditable> {
 }
 
 export function validarTono(f: Formulario): Resultado<Tono> {
-  const textos = { instrucciones: texto(f, "instrucciones"), criterios_comerciales: texto(f, "criterios_comerciales"), cuando_pasar_a_persona: texto(f, "cuando_pasar_a_persona") };
+  const textos = {
+    instrucciones: texto(f, "instrucciones"),
+    criterios_comerciales: texto(f, "criterios_comerciales"),
+    cuando_pasar_a_persona: texto(f, "cuando_pasar_a_persona"),
+    sobre_la_empresa: texto(f, "sobre_la_empresa"),
+    objeciones: texto(f, "objeciones"),
+  };
   const t = { ...textos, pasar_al_responder: f.get("pasar_al_responder") === "on" };
   if (!t.instrucciones) return { ok: false, error: "Falta «Quién es y cómo habla»: sin eso el asistente no sabe qué tono usar." };
   if (Object.values(textos).some((v) => v.length > MAX_CAMPO_FICHA)) return { ok: false, error: `Cada texto puede tener hasta ${MAX_CAMPO_FICHA} letras.` };
@@ -89,6 +96,15 @@ export const ETAPAS_SEGUIMIENTO = ETAPAS.filter((e) => e !== "Vendido" && e !== 
 export const ESTADOS_REGLA = ["activa", "a_prueba", "archivada"] as const;
 
 export type ReglaNueva = Omit<ReglaSeguimiento, "id" | "version">;
+
+/** Una regla de etapas: a qué etapa mueve un evento. "" o «no mover» → null. */
+export function validarReglaEtapa(evento: string, etapa: unknown): Resultado<{ evento: Evento; etapa: string | null }> {
+  if (!esEvento(evento)) return { ok: false, error: "Ese evento no existe." };
+  const e = typeof etapa === "string" ? etapa.trim() : "";
+  if (!e) return { ok: true, valor: { evento, etapa: null } };
+  if (!(ETAPAS_DESTINO as readonly string[]).includes(e)) return { ok: false, error: `El asistente solo puede mover a: ${ETAPAS_DESTINO.join(", ")}. Reserva y Vendido los decide una persona.` };
+  return { ok: true, valor: { evento, etapa: e } };
+}
 
 export function validarRegla(f: Formulario, proyectos: string[]): Resultado<ReglaNueva> {
   const etapa = texto(f, "etapa");

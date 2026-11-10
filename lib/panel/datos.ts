@@ -6,6 +6,7 @@
 import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { Anotado, Ejemplo, ReglaSeguimiento, Tono, TipoRegistro } from "../datos/tipos";
+import { EVENTOS, type Evento } from "../etapas/reglas";
 import type { FichaEditable, ReglaNueva } from "./validar";
 
 type Db = Pick<pg.Pool, "query">;
@@ -42,6 +43,17 @@ export interface DetalleConversacion {
   paso_seguimiento: number;
   sin_seguimientos: boolean;
   ultimo_seguimiento: string | null;
+}
+
+export interface ReglaEtapaPanel {
+  evento: Evento;
+  titulo: string;
+  /** Null: ese evento no mueve a nadie. */
+  etapa: string | null;
+  actualizado: string | null;
+  actualizado_por: string | null;
+  /** Cuántos leads movió esta regla en los últimos 30 días. */
+  movidos_30_dias: number;
 }
 
 export interface RegistroPanel {
@@ -104,20 +116,22 @@ export function datosPanel(db: Db) {
     },
 
     async tono(): Promise<Tono & { actualizado: string | null; actualizado_por: string | null }> {
-      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, actualizado, actualizado_por from tono where id = 1");
+      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, actualizado, actualizado_por from tono where id = 1");
       const t = rows[0];
       return t
         ? { ...t, actualizado: iso(t.actualizado) }
-        : { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, actualizado: null, actualizado_por: null };
+        : { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, sobre_la_empresa: "", objeciones: "", actualizado: null, actualizado_por: null };
     },
 
     async guardarTono(t: Tono, por: string): Promise<void> {
       await db.query(
-        `insert into tono (id, instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, actualizado, actualizado_por) values (1, $1, $2, $3, $4, now(), $5)
+        `insert into tono (id, instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, actualizado, actualizado_por)
+         values (1, $1, $2, $3, $4, $5, $6, now(), $7)
          on conflict (id) do update set instrucciones = excluded.instrucciones, criterios_comerciales = excluded.criterios_comerciales,
            cuando_pasar_a_persona = excluded.cuando_pasar_a_persona, pasar_al_responder = excluded.pasar_al_responder,
+           sobre_la_empresa = excluded.sobre_la_empresa, objeciones = excluded.objeciones,
            actualizado = now(), actualizado_por = excluded.actualizado_por`,
-        [t.instrucciones, t.criterios_comerciales, t.cuando_pasar_a_persona, t.pasar_al_responder === true, por],
+        [t.instrucciones, t.criterios_comerciales, t.cuando_pasar_a_persona, t.pasar_al_responder === true, t.sobre_la_empresa ?? "", t.objeciones ?? "", por],
       );
     },
 
@@ -136,6 +150,28 @@ export function datosPanel(db: Db) {
 
     async borrarEjemplo(id: number): Promise<void> {
       await db.query("delete from ejemplos where id = $1", [id]);
+    },
+
+    /** Las reglas de etapas: una por evento, en el orden de EVENTOS, con cuántas veces movió a alguien. */
+    async etapas(): Promise<ReglaEtapaPanel[]> {
+      const [{ rows }, { rows: usos }] = await Promise.all([
+        db.query("select evento, etapa, actualizado, actualizado_por from reglas_etapa"),
+        db.query("select datos->>'evento' as evento, count(*)::int as n from registro where tipo = 'etapa' and fecha > now() - interval '30 days' group by 1"),
+      ]);
+      const guardadas = new Map(rows.map((r) => [r.evento as string, r]));
+      const movidos = new Map(usos.map((u) => [u.evento as string, u.n as number]));
+      return EVENTOS.map(([evento, titulo]) => {
+        const g = guardadas.get(evento);
+        return { evento, titulo, etapa: g?.etapa ?? null, actualizado: iso(g?.actualizado ?? null), actualizado_por: g?.actualizado_por ?? null, movidos_30_dias: movidos.get(evento) ?? 0 };
+      });
+    },
+
+    async guardarEtapa(evento: Evento, etapa: string | null, por: string): Promise<void> {
+      await db.query(
+        `insert into reglas_etapa (evento, etapa, actualizado, actualizado_por) values ($1, $2, now(), $3)
+         on conflict (evento) do update set etapa = excluded.etapa, actualizado = now(), actualizado_por = excluded.actualizado_por`,
+        [evento, etapa, por],
+      );
     },
 
     /** Las reglas con cuántos seguimientos salieron y cuántos respondieron. */
@@ -233,7 +269,7 @@ export function datosPanel(db: Db) {
          select 'conversaciones', count(distinct conversacion)::int from mensajes where fecha > now() - make_interval(days => $1) and rol = 'interesado'`,
         [dias],
       );
-      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, pausa: 0, error: 0, conversaciones: 0 };
+      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, etapa: 0, pausa: 0, error: 0, conversaciones: 0 };
       for (const r of rows) base[r.tipo as keyof typeof base] = r.n;
       return base;
     },

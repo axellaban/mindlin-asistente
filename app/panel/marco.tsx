@@ -7,6 +7,7 @@ const SECCIONES = [
   ["/panel/proyectos", "Fichas"],
   ["/panel/tono", "Tono y ejemplos"],
   ["/panel/seguimientos", "Seguimientos"],
+  ["/panel/etapas", "Etapas"],
   ["/panel/probar", "Probar"],
 ] as const;
 

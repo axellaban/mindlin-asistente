@@ -15,6 +15,7 @@ const TIPOS: Record<string, string> = {
   volvio_al_bot: "Volvió al asistente",
   seguimiento: "Seguimiento",
   crm: "CRM",
+  etapa: "Cambio de etapa",
   error: "Error",
 };
 

@@ -16,6 +16,7 @@ const TIPOS: Record<string, string> = {
   pausa: "Pausa",
   seguimiento: "Seguimiento",
   crm: "CRM",
+  etapa: "Cambio de etapa",
   error: "Error",
 };
 

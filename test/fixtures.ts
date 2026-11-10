@@ -44,3 +44,19 @@ export function respuesta(bloques: Bloque[], stop_reason: Anthropic.Beta.BetaMes
     usage: { input_tokens: 1, output_tokens: 1 },
   } as unknown as Anthropic.Beta.BetaMessage;
 }
+
+/**
+ * Para las planillas de mentira de las pruebas: aplica cambios de celdas sueltas como los hace
+ * Google («'CRM Contactos'!I3» → fila 3, columna I; la fila 1 son los títulos).
+ */
+export function aplicarCeldas(pestanias: Record<string, string[][]>, celdas: { rango: string; valor: string }[]) {
+  for (const { rango, valor } of celdas) {
+    const m = rango.match(/^'(.+)'!([A-Z]+)(\d+)$/);
+    if (!m) throw new Error(`Rango raro: ${rango}`);
+    const columna = [...m[2]].reduce((n, l) => n * 26 + (l.charCodeAt(0) - 64), 0) - 1;
+    const fila = pestanias[m[1]][Number(m[3]) - 2];
+    if (!fila) throw new Error(`No existe la fila de ${rango}`);
+    while (fila.length <= columna) fila.push("");
+    fila[columna] = valor;
+  }
+}

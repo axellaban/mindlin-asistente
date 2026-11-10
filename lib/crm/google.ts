@@ -20,6 +20,15 @@ export function hojaGoogle(env: Record<string, string | undefined> = process.env
       const r = await cliente.request<{ values?: string[][] }>({ url: `${base}/${encodeURIComponent(rango)}`, timeout });
       return r.data.values ?? [];
     },
+    async actualizar(celdas) {
+      if (!celdas.length) return;
+      await cliente.request({
+        url: `${base}:batchUpdate`,
+        method: "POST",
+        data: { valueInputOption: "RAW", data: celdas.map((c) => ({ range: c.rango, values: [[c.valor]] })) },
+        timeout,
+      });
+    },
     async agregar(pestania, filas) {
       await cliente.request({
         url: `${base}/${encodeURIComponent(`'${pestania}'!A1`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,

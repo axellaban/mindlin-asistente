@@ -32,8 +32,8 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       probar:
         almacen && modelo
           ? async (estado, texto) => {
-              const [proyectos, tono, ejemplos] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos()]);
-              return probar({ modelo, proyectos, tono, ejemplos, estado: estadoDesdeNavegador(estado), texto: texto.slice(0, MAX_LARGO_PRUEBA) });
+              const [proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos(), almacen.reglasEtapa().catch(() => ({}))]);
+              return probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado: estadoDesdeNavegador(estado), texto: texto.slice(0, MAX_LARGO_PRUEBA) });
             }
           : null,
     },
