@@ -124,7 +124,7 @@ describe("atender un mensaje", () => {
   });
 
   it("si la persona ya está en el CRM, no la duplica: suma actividad", async () => {
-    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Interesado", Responsable: "Mati" })[c as "ID"] ?? "");
+    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Seguimiento", Responsable: "Mati" })[c as "ID"] ?? "");
     const p = preparar({ contactos: [existente], historial: [msg(1, "interesado", "Hola")] });
     const m = modeloFalso(
       respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "Invertir", ambientes: "", presupuesto_usd: "90000", forma_de_pago: "", plazo: "", resumen: "Ahora busca para invertir." } }]),
@@ -132,7 +132,7 @@ describe("atender un mensaje", () => {
     );
     await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: p.crm }, accion(1, "Hola"));
     expect(p.hoja.pestanias["CRM Contactos"]).toHaveLength(1);
-    expect(p.hoja.pestanias["CRM Actividad"][0].slice(2, 7)).toEqual(["c1", "Ana", "WhatsApp", "Ahora busca para invertir. (para: Invertir, presupuesto: USD 90000)", "Interesado"]);
+    expect(p.hoja.pestanias["CRM Actividad"][0].slice(2, 7)).toEqual(["c1", "Ana", "WhatsApp", "Ahora busca para invertir. (para: Invertir, presupuesto: USD 90000)", "Seguimiento"]);
     expect(m.pedidos[0].system[1].text).toContain("Responsable: Mati");
   });
 
