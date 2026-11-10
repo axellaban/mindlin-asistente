@@ -75,7 +75,7 @@ export interface SeguimientoEnviado {
   enviado: string;
 }
 
-export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "seguimiento" | "crm" | "error";
+export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "volvio_al_bot" | "seguimiento" | "crm" | "pausa" | "error";
 
 /** Dónde guarda y lee el asistente (Postgres en Neon en producción, memoria en las pruebas). */
 export interface Almacen {
@@ -94,6 +94,13 @@ export interface Almacen {
   registrar(r: { tipo: TipoRegistro; conversacion: number | null; detalle: string; datos?: unknown }): Promise<void>;
   /** La conversación ya no lleva seguimientos automáticos (la tomó una persona). */
   sinSeguimientos(conversacion: number): Promise<void>;
+  /**
+   * El equipo le devolvió la conversación al bot (la volvió a poner pendiente): vuelve a llevar
+   * seguimientos. True si estaba en manos del equipo.
+   */
+  volvioAlBot(conversacion: number): Promise<boolean>;
+  /** Si alguien pausó el asistente entero desde el panel. */
+  pausado(): Promise<boolean>;
   /** Conversaciones del bot donde lo último lo dijimos nosotros hace más de un día. */
   candidatosSeguimiento(ahora: string): Promise<CandidatoSeguimiento[]>;
   /** Las reglas activas y a prueba (no las archivadas). */

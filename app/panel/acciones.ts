@@ -44,6 +44,17 @@ export async function salir() {
   redirect("/panel/entrar");
 }
 
+export async function pausarAsistente(f: FormData) {
+  const por = await exigirSesion();
+  const pausar = f.get("pausar") === "1";
+  await base("/panel").pausar(pausar, por);
+  volver("/panel", {
+    ok: pausar
+      ? "Asistente pausado: cada conversación nueva pasa al equipo y no salen seguimientos."
+      : "Asistente reactivado: vuelve a responder las conversaciones pendientes.",
+  });
+}
+
 export async function guardarProyecto(f: FormData) {
   const por = await exigirSesion();
   const nuevo = f.get("nuevo") === "1";

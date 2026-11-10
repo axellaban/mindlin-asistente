@@ -190,6 +190,14 @@ describe("la corrida de seguimientos", () => {
     expect(p.datos.registro.at(-1)?.detalle).toContain("Chatwoot no responde");
   });
 
+  it("con el asistente pausado no sale ninguno", async () => {
+    const p = preparar();
+    await p.charla(7, 3);
+    p.datos.estado.pausado = true;
+    expect((await p.correr()).estado).toBe("pausado");
+    expect(p.hechos).toEqual([]);
+  });
+
   it("como mucho TOPE por corrida", async () => {
     const p = preparar();
     for (let c = 1; c <= 5; c++) await p.charla(c, 3, { telefono: `54911555500${c}0` });

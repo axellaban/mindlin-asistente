@@ -7,7 +7,7 @@
 import { type Accion, accionPara, mensajeParaHistorial } from "./chatwoot/evento";
 import { firmaValida } from "./chatwoot/firma";
 import type { Conexiones } from "./servicios";
-import { atender, laTomoUnaPersona, type Servicios } from "./agente/servicio";
+import { atender, laTomoUnaPersona, pasarPorPausa, type Servicios } from "./agente/servicio";
 
 export interface Salida {
   status: number;
@@ -66,6 +66,11 @@ export async function manejarWebhook(
         await chatwoot.pasarAPersona(accion.conversacion);
       },
     };
+  }
+
+  // Pausado desde el panel: atiende el equipo. Si no se puede saber, el asistente sigue (no deja a nadie sin respuesta).
+  if (await almacen.pausado().catch(() => false)) {
+    return { status: 200, json: { accion: "pasar_a_persona", motivo: "el asistente está pausado" }, tarea: () => pasarPorPausa({ almacen, chatwoot }, accion.conversacion) };
   }
 
   return { status: 200, json: { accion: accion.tipo }, tarea: () => atender({ ...opciones, almacen, chatwoot, modelo, crm, transcribir }, accion) };

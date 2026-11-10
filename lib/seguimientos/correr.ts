@@ -16,7 +16,7 @@ import { elegirRegla, enHorario, nombreDePila, pasaronLosDias, textoSeguimiento 
 export const TOPE_POR_CORRIDA = 20;
 
 export interface ResultadoCorrida {
-  estado: "listo" | "fuera de horario" | "sin reglas" | "sin CRM";
+  estado: "listo" | "pausado" | "fuera de horario" | "sin reglas" | "sin CRM";
   revisadas: number;
   enviados: number;
   errores: number;
@@ -39,6 +39,7 @@ export async function correrSeguimientos({
 }): Promise<ResultadoCorrida> {
   const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0 };
   if (!enHorario(ahora)) return { ...resultado, estado: "fuera de horario" };
+  if (await almacen.pausado()) return { ...resultado, estado: "pausado" };
   const reglas = await almacen.reglasVigentes();
   if (!reglas.length) return { ...resultado, estado: "sin reglas" };
   const [candidatos, proyectos] = await Promise.all([almacen.candidatosSeguimiento(ahora.toISOString()), almacen.proyectosActivos()]);

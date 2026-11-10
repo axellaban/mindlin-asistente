@@ -127,6 +127,16 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         [conversacion],
       );
     },
+    async volvioAlBot(conversacion) {
+      const { rowCount } = await db.query("update conversaciones set sin_seguimientos = false, paso_seguimiento = 0, actualizada = now() where chatwoot_id = $1 and sin_seguimientos", [
+        conversacion,
+      ]);
+      return rowCount === 1;
+    },
+    async pausado() {
+      const { rows } = await db.query("select pausado from asistente_estado where id = 1");
+      return rows[0]?.pausado === true;
+    },
     async candidatosSeguimiento(ahora) {
       const { rows } = await db.query(
         `select chatwoot_id, nombre, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida

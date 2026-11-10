@@ -16,7 +16,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     pool = new pg.Pool({ connectionString: url });
     await pool.query("drop schema public cascade; create schema public;");
     const migrar = () => execFileSync("node", ["scripts/migrar.mjs"], { env: { ...process.env, DATABASE_URL: url, DATABASE_URL_UNPOOLED: "" }, encoding: "utf8" });
-    expect(migrar()).toContain("aplicada 202611100003_seguimientos.sql");
+    expect(migrar()).toContain("aplicada 202611100004_pausa.sql");
     // La segunda vez no aplica nada.
     expect(migrar()).not.toContain("aplicada");
   });
@@ -52,6 +52,16 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await a.guardarConversacion({ chatwoot_id: 19, proyecto: "lerma-439" });
     await a.guardarConversacion({ chatwoot_id: 19, crm_contacto_id: "c1" });
     expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana" });
+  });
+
+  it("arranca sin pausa y acepta los tipos nuevos del registro", async () => {
+    const a = crearAlmacen(pool);
+    expect(await a.pausado()).toBe(false);
+    await pool.query("update asistente_estado set pausado = true");
+    expect(await a.pausado()).toBe(true);
+    await pool.query("update asistente_estado set pausado = false");
+    await a.registrar({ tipo: "volvio_al_bot", conversacion: 9, detalle: "x" });
+    await pool.query("delete from registro");
   });
 
   it("registra lo que hizo el bot", async () => {
@@ -110,5 +120,10 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await msg(404, 40, "bot", "2026-11-10T15:01:00.000Z");
     expect(await a.candidatosSeguimiento("2026-11-20T14:00:00.000Z")).toEqual([]);
     expect(await a.reclamarSeguimiento({ conversacion: 40, pasoAnterior: 0, regla, ahora })).toBe(false);
+
+    // El equipo se la devuelve al bot: vuelve a ser candidata (una sola vez cuenta como cambio).
+    expect(await a.volvioAlBot(40)).toBe(true);
+    expect(await a.volvioAlBot(40)).toBe(false);
+    expect((await a.candidatosSeguimiento("2026-11-20T14:00:00.000Z"))[0]).toMatchObject({ chatwoot_id: 40, paso_seguimiento: 0 });
   });
 });

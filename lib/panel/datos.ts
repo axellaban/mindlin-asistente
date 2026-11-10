@@ -186,6 +186,22 @@ export function datosPanel(db: Db) {
       return rows.map((r) => ({ ...r, fecha: iso(r.fecha)!, conversacion: r.conversacion == null ? null : Number(r.conversacion) }));
     },
 
+    async estado(): Promise<{ pausado: boolean; cambiado: string | null; cambiado_por: string | null }> {
+      const { rows } = await db.query("select pausado, cambiado, cambiado_por from asistente_estado where id = 1");
+      const e = rows[0];
+      return e ? { pausado: e.pausado, cambiado: iso(e.cambiado), cambiado_por: e.cambiado_por } : { pausado: false, cambiado: null, cambiado_por: null };
+    },
+
+    /** Pausa o reactiva el asistente entero, y lo deja en el registro. */
+    async pausar(pausado: boolean, por: string): Promise<void> {
+      await db.query(
+        `insert into asistente_estado (id, pausado, cambiado, cambiado_por) values (1, $1, now(), $2)
+         on conflict (id) do update set pausado = excluded.pausado, cambiado = now(), cambiado_por = excluded.cambiado_por`,
+        [pausado, por],
+      );
+      await db.query("insert into registro (tipo, detalle) values ('pausa', $1)", [pausado ? `${por} pausó el asistente.` : `${por} reactivó el asistente.`]);
+    },
+
     /** Lo que hizo el bot en los últimos días, por tipo. */
     async resumen(dias = 7): Promise<Record<TipoRegistro, number> & { conversaciones: number }> {
       const { rows } = await db.query(
@@ -194,7 +210,7 @@ export function datosPanel(db: Db) {
          select 'conversaciones', count(distinct conversacion)::int from mensajes where fecha > now() - make_interval(days => $1) and rol = 'interesado'`,
         [dias],
       );
-      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, seguimiento: 0, crm: 0, error: 0, conversaciones: 0 };
+      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, pausa: 0, error: 0, conversaciones: 0 };
       for (const r of rows) base[r.tipo as keyof typeof base] = r.n;
       return base;
     },

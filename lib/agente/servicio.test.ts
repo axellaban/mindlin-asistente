@@ -283,6 +283,20 @@ describe("audios", () => {
   });
 });
 
+describe("cuando el equipo le devuelve la conversación al asistente", () => {
+  it("vuelve a responder, lo anota y la conversación vuelve a llevar seguimientos", async () => {
+    const p = preparar({ historial: [msg(1, "interesado", "Hola"), msg(2, "persona", "Hola Ana, soy Mati"), msg(3, "interesado", "¿Y la cochera?")] });
+    expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+    const m = modeloFalso(respuesta([{ type: "text", text: "Sí, hay cocheras." }]));
+    // Chatwoot solo manda «responder» si la conversación está pendiente: el equipo la devolvió.
+    expect(await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null }, accion(3, "¿Y la cochera?"))).toBe("respondió");
+    expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(false);
+    expect(p.datos.registro.map((r) => r.tipo)).toEqual(["volvio_al_bot", "respuesta"]);
+    // Lo que escribió el equipo le llega a la IA, para seguir su línea.
+    expect(m.pedidos[0].messages[1]).toEqual({ role: "assistant", content: "[Equipo] Hola Ana, soy Mati" });
+  });
+});
+
 describe("cuando una persona toma la conversación", () => {
   it("la pasa a abierta y lo anota", async () => {
     const p = preparar();

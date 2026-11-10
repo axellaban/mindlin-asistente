@@ -107,6 +107,17 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
     expect((await d.registro()).map((r) => r.tipo)).toEqual(["error", "respuesta"]);
     expect(await d.resumen()).toMatchObject({ respuesta: 1, error: 1, conversaciones: 1, seguimiento: 0 });
   });
+
+  it("pausar y reactivar el asistente, con quién lo hizo y en el registro", async () => {
+    const d = datosPanel(pool);
+    expect(await d.estado()).toEqual({ pausado: false, cambiado: null, cambiado_por: null });
+    await d.pausar(true, "Tadeo");
+    expect(await d.estado()).toMatchObject({ pausado: true, cambiado_por: "Tadeo" });
+    expect(await crearAlmacen(pool).pausado()).toBe(true);
+    await d.pausar(false, "Mati");
+    expect(await crearAlmacen(pool).pausado()).toBe(false);
+    expect((await d.registro({ limite: 2 })).map((r) => r.detalle)).toEqual(["Mati reactivó el asistente.", "Tadeo pausó el asistente."]);
+  });
 });
 
 /** Aplica las migraciones en otro esquema: cambia «public.» por el esquema de prueba. */

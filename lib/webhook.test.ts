@@ -96,6 +96,20 @@ describe("webhook del Agent Bot", () => {
     expect(a.hechos).toEqual(["nota 2: 🙋 El asistente todavía no está configurado (falta la clave de la IA en Vercel): atiende el equipo.", "abrir 2"]);
   });
 
+  it("con el asistente pausado, la conversación pasa al equipo con una nota y la IA no responde", async () => {
+    let llamadas = 0;
+    const a = armar({ modelo: async () => (llamadas++, respuesta([{ type: "text", text: "x" }])) });
+    a.datos.estado.pausado = true;
+    const r = await a.llamar(evento());
+    expect(r.json).toEqual({ accion: "pasar_a_persona", motivo: "el asistente está pausado" });
+    await r.tarea!();
+    expect(a.hechos).toEqual(["nota 2: ⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.", "abrir 2"]);
+    expect(llamadas).toBe(0);
+    expect(a.datos.seguimiento.get(2)?.sin_seguimientos).toBe(true);
+    // Igual queda en el historial.
+    expect(a.datos.mensajes.has(21)).toBe(true);
+  });
+
   it("ignora la conversación de avisos de WAHA y no la guarda", async () => {
     const a = armar();
     const r = await a.llamar(evento({ conversation: { id: 1, status: "pending", meta: { sender: { identifier: "whatsapp.integration" } } } }));

@@ -67,6 +67,11 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
       historial.push({ id: a.mensaje ?? -1, conversacion: conv, rol: "interesado", texto: textoDelAviso, fecha: ahora().toISOString() });
     }
 
+    // Si el equipo había tomado la conversación y la volvió a poner pendiente, se la devolvió al bot.
+    if (await s.almacen.volvioAlBot(conv)) {
+      await s.almacen.registrar({ tipo: "volvio_al_bot", conversacion: conv, detalle: "El equipo le devolvió la conversación al asistente: vuelve a responder y a llevar seguimientos." });
+    }
+
     const [guardada, proyectos, tono, ejemplos] = await Promise.all([
       s.almacen.conversacion(conv),
       s.almacen.proyectosActivos(),
@@ -208,6 +213,15 @@ async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; re
   if (s.crm && contacto) {
     await s.crm.anotarActividad({ contacto, detalle: `Pasó al equipo: ${p.motivo}. ${p.resumen}`.trim(), ahora: ahora().toISOString() }).catch(() => {});
   }
+}
+
+/** El asistente está pausado: la conversación pasa al equipo con una nota, sin que responda la IA. */
+export async function pasarPorPausa(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
+  await s.chatwoot.notaInterna(conversacion, "⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.");
+  await s.chatwoot.pasarAPersona(conversacion);
+  await s.almacen.sinSeguimientos(conversacion);
+  await s.almacen.registrar({ tipo: "paso_a_persona", conversacion, detalle: "El asistente está pausado." });
+  return "pasó al equipo: el asistente está pausado";
 }
 
 /** Una persona escribió en una conversación que atendía el bot: pasa a abierta y queda anotado. */

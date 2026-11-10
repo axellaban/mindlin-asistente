@@ -12,7 +12,8 @@ interface Seguimiento {
 }
 
 /** El almacén en memoria: para las pruebas. Se comporta como el de Postgres. */
-export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono; ejemplos?: Ejemplo[]; reglas?: ReglaSeguimiento[] } = {}) {
+export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono; ejemplos?: Ejemplo[]; reglas?: ReglaSeguimiento[]; pausado?: boolean } = {}) {
+  const estado = { pausado: inicial.pausado ?? false };
   const mensajes = new Map<number, MensajeHistorial>();
   const respondidos = new Set<number>();
   const conversaciones = new Map<number, Conversacion>();
@@ -83,6 +84,16 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
     async sinSeguimientos(conversacion) {
       seg(conversacion).sin_seguimientos = true;
     },
+    async volvioAlBot(conversacion) {
+      const s = seguimiento.get(conversacion);
+      if (!s?.sin_seguimientos) return false;
+      s.sin_seguimientos = false;
+      s.paso_seguimiento = 0;
+      return true;
+    },
+    async pausado() {
+      return estado.pausado;
+    },
     async candidatosSeguimiento(cuando) {
       const ms = Date.parse(cuando);
       return [...seguimiento.entries()]
@@ -109,5 +120,5 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
       enviados.push({ ...x, respondio: null });
     },
   };
-  return { almacen, mensajes, conversaciones, seguimiento, enviados, registro };
+  return { almacen, mensajes, conversaciones, seguimiento, enviados, registro, estado };
 }
