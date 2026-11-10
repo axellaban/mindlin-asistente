@@ -73,6 +73,12 @@ El PR #4 (`7ac1fad`) adaptó el código a Postgres. El 09/11 se verificó en Ver
 
 La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud` (Neon Free → turniasalud), `supabase-lorito` (Supabase Free → enviaunlorito), `convex-canary-island` (Convex Free → slack-clone), `loreado-login` (Upstash Redis Free → copiloto-mvp) y `playcanvas-engine-blob` (Blob → playcanvas-engine). Para Mindlin se creó un recurso nuevo dentro de la integración Neon existente.
 
+### Seguimientos en Vercel (10/11/2026)
+
+- `CRON_SECRET` guardado como Secret solo en Production de `mindlin-asistente`. Vercel ejecuta el cron en Production y agrega la autorización al llamar a la ruta.
+- En [Cron Jobs](https://vercel.com/labans-projects-c5c64fdc/mindlin-asistente/schedules/cron-jobs), `/api/cron/seguimientos` figura activo cada 15 minutos (`*/15 * * * *`).
+- La republicación del `main` vigente (`3efb2c9`) quedó esperando la verificación de identidad de Axel en Vercel. Hasta que termine, `/api/salud` sigue indicando `faltan: ["CRON_SECRET"]` y la ruta del cron devuelve `503`.
+
 ## Google (tarea 3)
 
 - Cuenta de servicio creada (mail): `mindlin-asistente@mindlin-developers.iam.gserviceaccount.com`, creada el 07/11/2026 en el proyecto `mindlin-developers` de `axellaban@gmail.com`, sin roles de proyecto. Google Sheets API ya estaba habilitada. Axel autorizó la emisión de la clave JSON y su carga en Vercel; se emitió una sola clave.
