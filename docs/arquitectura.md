@@ -4,10 +4,10 @@ Acordada con Axel el 07/11/2026. Si cambia algo, se actualiza acá en el mismo P
 
 ```
 Interesado ──WhatsApp──► WAHA ──► Chatwoot ◄──── Equipo comercial (web y app del celular)
-                        (DonWeb)  (DonWeb)
+                     (Hostinger) (Hostinger)
                                      │ Agent Bot: un aviso por cada mensaje
                                      ▼
-                         Asistente (Vercel, este repo) ──► Claude
+                         Asistente (Vercel, este repo) ──► Claude u OpenAI
                             │                 │
                      Neon (Postgres)    CRM del hub (Google Sheets)
               (fichas, tono, reglas,    (contacto, etapa, responsable,
@@ -29,7 +29,7 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 - WAHA le pasa los mensajes con su integración propia (sin código). Lo que alguien mande desde el celular de la línea también aparece, **como mensaje y no como nota interna** (así el bot sabe que lo tomó una persona).
 - Una conversación por chat, como en WhatsApp. WAHA crea además una conversación «Integración de WhatsApp» para avisos y el QR: el bot la ignora.
 - Lo instala y opera `infra/servidor.sh` (ver `infra/README.md`).
-- **Necesita unos 4 GB de RAM** (Chatwoot con su Postgres y Redis, más WAHA). Si el servidor de DonWeb no da: ampliarlo o usar Chatwoot Cloud (pago por usuario).
+- **Necesita unos 4 GB de RAM** (Chatwoot con su Postgres y Redis, más WAHA). El VPS de DonWeb que tenía Mindlin (1 GB) no alcanzaba: el 07/11 Axel eligió un Hostinger KVM 1 (1 vCPU, 4 GB, 50 GB), con swap y menos hilos en Chatwoot (ver `infra/README.md`). Si queda corto, el KVM 2.
 
 ## 3. El bot es un Agent Bot de Chatwoot
 
