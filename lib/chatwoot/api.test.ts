@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { configChatwoot, crearChatwoot, ErrorChatwoot } from "./api";
 
 function chatwootFalso(status = 200) {
-  const pedidos: { url: string; token: string | null; cuerpo: unknown }[] = [];
+  const pedidos: { url: string; autorizacion: string | null; cuerpo: unknown }[] = [];
   const pedir = (async (url: string, init: RequestInit) => {
-    pedidos.push({ url, token: new Headers(init.headers).get("api_access_token"), cuerpo: JSON.parse(String(init.body)) });
+    pedidos.push({ url, autorizacion: new Headers(init.headers).get("Authorization"), cuerpo: JSON.parse(String(init.body)) });
     return new Response(JSON.stringify({ id: 99 }), { status });
   }) as typeof fetch;
   return { pedidos, pedir };
@@ -20,9 +20,9 @@ describe("cliente de Chatwoot", () => {
     await cw.notaInterna(7, "Pidió visitar el proyecto");
     await cw.pasarAPersona(7);
     expect(f.pedidos).toEqual([
-      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", token: "token-del-bot", cuerpo: { content: "Hola", message_type: "outgoing" } },
-      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", token: "token-del-bot", cuerpo: { content: "Pidió visitar el proyecto", message_type: "outgoing", private: true } },
-      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/toggle_status", token: "token-del-bot", cuerpo: { status: "open" } },
+      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", autorizacion: "Bearer token-del-bot", cuerpo: { content: "Hola", message_type: "outgoing" } },
+      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", autorizacion: "Bearer token-del-bot", cuerpo: { content: "Pidió visitar el proyecto", message_type: "outgoing", private: true } },
+      { url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/toggle_status", autorizacion: "Bearer token-del-bot", cuerpo: { status: "open" } },
     ]);
   });
 
