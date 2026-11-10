@@ -122,14 +122,16 @@ Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 - Cuenta administradora: `mindlindevelopers.ia@gmail.com`, cuenta Chatwoot 3 «Mindlin Developers». Alta completada, panel en español con zona horaria de Buenos Aires.
 - Línea de prueba: `default`, bandeja 1 «WhatsApp Lerma 439». Integración WAHA–Chatwoot creada. Pasó de `SCAN_QR_CODE` a `FAILED` sin una cuenta vinculada. Generar un QR fresco cuando esté disponible el celular de prueba. La conversación «Integración de WhatsApp» aparece dentro de «Sin asignar».
 - Prueba de mensaje desde otro teléfono: pendiente del escaneo y de confirmar que WAHA pasa a `WORKING` con la cuenta esperada.
-- Asistente: Agent Bot 1 «Asistente Mindlin» creado en la cuenta 3, con destino al webhook de producción. Configuración guardada en el VPS con permisos `600`. Sigue sin asignar a la bandeja mientras se carga y verifica la configuración de Vercel. `/api/salud` indica que falta `ANTHROPIC_API_KEY`.
+- Asistente: Agent Bot 1 «Asistente Mindlin» creado en la cuenta 3, con destino al webhook de producción. Configuración guardada en el VPS con permisos `600`. Axel autorizó y Vercel guardó `CHATWOOT_URL`, `CHATWOOT_ACCOUNT_ID`, `CHATWOOT_BOT_TOKEN` y `CHATWOOT_WEBHOOK_SECRET` como Secrets de **Production** en `mindlin-asistente`. El redeploy del `main` vigente espera verificación de identidad. El bot sigue sin asignar a la bandeja hasta verificar el webhook y el proveedor de respuestas.
 - Invitaciones de agentes: pendientes de definir el equipo y el correo de envío.
 
 ## Pendientes para retomar (09/11/2026)
 
 - **Hostinger, diferido por Axel:** completar el código de la cuenta dueña y aceptar desde `axellaban@gmail.com` la invitación de Admin al VPS de Mindlin.
 - **WhatsApp:** generar un QR fresco con Axel y el celular del piloto listos. Confirmar `WORKING` y el número esperado; hacer la prueba desde otro teléfono.
-- **Asistente:** cargar y publicar la configuración de Chatwoot en Vercel. Completar `ANTHROPIC_API_KEY` antes de asignar el Agent Bot a la bandeja. Probar webhook y escritura en el CRM con datos de prueba acordados.
+- **Publicación y webhook:** completar la verificación de Vercel, confirmar que `/api/salud` reconoce las cuatro variables de Chatwoot y probar que el webhook acepta un evento inocuo firmado y rechaza uno sin firma.
+- **Proveedor de IA:** Axel indicó usar **OpenAI** en el asistente que corre en Vercel. El `main` publicado (`7ac1fad`) solo inicializa `modeloClaude` y lee `ANTHROPIC_API_KEY`; cargar una clave de OpenAI por sí sola no cambia el proveedor. Claude debe adaptar el cliente, las llamadas a herramientas y `/api/salud` para `OPENAI_API_KEY`, preservando el historial, las reglas y la derivación. Después se carga la clave en Production y se prueba con datos inventados antes de asignar el Agent Bot a la bandeja.
+- **Prueba integral:** una vez publicados el webhook y el proveedor, probar WhatsApp, respuesta del asistente y escritura en el CRM con la línea y los datos de prueba acordados.
 - **Equipo:** definir agentes y correo de envío de invitaciones. Falta validar ese flujo.
 - **Acceso al servidor:** rotar las credenciales iniciales de la cuenta y de root desde sus pantallas de cambio de contraseña. Axel puede hacerlo cuando esté lista la delegación de Hostinger.
 
