@@ -32,6 +32,7 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
     nombre: "Güemes 4676",
     activo: true,
     palabras_clave: ["guemes"],
+    presentacion: "",
     descripcion: "Departamentos.",
     ubicacion: "Palermo.",
     etapa_obra: "",

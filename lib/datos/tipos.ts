@@ -5,6 +5,8 @@ export interface Proyecto {
   id: string;
   nombre: string;
   palabras_clave: string[];
+  /** Cómo presentarlo la primera vez (lo que antes mandaba el bot de Kommo). */
+  presentacion: string;
   descripcion: string;
   ubicacion: string;
   etapa_obra: string;
@@ -22,6 +24,8 @@ export interface Tono {
   instrucciones: string;
   criterios_comerciales: string;
   cuando_pasar_a_persona: string;
+  /** Modo «presenta y pasa»: cuando la persona responde después de la presentación, sigue el equipo. */
+  pasar_al_responder?: boolean;
 }
 
 export interface Ejemplo {
@@ -37,6 +41,10 @@ export interface Anotado {
   presupuesto_usd?: string;
   forma_de_pago?: string;
   plazo?: string;
+  /** De dónde es o en qué zona vive. */
+  zona?: string;
+  /** Hace cuánto está buscando. */
+  busca_desde?: string;
   /** El último resumen que escribió para el equipo. */
   resumen?: string;
 }

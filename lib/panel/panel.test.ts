@@ -47,7 +47,8 @@ describe("validaciones del panel", () => {
   });
 
   it("el tono necesita al menos cómo habla; un ejemplo, título y conversación", () => {
-    expect(validarTono(form({ instrucciones: "Voseo, cálido." }))).toEqual({ ok: true, valor: { instrucciones: "Voseo, cálido.", criterios_comerciales: "", cuando_pasar_a_persona: "" } });
+    expect(validarTono(form({ instrucciones: "Voseo, cálido." }))).toEqual({ ok: true, valor: { instrucciones: "Voseo, cálido.", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false } });
+    expect(validarTono(form({ instrucciones: "x", pasar_al_responder: "on" }))).toMatchObject({ valor: { pasar_al_responder: true } });
     expect(validarTono(form({ criterios_comerciales: "x" })).ok).toBe(false);
     expect(validarEjemplo(form({ titulo: "Consulta por 2 ambientes", conversacion: "Interesado: Hola\r\nMindlin: ¡Hola!" }))).toEqual({
       ok: true,

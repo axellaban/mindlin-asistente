@@ -31,6 +31,12 @@ export function ficha(p: Proyecto): string {
     const valor = String(p[campo] ?? "").trim();
     return `### ${titulo}\n${valor || "(Sin datos: no lo informes; ofrecé que lo confirme el equipo.)"}`;
   });
+  const presentacion = (p.presentacion ?? "").trim();
+  if (presentacion) {
+    lineas.unshift(
+      `### Cómo presentarlo\nLa primera vez que le hables de este proyecto, presentalo con esto (adaptado a lo que preguntó, en tus palabras y sin repetirlo si ya se lo contaste):\n${presentacion}`,
+    );
+  }
   return `## ${p.nombre} (id: ${p.id})\n\n${lineas.join("\n\n")}`;
 }
 
@@ -39,7 +45,7 @@ const REGLAS = `- Usá solo la información de la ficha del proyecto de esta con
 - No prometas reservas, descuentos ni condiciones especiales.
 - Escribís por WhatsApp: mensajes cortos, sin títulos ni listas largas. Como mucho, *negrita* para un dato puntual.
 - Si te preguntan si sos una persona o un bot, contestá con honestidad: sos el asistente virtual de Mindlin Developers y una persona del equipo puede seguir la conversación cuando quiera.
-- Cuando sepas algo nuevo de lo que busca la persona (nombre, para vivir o invertir, ambientes, presupuesto, forma de pago, plazo), usá la herramienta registrar_interesado, sin avisarle. Lo que ya está en «Lo que ya sabés de esta persona» no hace falta volver a registrarlo ni a preguntarlo.
+- Cuando sepas algo nuevo de lo que busca la persona (nombre, para vivir o invertir, ambientes, presupuesto, forma de pago, plazo, de dónde es, hace cuánto busca), usá la herramienta registrar_interesado, sin avisarle. Lo que ya está en «Lo que ya sabés de esta persona» no hace falta volver a registrarlo ni a preguntarlo.
 - Una pregunta por mensaje. No pidas todos los datos juntos: que sea una charla, no un formulario.
 - Si en la conversación escribió alguien del equipo (aparece como «[Equipo]»), seguí su línea y no lo contradigas.
 - Los audios llegan transcriptos así: [audio: «lo que dijo»]. Respondé a lo que dice, por escrito, sin aclarar que era un audio.

@@ -10,6 +10,14 @@ describe("contexto del agente", () => {
     expect(f).toContain("### Precios\n(Sin datos: no lo informes; ofrecé que lo confirme el equipo.)");
   });
 
+  it("si la ficha trae presentación, va primero y dice cómo usarla; si no, no aparece", () => {
+    const f = ficha(lerma({ presentacion: "Lerma es un desarrollo en pozo entre Villa Crespo y Palermo." }));
+    expect(f.indexOf("### Cómo presentarlo")).toBeLessThan(f.indexOf("### Descripción"));
+    expect(f).toContain("La primera vez que le hables de este proyecto");
+    expect(f).toContain("Lerma es un desarrollo en pozo entre Villa Crespo y Palermo.");
+    expect(ficha(lerma())).not.toContain("Cómo presentarlo");
+  });
+
   it("con un proyecto elegido, solo va su ficha", () => {
     const i = instrucciones({ tono, proyectos: [lerma(), otroProyecto()], proyecto: lerma(), ejemplos: [] });
     expect(i).toContain("Sos parte del equipo comercial de Mindlin");
