@@ -131,11 +131,15 @@ Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 - Asistente: Agent Bot 1 «Asistente Mindlin» creado en la cuenta 3, con destino al webhook de producción. Configuración guardada en el VPS con permisos `600`. Axel autorizó y Vercel guardó `CHATWOOT_URL`, `CHATWOOT_ACCOUNT_ID`, `CHATWOOT_BOT_TOKEN` y `CHATWOOT_WEBHOOK_SECRET` como Secrets de **Production** en `mindlin-asistente`. El redeploy del `main` vigente espera verificación de identidad. El bot sigue sin asignar a la bandeja hasta verificar el webhook y el proveedor de respuestas.
 - Invitaciones de agentes: pendientes de definir el equipo y el correo de envío.
 
+### Prueba de la línea Lerma 439 (10/11/2026)
+
+- Se reinició la sesión `default` sin vincular y Axel escaneó el QR en Chatwoot. WAHA quedó en `WORKING` y el mensaje de prueba entró en la bandeja `WhatsApp Lerma 439`.
+- El webhook de Production devolvió `401` a un aviso sin firma y `200` con `accion: ignorar` a un aviso de prueba firmado. Queda probar la respuesta del Agent Bot y el registro del CRM desde WhatsApp.
+
 ## Pendientes para retomar (09/11/2026)
 
 - **Hostinger, diferido por Axel:** completar el código de la cuenta dueña y aceptar desde `axellaban@gmail.com` la invitación de Admin al VPS de Mindlin.
-- **WhatsApp:** generar un QR fresco con Axel y el celular del piloto listos. Confirmar `WORKING` y el número esperado; hacer la prueba desde otro teléfono.
-- **Publicación y webhook:** completar la verificación de Vercel, confirmar que `/api/salud` reconoce las cuatro variables de Chatwoot y probar que el webhook acepta un evento inocuo firmado y rechaza uno sin firma.
+- **WhatsApp y webhook:** enlace y recepción de un mensaje verificados el 10/11. La configuración de Vercel está activa y el webhook validó la firma del aviso de prueba.
 - **Proveedor de IA:** Axel indicó usar **OpenAI** en el asistente que corre en Vercel. El `main` publicado (`7ac1fad`) solo inicializa `modeloClaude` y lee `ANTHROPIC_API_KEY`; cargar una clave de OpenAI por sí sola no cambia el proveedor. Claude debe adaptar el cliente, las llamadas a herramientas y `/api/salud` para `OPENAI_API_KEY`, preservando el historial, las reglas y la derivación. Después se carga la clave en Production y se prueba con datos inventados antes de asignar el Agent Bot a la bandeja.
 - **Prueba integral:** una vez publicados el webhook y el proveedor, probar WhatsApp, respuesta del asistente y escritura en el CRM con la línea y los datos de prueba acordados.
 - **Equipo:** definir agentes y correo de envío de invitaciones. Falta validar ese flujo.
