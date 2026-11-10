@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { claveCorrecta, crearToken, DURACION_SESION_MS, leerToken } from "./sesion";
+import { queFalta } from "./listo";
 import { idDesdeNombre, validarEjemplo, validarProyecto, validarRegla, validarTono } from "./validar";
 
 const form = (campos: Record<string, string>) => {
@@ -67,5 +68,28 @@ describe("validaciones del panel", () => {
     expect(validarRegla(form({ ...base, dias_sin_respuesta: "0" }), []).ok).toBe(false);
     expect(validarRegla(form({ ...base, proyecto: "no-existe" }), []).ok).toBe(false);
     expect(validarRegla(form({ ...base, mensaje: "Hola {{apellido}}" }), [])).toEqual({ ok: false, error: "Solo se pueden usar {{nombre}} y {{proyecto}} (no {{apellido}})." });
+  });
+});
+
+describe("lo que falta para salir", () => {
+  const ficha = (cambios: Record<string, unknown> = {}) =>
+    ({ id: "lerma-439", nombre: "Lerma 439", activo: true, palabras_clave: [], descripcion: "", ubicacion: "Villa Crespo", etapa_obra: "", entrega: "", tipologias: "2 amb", precios: "", financiacion: "", disponibilidad: "", amenities: "", preguntas_frecuentes: "", links: "", notas_internas: "", ...cambios }) as never;
+  const tono = { instrucciones: "Voseo.", criterios_comerciales: "", cuando_pasar_a_persona: "" };
+
+  it("dice qué falta, en orden y con a dónde ir", () => {
+    const pasos = queFalta({ tono, proyectos: [ficha(), ficha({ id: "viejo", nombre: "Viejo", activo: false })], reglas: 0, faltan: ["CRON_SECRET"] });
+    expect(pasos.map((p) => [p.listo, p.link ?? ""])).toEqual([
+      [false, ""],
+      [false, "/panel/tono"],
+      [false, "/panel/proyectos/lerma-439"],
+      [false, "/panel/seguimientos"],
+    ]);
+    expect(pasos[2].texto).toBe("A la ficha de Lerma 439 le falta: precios, disponibilidad, financiación. Sin eso, el asistente pasa esas consultas al equipo.");
+  });
+
+  it("con todo cargado, todo listo", () => {
+    const completa = ficha({ precios: "x", disponibilidad: "x", financiacion: "x" });
+    expect(queFalta({ tono: { ...tono, criterios_comerciales: "x" }, proyectos: [completa], reglas: 2, faltan: [] }).every((p) => p.listo)).toBe(true);
+    expect(queFalta({ tono, proyectos: [], reglas: 1, faltan: [] }).find((p) => p.link === "/panel/proyectos")?.listo).toBe(false);
   });
 });

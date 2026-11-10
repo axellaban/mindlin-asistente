@@ -6,6 +6,8 @@ import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { claveCorrecta, COOKIE_SESION, crearToken, DURACION_SESION_MS, limpiarNombre } from "@/lib/panel/sesion";
 import { ESTADOS_REGLA, validarEjemplo, validarProyecto, validarRegla, validarTono } from "@/lib/panel/validar";
 import type { ReglaSeguimiento } from "@/lib/datos/tipos";
+import { estadoDesdeNavegador, MAX_LARGO_PRUEBA, probar, type RespuestaPrueba } from "@/lib/agente/prueba";
+import { conexionesDesdeEnv } from "@/lib/servicios";
 
 /** Vuelve a la página con un aviso arriba (?ok=… o ?error=…). */
 const volver = (ruta: string, aviso: { ok?: string; error?: string }): never => {
@@ -129,4 +131,24 @@ export async function borrarRegla(f: FormData) {
   if (!id) return volver("/panel/seguimientos", { error: "No se entendió qué borrar." });
   const borrada = await base("/panel/seguimientos").borrarRegla(id);
   volver("/panel/seguimientos", borrada ? { ok: "Regla borrada." } : { error: "Esa regla ya se mandó: no se borra (se perdería la medición). Archivala." });
+}
+
+/**
+ * Un mensaje en «Probar el asistente»: la IA de verdad, con el tono y las fichas de la base, sin
+ * Chatwoot ni CRM. La charla vive en el navegador y viene entera en cada mensaje.
+ */
+export async function probarMensaje(estado: unknown, texto: string): Promise<{ ok: true; respuesta: RespuestaPrueba } | { ok: false; error: string }> {
+  await exigirSesion();
+  const t = String(texto ?? "").trim();
+  if (!t) return { ok: false, error: "Escribí un mensaje." };
+  if (t.length > MAX_LARGO_PRUEBA) return { ok: false, error: `El mensaje es muy largo (máximo ${MAX_LARGO_PRUEBA} letras).` };
+  const { almacen, modelo } = conexionesDesdeEnv();
+  if (!almacen) return { ok: false, error: "Falta la base de datos (DATABASE_URL) en Vercel." };
+  if (!modelo) return { ok: false, error: "Falta la clave de la IA (ANTHROPIC_API_KEY) en Vercel." };
+  try {
+    const [proyectos, tono, ejemplos] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos()]);
+    return { ok: true, respuesta: await probar({ modelo, proyectos, tono, ejemplos, estado: estadoDesdeNavegador(estado), texto: t }) };
+  } catch (e) {
+    return { ok: false, error: `La IA no pudo responder: ${(e instanceof Error ? e.message : String(e)).slice(0, 300)}` };
+  }
 }
