@@ -56,6 +56,9 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         m.fecha,
       ]);
     },
+    async actualizarTextoMensaje(id, texto) {
+      await db.query("update mensajes set texto = $2 where id = $1", [id, texto.slice(0, 8000)]);
+    },
     async historial(conversacion, limite) {
       const { rows } = await db.query<FilaMensaje>(
         "select * from (select id, conversacion, rol, texto, fecha from mensajes where conversacion = $1 order by fecha desc, id desc limit $2) m order by fecha, id",

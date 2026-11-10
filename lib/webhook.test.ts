@@ -23,6 +23,10 @@ function armar({ modelo = (async () => respuesta([{ type: "text", text: "¡Hola!
     async pasarAPersona(c) {
       hechos.push(`abrir ${c}`);
     },
+    async bajarAdjunto(url) {
+      hechos.push(`bajar ${url}`);
+      return new Blob(["audio"], { type: "audio/ogg" });
+    },
   };
   const llamar = (evento: unknown, { clave = CLAVE, firmaCon = CLAVE } = {}) => {
     const cuerpo = JSON.stringify(evento);
@@ -85,11 +89,11 @@ describe("webhook del Agent Bot", () => {
     expect(a.datos.mensajes.has(24)).toBe(false);
   });
 
-  it("sin Claude configurado, pasa la conversación al equipo con una nota", async () => {
+  it("sin la IA configurada, pasa la conversación al equipo con una nota", async () => {
     const a = armar({ modelo: null });
     const r = await a.llamar(evento());
     await r.tarea!();
-    expect(a.hechos).toEqual(["nota 2: 🙋 El asistente todavía no está configurado (falta ANTHROPIC_API_KEY en Vercel): atiende el equipo.", "abrir 2"]);
+    expect(a.hechos).toEqual(["nota 2: 🙋 El asistente todavía no está configurado (falta la clave de la IA en Vercel): atiende el equipo.", "abrir 2"]);
   });
 
   it("ignora la conversación de avisos de WAHA y no la guarda", async () => {

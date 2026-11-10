@@ -2,6 +2,7 @@
  * Atender un mensaje del interesado, de punta a punta:
  *
  * 1. No contestar dos veces el mismo mensaje (Chatwoot puede reintentar el aviso).
+ *    Si trae audios, transcribirlos (con OpenAI) y guardar el texto en el historial.
  * 2. Esperar unos segundos: la gente manda varios mensajes seguidos. Si llegó otro, contesta ese.
  * 3. Armar el contexto: tono, ficha del proyecto, lo que dice el CRM y el historial.
  * 4. Claude responde (y puede registrar al interesado, elegir el proyecto o pasar a una persona).
@@ -16,6 +17,7 @@ import type { Accion } from "../chatwoot/evento";
 import type { ContactoCRM, CRM } from "../crm/planilla";
 import type { Almacen, Proyecto } from "../datos/tipos";
 import { responder, type Herramientas, type Modelo, type Resultado } from "./agente";
+import type { Transcriptor } from "./openai";
 import { ficha, instrucciones, situacion } from "./contexto";
 
 export interface Servicios {
@@ -23,6 +25,8 @@ export interface Servicios {
   chatwoot: Chatwoot;
   modelo: Modelo;
   crm: CRM | null;
+  /** Sin él (falta OPENAI_API_KEY), los audios quedan como [audio] y el bot pide que lo escriban. */
+  transcribir?: Transcriptor | null;
   ahora?: () => Date;
   dormir?: (ms: number) => Promise<void>;
   /** Cuánto esperar por si la persona sigue escribiendo. */
@@ -43,6 +47,13 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
   const conv = a.conversacion;
   if (a.mensaje != null && !(await s.almacen.reclamarMensaje(a.mensaje, conv))) return "ya se había atendido";
 
+  // Antes de esperar: si mientras tanto llega otro mensaje, ese ya lee la transcripción.
+  const transcripciones = await transcribirAudios(s, a);
+  const textoDelAviso = conTranscripciones([a.texto, ...a.audios.map(() => "[audio]")].filter(Boolean).join(" "), transcripciones);
+  if (transcripciones.some(Boolean) && a.mensaje != null) {
+    await s.almacen.actualizarTextoMensaje(a.mensaje, textoDelAviso).catch(() => {});
+  }
+
   await (s.dormir ?? dormirReal)(s.esperaMs ?? ESPERA_MS);
 
   try {
@@ -53,8 +64,7 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     }
     // Si el mensaje no quedó guardado (por ejemplo, falló la base), se responde igual con lo que trae el aviso.
     if (!historial.some((m) => m.id === a.mensaje)) {
-      const texto = [a.texto, ...a.audios.map(() => "[audio]")].filter(Boolean).join(" ");
-      historial.push({ id: a.mensaje ?? -1, conversacion: conv, rol: "interesado", texto, fecha: ahora().toISOString() });
+      historial.push({ id: a.mensaje ?? -1, conversacion: conv, rol: "interesado", texto: textoDelAviso, fecha: ahora().toISOString() });
     }
 
     const [guardada, proyectos, tono, ejemplos] = await Promise.all([
@@ -146,6 +156,42 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     await pasarAPersona(s, conv, { motivo: "El asistente tuvo un error y no pudo responder.", resumen: detalle(e).slice(0, 300) }, null, ahora).catch(() => {});
     return `error: ${detalle(e)}`;
   }
+}
+
+/** Transcribe los audios del mensaje, en orden. Un audio que no se pudo transcribir queda en "". */
+async function transcribirAudios(s: Servicios, a: Responder): Promise<string[]> {
+  const transcribir = s.transcribir;
+  if (!transcribir || !a.audios.length) return a.audios.map(() => "");
+  return Promise.all(
+    a.audios.map(async (url) => {
+      try {
+        const audio = await s.chatwoot.bajarAdjunto(url);
+        return await transcribir(audio, nombreDeAudio(audio.type));
+      } catch (e) {
+        await s.almacen.registrar({ tipo: "error", conversacion: a.conversacion, detalle: `Audio (transcribir): ${detalle(e)}` }).catch(() => {});
+        return "";
+      }
+    }),
+  );
+}
+
+/** OpenAI reconoce el formato por la extensión: las notas de voz de WhatsApp son ogg (opus). */
+export function nombreDeAudio(tipo: string): string {
+  const t = tipo.toLowerCase();
+  if (t.includes("mpeg") || t.includes("mp3")) return "audio.mp3";
+  if (t.includes("mp4") || t.includes("m4a") || t.includes("aac")) return "audio.m4a";
+  if (t.includes("wav")) return "audio.wav";
+  if (t.includes("webm")) return "audio.webm";
+  return "audio.ogg";
+}
+
+/** Cambia cada «[audio]» del texto por su transcripción, en orden: «[audio: «…»]». Puro. */
+export function conTranscripciones(texto: string, transcripciones: string[]): string {
+  let i = 0;
+  return texto.replace(/\[audio\]/g, (marca) => {
+    const t = transcripciones[i++]?.trim();
+    return t ? `[audio: «${t.replace(/\s+/g, " ")}»]` : marca;
+  });
 }
 
 async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; resumen: string }, contacto: ContactoCRM | null, ahora: () => Date) {

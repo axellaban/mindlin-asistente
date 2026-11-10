@@ -40,9 +40,11 @@ export interface Conversacion {
 
 export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "seguimiento" | "crm" | "error";
 
-/** Dónde guarda y lee el asistente (Supabase en producción, memoria en las pruebas). */
+/** Dónde guarda y lee el asistente (Postgres en Neon en producción, memoria en las pruebas). */
 export interface Almacen {
   guardarMensaje(m: MensajeHistorial): Promise<void>;
+  /** Cambia el texto de un mensaje ya guardado (por ejemplo, para sumar la transcripción de un audio). */
+  actualizarTextoMensaje(id: number, texto: string): Promise<void>;
   /** Los últimos mensajes de la conversación, del más viejo al más nuevo. */
   historial(conversacion: number, limite: number): Promise<MensajeHistorial[]>;
   /** True la primera vez que se pide para ese mensaje: así no se contesta dos veces si Chatwoot reintenta. */

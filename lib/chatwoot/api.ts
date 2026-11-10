@@ -24,7 +24,12 @@ export interface Chatwoot {
   notaInterna(conversacion: number, texto: string): Promise<void>;
   /** Pasa la conversación a «abierta»: la atiende una persona y el bot se calla. */
   pasarAPersona(conversacion: number): Promise<void>;
+  /** Baja un adjunto (un audio) de un mensaje. Solo de la dirección de Chatwoot y hasta MAX_ADJUNTO_BYTES. */
+  bajarAdjunto(url: string): Promise<Blob>;
 }
+
+/** 25 MB: el máximo que acepta OpenAI para transcribir. Un audio de WhatsApp de varios minutos pesa mucho menos. */
+export const MAX_ADJUNTO_BYTES = 25 * 1024 * 1024;
 
 export class ErrorChatwoot extends Error {
   constructor(
@@ -56,6 +61,23 @@ export function crearChatwoot(cfg: ConfigChatwoot, pedir: typeof fetch = fetch):
     },
     async pasarAPersona(conversacion) {
       await post(`/${conversacion}/toggle_status`, { status: "open" });
+    },
+    async bajarAdjunto(url) {
+      // Solo se baja de Chatwoot: el aviso trae la dirección y no se sigue a cualquier lado.
+      let destino: URL;
+      try {
+        destino = new URL(url, cfg.url);
+      } catch {
+        throw new ErrorChatwoot(`El adjunto no tiene una dirección válida: ${url.slice(0, 120)}`, 0);
+      }
+      if (destino.origin !== new URL(cfg.url).origin) throw new ErrorChatwoot(`El adjunto no está en Chatwoot: ${destino.origin}`, 0);
+      const r = await pedir(destino.toString(), { signal: AbortSignal.timeout(30_000) });
+      if (!r.ok) throw new ErrorChatwoot(`Chatwoot respondió ${r.status} al bajar un adjunto`, r.status);
+      const largo = Number(r.headers.get("content-length") ?? 0);
+      if (largo > MAX_ADJUNTO_BYTES) throw new ErrorChatwoot("El adjunto es demasiado grande para transcribirlo", 413);
+      const blob = await r.blob();
+      if (blob.size > MAX_ADJUNTO_BYTES) throw new ErrorChatwoot("El adjunto es demasiado grande para transcribirlo", 413);
+      return blob;
     },
   };
 }

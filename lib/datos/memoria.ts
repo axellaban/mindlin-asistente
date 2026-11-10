@@ -12,6 +12,10 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
     async guardarMensaje(m) {
       if (!mensajes.has(m.id)) mensajes.set(m.id, m);
     },
+    async actualizarTextoMensaje(id, texto) {
+      const m = mensajes.get(id);
+      if (m) mensajes.set(id, { ...m, texto });
+    },
     async historial(conversacion, limite) {
       return [...mensajes.values()]
         .filter((m) => m.conversacion === conversacion)

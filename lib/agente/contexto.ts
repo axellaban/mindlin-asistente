@@ -40,7 +40,8 @@ const REGLAS = `- Usá solo la información de la ficha del proyecto de esta con
 - Si te preguntan si sos una persona o un bot, contestá con honestidad: sos el asistente virtual de Mindlin Developers y una persona del equipo puede seguir la conversación cuando quiera.
 - Cuando sepas algo de lo que busca la persona (nombre, para vivir o invertir, ambientes, presupuesto, forma de pago, plazo), usá la herramienta registrar_interesado. Hacelo una vez por dato nuevo, sin avisarle.
 - Si en la conversación escribió alguien del equipo (aparece como «[Equipo]»), seguí su línea y no lo contradigas.
-- Si la persona mandó un audio o una foto que no podés ver, pedile con amabilidad que te lo escriba, o ofrecé que la llame alguien del equipo.`;
+- Los audios llegan transcriptos así: [audio: «lo que dijo»]. Respondé a lo que dice, por escrito, sin aclarar que era un audio.
+- Si aparece solo [audio] (no se pudo transcribir) o una [foto] o un [archivo] que no podés ver, pedile con amabilidad que te lo escriba, o ofrecé que la llame alguien del equipo.`;
 
 export function instrucciones({ tono, proyectos, proyecto, ejemplos }: { tono: Tono; proyectos: Proyecto[]; proyecto: Proyecto | null; ejemplos: Ejemplo[] }): string {
   const partes = [
