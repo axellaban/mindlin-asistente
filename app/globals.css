@@ -33,3 +33,59 @@ ul.variables code { font-size: 0.9rem; overflow-wrap: anywhere; }
 ul.variables small { grid-column: 2; color: var(--suave); }
 .ok { color: var(--ok); }
 .falta { color: var(--falta); }
+
+/* ---------- Panel ---------- */
+:root { --acento: #2f5d7c; --acento-texto: #fff; --campo: #fff; --suave-fondo: #eceae5; }
+@media (prefers-color-scheme: dark) {
+  :root { --acento: #7fb3d5; --acento-texto: #10161a; --campo: #1a2227; --suave-fondo: #1b2328; }
+}
+main.panel { max-width: 1000px; }
+main.panel a, main.entrar a { color: var(--acento); }
+.panel-cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-bottom: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--linea); }
+.panel-cabecera .marca { margin: 0; font-weight: 600; }
+.panel-cabecera nav { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1; }
+.panel-cabecera nav a { color: var(--suave); text-decoration: none; padding: 2px 0; }
+.panel-cabecera nav a[aria-current="page"] { color: var(--texto); border-bottom: 2px solid var(--acento); }
+.quien { display: flex; gap: 10px; align-items: center; color: var(--suave); font-size: 0.9rem; }
+.aviso { padding: 10px 14px; border-radius: 6px; margin: 0 0 20px; }
+.aviso.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.aviso.error { background: color-mix(in srgb, var(--falta) 16%, transparent); }
+.nota { color: var(--suave); font-size: 0.92rem; }
+label { display: block; font-weight: 600; margin: 16px 0 4px; }
+label small { display: block; font-weight: 400; color: var(--suave); }
+input[type="text"], input[type="password"], input[type="number"], select, textarea {
+  width: 100%; font: inherit; color: var(--texto); background: var(--campo);
+  border: 1px solid var(--linea); border-radius: 6px; padding: 8px 10px;
+}
+textarea { min-height: 6.5em; resize: vertical; }
+textarea.alto { min-height: 14em; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.casilla { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+button, .boton {
+  font: inherit; cursor: pointer; border-radius: 6px; padding: 8px 16px; border: 1px solid var(--acento);
+  background: var(--acento); color: var(--acento-texto); text-decoration: none; display: inline-block;
+}
+button.secundario, .boton.secundario { background: transparent; color: var(--acento); }
+button.enlace { background: none; border: 0; padding: 0; color: var(--acento); text-decoration: underline; }
+.acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; align-items: center; }
+.fila-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 14px; }
+.tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 24px; }
+.tarjeta { border: 1px solid var(--linea); border-radius: 8px; padding: 12px 14px; }
+.tarjeta strong { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.tarjeta span { color: var(--suave); font-size: 0.9rem; }
+.tabla { width: 100%; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 8px 8px 0; border-bottom: 1px solid var(--linea); vertical-align: top; }
+th { color: var(--suave); font-weight: 500; font-size: 0.85rem; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.etiqueta { display: inline-block; font-size: 0.8rem; padding: 1px 8px; border-radius: 99px; background: var(--suave-fondo); color: var(--suave); white-space: nowrap; }
+.etiqueta.activa { color: var(--ok); }
+.etiqueta.error { color: var(--falta); }
+.chat { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.burbuja { max-width: 80%; padding: 8px 12px; border-radius: 10px; background: var(--suave-fondo); white-space: pre-wrap; overflow-wrap: anywhere; }
+.burbuja.nuestra { align-self: flex-end; background: color-mix(in srgb, var(--acento) 18%, transparent); }
+.burbuja small { display: block; color: var(--suave); font-size: 0.78rem; margin-top: 4px; }
+details { border: 1px solid var(--linea); border-radius: 8px; padding: 8px 14px; margin: 10px 0; }
+details summary { cursor: pointer; font-weight: 600; }
+.entrar { max-width: 380px; margin: 10vh auto 0; }
+.recorte { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

@@ -8,9 +8,14 @@ import type { Almacen, CandidatoSeguimiento, Conversacion, Ejemplo, Proyecto, Re
  * Las tablas están en db/migraciones/ y se aplican en cada publicación (scripts/migrar.mjs).
  */
 export function almacenPostgres(env: Record<string, string | undefined> = process.env): Almacen | null {
+  const db = poolDesdeEnv(env);
+  return db ? crearAlmacen(db) : null;
+}
+
+/** La conexión a la base (la usa también el panel), o null si falta DATABASE_URL. */
+export function poolDesdeEnv(env: Record<string, string | undefined> = process.env): pg.Pool | null {
   const url = env.DATABASE_URL || env.POSTGRES_URL;
-  if (!url) return null;
-  return crearAlmacen(pool(url));
+  return url ? pool(url) : null;
 }
 
 // Un pool por proceso: en Vercel, las invocaciones de una misma instancia lo reutilizan.
