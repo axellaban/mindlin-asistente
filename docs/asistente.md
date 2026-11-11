@@ -37,7 +37,7 @@ Todo se maneja con los estados de Chatwoot: **pendiente** la atiende el asistent
 
 ## Modelo
 
-Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy responde Claude:** Axel cargó `ANTHROPIC_API_KEY` el 10/11. OpenAI queda como alternativa sin tocar código, y se va a usar para transcribir los audios cuando se cargue `OPENAI_API_KEY`.
+Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy, en producción, responde OpenAI (`gpt-6.1-sol`)**, según `/api/salud` el 11/11: Panel lo prendió el 10/11 para probar la línea. Están cargadas las dos claves, así que lo decide `ASISTENTE_PROVEEDOR` (ver la tabla). Falta que Axel confirme cuál queda (`PENDIENTES.md`). Los audios los transcribe OpenAI.
 
 - **OpenAI** (`lib/agente/openai.ts`): por defecto `gpt-6.1-sol`, la opción de menor costo de la familia GPT-6, que OpenAI recomienda para producción. Usa la API «Responses» (con los modelos nuevos de OpenAI, las herramientas solo andan por ahí), con herramientas estrictas y `store: false` (OpenAI no guarda las conversaciones). Le devuelve a OpenAI su razonamiento cifrado entre una herramienta y la siguiente, como pide su documentación. Reintenta dos veces si OpenAI está saturado.
 - **Claude** (`lib/agente/claude.ts`): por defecto `claude-opus-5-5` con esfuerzo `medium` y `fallbacks: "default"`: si el modelo rechaza una consulta por sus filtros de seguridad, Anthropic la reintenta en el modelo que recomienda para ese caso.
