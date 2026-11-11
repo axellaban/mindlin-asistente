@@ -1,6 +1,6 @@
 # API para el hub
 
-Todo lo que se configura del asistente (fichas, tono y criterios comerciales, ejemplos, reglas de seguimiento, pausa) se puede **leer y cambiar desde el hub de Mindlin**. El hub arma sus pantallas y habla con esta API; el asistente usa los cambios desde el mensaje siguiente.
+Todo lo que se configura del asistente (fichas, tono y criterios comerciales, lo que sabe de la empresa, objeciones, ejemplos, reglas de seguimiento, etapas automáticas, pausa) se puede **leer y cambiar desde el hub de Mindlin**. El hub arma sus pantallas y habla con esta API; el asistente usa los cambios desde el mensaje siguiente.
 
 Es la misma configuración que muestra el panel del asistente (`/panel`): no hay dos copias. Lo que se cambia en un lado se ve en el otro.
 
@@ -9,7 +9,7 @@ Es la misma configuración que muestra el panel del asistente (`/panel`): no hay
 - **Dirección:** `https://mindlin-asistente.vercel.app/api/hub/…`
 - **Clave:** una sola, compartida. Se carga como `HUB_CLAVE` en Vercel, en el proyecto `mindlin-asistente` y en el del hub (un texto largo al azar; lo elige Axel). Sin `HUB_CLAVE`, la API está apagada (responde 503).
 - **En cada pedido:** el encabezado `Authorization: Bearer <HUB_CLAVE>`.
-- **Quién hizo el cambio (opcional):** el encabezado `X-Hub-Usuario: Tadeo`. Queda anotado en la ficha, el tono o la pausa. Sin él, queda «Hub».
+- **Quién hizo el cambio (opcional):** el encabezado `X-Hub-Usuario: Tadeo` (con acentos, codificado: `Jos%C3%A9`). Queda anotado en la ficha, el tono o la pausa. Sin él, queda «Hub».
 - **Siempre desde el servidor del hub**, nunca desde el navegador: la clave no tiene que llegar a la computadora de nadie.
 - Los cuerpos y las respuestas son JSON. Los errores vienen como `{ "error": "…" }`, con un texto listo para mostrarle a la persona.
 
@@ -32,6 +32,7 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
   "tono": { "instrucciones": "…", "criterios_comerciales": "…", "cuando_pasar_a_persona": "…", "pasar_al_responder": false, "actualizado": "2026-11-10T14:00:00.000Z", "actualizado_por": "Tadeo" },
   "ejemplos": [{ "id": 1, "titulo": "…", "conversacion": "…", "activo": true }],
   "reglas": [{ "id": 3, "etapa": "Nuevo", "paso": 1, "dias_sin_respuesta": 1, "version": 1, "estado": "activa", "proyecto": "lerma-439", "mensaje": "Hola {{nombre}}…", "enviados": 12, "respondieron": 5 }],
+  "etapas": [{ "evento": "respondio", "titulo": "La persona respondió y la conversación sigue", "etapa": "Seguimiento", "actualizado": null, "actualizado_por": null, "movidos_30_dias": 4 }],
   "estado": { "pausado": false, "cambiado": null, "cambiado_por": null },
   "falta": [{ "listo": false, "texto": "A la ficha de Lerma 439 le falta: precios.", "link": "/panel/proyectos/lerma-439" }],
   "ia": { "proveedor": "anthropic", "modelo": "claude-opus-5-5", "audios": false },
@@ -39,6 +40,8 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
     "campos_ficha": [{ "campo": "presentacion", "titulo": "Presentación (lo primero que cuenta del proyecto)" }],
     "largo_maximo_campo": 8000,
     "etapas_seguimiento": ["Nuevo", "Contacto inicial", "Seguimiento", "Visita / reunión", "Negociación", "Reserva", "En pausa"],
+    "eventos_de_etapa": [{ "evento": "primer_contacto", "titulo": "El asistente le respondió por primera vez" }],
+    "etapas_destino": ["Contacto inicial", "Seguimiento", "Visita / reunión", "Negociación", "En pausa", "Descartado"],
     "estados_regla": ["activa", "a_prueba", "archivada"],
     "pasos_maximos": 5,
     "variables_del_mensaje": ["{{nombre}}", "{{proyecto}}"],
@@ -60,7 +63,8 @@ En las fichas y en el tono **solo cambia lo que se manda**: lo demás queda como
 | --- | --- | --- |
 | Crear o cambiar una ficha | `PUT /api/hub/proyectos/{id}` | Los campos de la ficha que cambian: `nombre`, `activo`, `palabras_clave` (lista), `presentacion`, `descripcion`, `ubicacion`, `etapa_obra`, `entrega`, `tipologias`, `precios`, `financiacion`, `disponibilidad`, `amenities`, `preguntas_frecuentes`, `links`, `notas_internas`. Para uno nuevo, `nombre` es obligatorio. El `id` va en minúsculas, números y guiones (`via-53`). |
 | Apagar o prender un proyecto | `PUT /api/hub/proyectos/{id}` | `{ "activo": false }` |
-| Cambiar el tono y los criterios | `PUT /api/hub/tono` | `instrucciones`, `criterios_comerciales`, `cuando_pasar_a_persona`, `pasar_al_responder` (true o false) |
+| Cambiar el tono y los criterios | `PUT /api/hub/tono` | `instrucciones`, `criterios_comerciales`, `cuando_pasar_a_persona`, `sobre_la_empresa`, `objeciones`, `pasar_al_responder` (true o false) |
+| A qué etapa mueve un evento (etapas automáticas) | `PUT /api/hub/etapas/{evento}` | `{ "etapa": "Seguimiento" }`, o `{ "etapa": null }` para que no mueva. Solo a las de `opciones.etapas_destino`: Reserva y Vendido los decide una persona. |
 | Agregar un ejemplo | `POST /api/hub/ejemplos` | `{ "titulo": "…", "conversacion": "…" }` |
 | Usar o dejar de usar un ejemplo | `PATCH /api/hub/ejemplos/{id}` | `{ "activo": false }` |
 | Borrar un ejemplo | `DELETE /api/hub/ejemplos/{id}` | — |
@@ -90,7 +94,11 @@ Para chatear con el asistente desde el hub como si fueras un interesado. Usa el 
 ## Lo que la API no hace (todavía)
 
 - No lista conversaciones ni mensajes: eso se ve en Chatwoot (y, en chico, en `/panel/conversaciones`).
-- No cambia nada del CRM: el asistente sigue sin modificar filas de la planilla (ver [`integracion-crm.md`](integracion-crm.md)).
+- No cambia datos de los contactos del CRM: eso lo hace el equipo desde el hub. Las etapas las mueve el asistente solo, con las reglas de `etapas` (ver [`integracion-crm.md`](integracion-crm.md)).
+
+## Las pantallas del hub
+
+Ya están armadas en el hub de Mindlin: **HQ → Comercial → Asistente de WhatsApp** (`/comercial/asistente`, repo `mindlinhub`, `docs/asistente-whatsapp.md`). El hub se conecta con `ASISTENTE_URL` y `ASISTENTE_CLAVE` (la misma que `HUB_CLAVE` acá).
 
 ## Código
 
