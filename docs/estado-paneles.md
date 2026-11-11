@@ -73,6 +73,12 @@ El PR #4 (`7ac1fad`) adaptó el código a Postgres. El 09/11 se verificó en Ver
 
 La revisión de Storage mostró recursos ya usados por otras apps: `turniasalud` (Neon Free → turniasalud), `supabase-lorito` (Supabase Free → enviaunlorito), `convex-canary-island` (Convex Free → slack-clone), `loreado-login` (Upstash Redis Free → copiloto-mvp) y `playcanvas-engine-blob` (Blob → playcanvas-engine). Para Mindlin se creó un recurso nuevo dentro de la integración Neon existente.
 
+### Seguimientos en Vercel (10/11/2026)
+
+- `CRON_SECRET` guardado como Secret solo en Production de `mindlin-asistente`. Vercel ejecuta el cron en Production y agrega la autorización al llamar a la ruta.
+- En [Cron Jobs](https://vercel.com/labans-projects-c5c64fdc/mindlin-asistente/schedules/cron-jobs), `/api/cron/seguimientos` figura activo cada 15 minutos (`*/15 * * * *`).
+- La [republicación de `main` (`3efb2c9`)](https://vercel.com/labans-projects-c5c64fdc/mindlin-asistente/EymacWQQ29sYoikJGzDH4ZKij8oy) quedó Ready y Current. `/api/salud` devuelve `configuracionCompleta: true`, `faltan: []` y reporta Claude (`claude-opus-5-5`) con `audios: false`. La ruta del cron rechaza las solicitudes sin autorización con `401`. Queda pendiente validar un seguimiento con un contacto de prueba.
+
 ## Google (tarea 3)
 
 - Cuenta de servicio creada (mail): `mindlin-asistente@mindlin-developers.iam.gserviceaccount.com`, creada el 07/11/2026 en el proyecto `mindlin-developers` de `axellaban@gmail.com`, sin roles de proyecto. Google Sheets API ya estaba habilitada. Axel autorizó la emisión de la clave JSON y su carga en Vercel; se emitió una sola clave.
@@ -125,11 +131,19 @@ Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 - Asistente: Agent Bot 1 «Asistente Mindlin» creado en la cuenta 3, con destino al webhook de producción. Configuración guardada en el VPS con permisos `600`. Axel autorizó y Vercel guardó `CHATWOOT_URL`, `CHATWOOT_ACCOUNT_ID`, `CHATWOOT_BOT_TOKEN` y `CHATWOOT_WEBHOOK_SECRET` como Secrets de **Production** en `mindlin-asistente`. El redeploy del `main` vigente espera verificación de identidad. El bot sigue sin asignar a la bandeja hasta verificar el webhook y el proveedor de respuestas.
 - Invitaciones de agentes: pendientes de definir el equipo y el correo de envío.
 
+### Prueba de la línea Lerma 439 (10/11/2026)
+
+- Se reinició la sesión `default` sin vincular y Axel escaneó el QR en Chatwoot. WAHA quedó en `WORKING` y el mensaje de prueba entró en la bandeja `WhatsApp Lerma 439`.
+- El webhook de Production devolvió `401` a un aviso sin firma y `200` con `accion: ignorar` a un aviso de prueba firmado.
+- OpenAI quedó activo en Production (`gpt-6.1-sol`). El simulador respondió y un envío puntual con el token del Agent Bot desde el VPS llegó a WhatsApp. WAHA confirmó `READ`.
+- Con autorización de Axel, se reenvió al webhook un único mensaje entrante de la conversación de prueba, junto con el mensaje anterior del bot para darle contexto. El webhook devolvió `accion: responder`, el asistente anotó el interés y el panel mostró un contacto de CRM vinculado. Al mandar la respuesta, Vercel registró `Chatwoot respondió 401 en /2/messages`.
+- Se reprodujo el problema con una lectura de la misma conversación y la misma credencial. `api_access_token` dio `200` contra Chatwoot local y `401` contra la URL pública. `Authorization: Bearer` dio `200` contra la URL pública.
+- El [PR #12](https://github.com/axellaban/mindlin-asistente/pull/12) corrigió el encabezado. Tras publicar `116c585`, se reenvió un mensaje nuevo de la misma conversación de prueba. El webhook generó y mandó una respuesta del Agent Bot. Chatwoot la marcó `delivered` y WAHA confirmó `DEVICE`. El Agent Bot sigue sin asignar a la bandeja.
+
 ## Pendientes para retomar (09/11/2026)
 
 - **Hostinger, diferido por Axel:** completar el código de la cuenta dueña y aceptar desde `axellaban@gmail.com` la invitación de Admin al VPS de Mindlin.
-- **WhatsApp:** generar un QR fresco con Axel y el celular del piloto listos. Confirmar `WORKING` y el número esperado; hacer la prueba desde otro teléfono.
-- **Publicación y webhook:** completar la verificación de Vercel, confirmar que `/api/salud` reconoce las cuatro variables de Chatwoot y probar que el webhook acepta un evento inocuo firmado y rechaza uno sin firma.
+- **WhatsApp y webhook:** enlace y recepción de un mensaje verificados el 10/11. La configuración de Vercel está activa y el webhook validó la firma del aviso de prueba.
 - **Proveedor de IA:** Axel indicó usar **OpenAI** en el asistente que corre en Vercel. El `main` publicado (`7ac1fad`) solo inicializa `modeloClaude` y lee `ANTHROPIC_API_KEY`; cargar una clave de OpenAI por sí sola no cambia el proveedor. Claude debe adaptar el cliente, las llamadas a herramientas y `/api/salud` para `OPENAI_API_KEY`, preservando el historial, las reglas y la derivación. Después se carga la clave en Production y se prueba con datos inventados antes de asignar el Agent Bot a la bandeja.
 - **Prueba integral:** una vez publicados el webhook y el proveedor, probar WhatsApp, respuesta del asistente y escritura en el CRM con la línea y los datos de prueba acordados.
 - **Equipo:** definir agentes y correo de envío de invitaciones. Falta validar ese flujo.
