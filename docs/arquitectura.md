@@ -106,9 +106,11 @@ La propuesta pide empezar por WhatsApp y dejar prevista la incorporación del em
 Mindlin construye el hub (pantallas y funciones). **Todo lo comercial del asistente se configura sin tocar código** (fichas, presentación, tono, criterios, modo de atención, ejemplos, reglas de seguimiento, pausa), por dos caminos que usan los mismos datos:
 
 - el panel del asistente (`/panel`), que ya funciona;
-- la API para el hub ([`api-hub.md`](api-hub.md)), con una clave compartida (`HUB_CLAVE`), para que el hub tenga sus propias pantallas. El asistente es el dueño de esa configuración (está en su base); el hub la lee y la cambia. Así no hay dos copias que se desfasen.
+- la API para el hub ([`api-hub.md`](api-hub.md)), con una clave compartida (`HUB_CLAVE`). Las pantallas del hub están en HQ → Comercial → Asistente de WhatsApp (repo `mindlinhub`). El asistente es el dueño de esa configuración (está en su base); el hub la lee y la cambia. Así no hay dos copias que se desfasen.
 
 Qué hacían los bots de Kommo y cómo quedó cada cosa: [`kommo.md`](kommo.md).
+
+**Etapas automáticas** (11/11): el asistente mueve al lead de etapa en la planilla del CRM según lo que pasa en la conversación. Es la única celda que cambia de un contacto existente, con cuidados fijos (no toca Reserva ni Vendido, no retrocede). Ver [`integracion-crm.md`](integracion-crm.md).
 
 Si más adelante lo conectan a Chatwoot, el asistente no cambia: sigue atendiendo por Chatwoot, y el hub encuentra ahí las conversaciones y las notas del asistente (ver [`integracion-crm.md`](integracion-crm.md)).
 

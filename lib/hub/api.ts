@@ -17,7 +17,8 @@ import { bearerCorrecto } from "../cron";
 import type { DatosPanel } from "../panel/datos";
 import { queFalta } from "../panel/listo";
 import { limpiarNombre } from "../panel/sesion";
-import { CAMPOS_FICHA, ESTADOS_REGLA, ETAPAS_SEGUIMIENTO, MAX_CAMPO_FICHA, validarEjemplo, validarProyecto, validarRegla, validarTono } from "../panel/validar";
+import { CAMPOS_FICHA, ESTADOS_REGLA, ETAPAS_SEGUIMIENTO, MAX_CAMPO_FICHA, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "../panel/validar";
+import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
 import { HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
 import type { ReglaSeguimiento } from "../datos/tipos";
@@ -74,6 +75,9 @@ export const OPCIONES = {
   campos_ficha: CAMPOS_FICHA.map(([campo, titulo]) => ({ campo, titulo })),
   largo_maximo_campo: MAX_CAMPO_FICHA,
   etapas_seguimiento: ETAPAS_SEGUIMIENTO,
+  /** Etapas automáticas: los eventos que pueden mover a un lead y a qué etapas puede mandarlo el asistente. */
+  eventos_de_etapa: EVENTOS.map(([evento, titulo]) => ({ evento, titulo })),
+  etapas_destino: ETAPAS_DESTINO,
   estados_regla: ESTADOS_REGLA,
   pasos_maximos: MAX_PASOS,
   variables_del_mensaje: VARIABLES,
@@ -98,9 +102,9 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
     switch (recurso) {
       case "config": {
         if (metodo !== "GET" || id) return noSePuede();
-        const [proyectos, tono, ejemplos, reglas, estado] = await Promise.all([datos.proyectos(), datos.tono(), datos.ejemplos(), datos.reglas(), datos.estado()]);
+        const [proyectos, tono, ejemplos, reglas, estado, etapas] = await Promise.all([datos.proyectos(), datos.tono(), datos.ejemplos(), datos.reglas(), datos.estado(), datos.etapas()]);
         const falta = queFalta({ tono, proyectos, reglas: reglas.filter((r) => r.estado !== "archivada").length, archivadas: reglas.filter((r) => r.estado === "archivada").length, faltan: d.faltan ?? [] });
-        return { status: 200, json: { proyectos, tono, ejemplos, reglas, estado, falta, ia: d.ia ?? null, opciones: OPCIONES } };
+        return { status: 200, json: { proyectos, tono, ejemplos, reglas, etapas, estado, falta, ia: d.ia ?? null, opciones: OPCIONES } };
       }
 
       case "resumen": {
@@ -161,6 +165,14 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
           if (!(await datos.borrarRegla(n))) return error(409, "Esa regla ya se mandó (o no existe): no se borra, porque se perdería la medición. Archivala.");
         } else return noSePuede();
         return { status: 200, json: { reglas: await datos.reglas() } };
+      }
+
+      case "etapas": {
+        if (metodo !== "PUT" || !id) return noSePuede();
+        const r = validarReglaEtapa(id, cuerpo.etapa);
+        if (!r.ok) return error(400, r.error);
+        await datos.guardarEtapa(r.valor.evento, r.valor.etapa, por);
+        return { status: 200, json: { etapas: await datos.etapas() } };
       }
 
       case "estado": {

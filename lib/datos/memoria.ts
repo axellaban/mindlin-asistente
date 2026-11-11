@@ -1,4 +1,5 @@
 import type { MensajeHistorial } from "../chatwoot/evento";
+import type { ReglasEtapa } from "../etapas/reglas";
 import { MAX_PASOS } from "../seguimientos/reglas";
 import type { Almacen, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, SeguimientoEnviado, Tono, TipoRegistro } from "./tipos";
 
@@ -12,7 +13,7 @@ interface Seguimiento {
 }
 
 /** El almacén en memoria: para las pruebas. Se comporta como el de Postgres. */
-export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono; ejemplos?: Ejemplo[]; reglas?: ReglaSeguimiento[]; pausado?: boolean } = {}) {
+export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono; ejemplos?: Ejemplo[]; reglas?: ReglaSeguimiento[]; pausado?: boolean; etapas?: ReglasEtapa } = {}) {
   const estado = { pausado: inicial.pausado ?? false };
   const mensajes = new Map<number, MensajeHistorial>();
   const respondidos = new Set<number>();
@@ -64,7 +65,8 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
       return true;
     },
     async conversacion(id) {
-      return conversaciones.get(id) ?? null;
+      const c = conversaciones.get(id);
+      return c ? { ...c, ultimo_seguimiento: seguimiento.get(id)?.ultimo_seguimiento ?? null } : null;
     },
     async guardarConversacion(c) {
       conversaciones.set(c.chatwoot_id, { ...conv(c.chatwoot_id), ...c });
@@ -98,13 +100,16 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
       const ms = Date.parse(cuando);
       return [...seguimiento.entries()]
         .map(([id, s]) => ({ id, s, salida: mayor(s.ultimo_mensaje_bot, s.ultimo_seguimiento) }))
-        .filter(({ s, salida }) => !s.sin_seguimientos && s.ultimo_mensaje_interesado && s.paso_seguimiento < MAX_PASOS && salida && salida > s.ultimo_mensaje_interesado)
+        .filter(({ s, salida }) => !s.sin_seguimientos && s.ultimo_mensaje_interesado && s.paso_seguimiento <= MAX_PASOS && salida && salida > s.ultimo_mensaje_interesado)
         .filter(({ salida }) => ms - Date.parse(salida!) > 86_400_000 && ms - Date.parse(salida!) < 120 * 86_400_000)
         .sort((a, b) => a.salida!.localeCompare(b.salida!))
         .map(({ id, s, salida }) => {
           const c = conv(id);
           return { chatwoot_id: id, nombre: c.nombre, nombre_anotado: c.interesado?.nombre ?? null, telefono: c.telefono, proyecto: c.proyecto, crm_contacto_id: c.crm_contacto_id, paso_seguimiento: s.paso_seguimiento, ultima_salida: salida! };
         });
+    },
+    async reglasEtapa() {
+      return inicial.etapas ?? {};
     },
     async reglasVigentes() {
       return reglas.filter((r) => r.estado !== "archivada");

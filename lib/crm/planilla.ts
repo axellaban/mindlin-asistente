@@ -1,8 +1,9 @@
 /**
  * El CRM del hub de Mindlin: una planilla de Google con las pestañas «CRM Contactos» y
  * «CRM Actividad». El asistente busca al interesado por teléfono, lo da de alta si no está y
- * anota lo que pasó en la actividad. Nunca cambia lo que cargó una persona: si el contacto ya
- * existe, solo suma actividad.
+ * anota lo que pasó en la actividad. De un contacto que ya existe no cambia los datos que cargó
+ * una persona: solo suma actividad y, si las reglas de etapas lo dicen (lib/etapas/reglas.ts),
+ * lo mueve de etapa, dejándolo anotado igual que cuando lo mueve alguien desde el hub.
  *
  * Las columnas son el contrato con el hub (lib/crm/modelo.ts de ese repo): si el hub agrega o
  * mueve una columna, hay que cambiarla acá también.
@@ -126,8 +127,16 @@ export interface CRM {
   buscar(p: { id?: string | null; telefono?: string | null }): Promise<ContactoCRM | null>;
   /** Todos los contactos (una sola lectura): para saber la etapa de cada conversación en los seguimientos. */
   contactos(): Promise<ContactoCRM[]>;
-  crearContacto(d: DatosInteresado, ahora: string): Promise<ContactoCRM>;
+  /** `etapa`: con cuál entra (por defecto, Nuevo). */
+  crearContacto(d: DatosInteresado, ahora: string, etapa?: string): Promise<ContactoCRM>;
   anotarActividad(a: { contacto: ContactoCRM; detalle: string; ahora: string }): Promise<void>;
+  /**
+   * Mueve el contacto de etapa: cambia «Etapa», «Entró a la etapa» y «Actualizado» en su fila y lo
+   * anota en la actividad como «Cambio de etapa» (igual que el hub). `permitido` decide con la etapa
+   * que tiene la fila en ese momento (pudo cambiarla alguien recién); si devuelve null, no se toca.
+   * Devuelve el contacto como quedó, o null si no se movió.
+   */
+  cambiarEtapa(c: { id: string; permitido: (etapaActual: string) => string | null; por: string; motivoDeDescarte?: string; ahora: string }): Promise<ContactoCRM | null>;
 }
 
 /** Los últimos 10 dígitos: así coinciden «+54 9 11 5555-0000», «5491155550000» y «11 5555 0000». */
@@ -164,7 +173,7 @@ export function contactoDeFila(f: string[]): ContactoCRM {
 
 const enLista = (valor: string, lista: readonly string[]) => (lista.includes(valor) ? valor : "");
 
-export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string, responsable: string): string[] {
+export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string, responsable: string, etapa = "Nuevo"): string[] {
   const fila = COLUMNAS_CONTACTOS.map(() => "");
   const poner = (n: (typeof COLUMNAS_CONTACTOS)[number], valor: string) => (fila[col(n)] = valor);
   poner("ID", id);
@@ -173,7 +182,7 @@ export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string,
   poner("Teléfono", d.telefono ? `+${d.telefono}` : "");
   poner("Tipo", "Beneficiario al costo");
   poner("Origen", "WhatsApp");
-  poner("Etapa", "Nuevo");
+  poner("Etapa", (ETAPAS as readonly string[]).includes(etapa) ? etapa : "Nuevo");
   poner("Presupuesto USD", /^\d+$/.test(d.presupuestoUsd) ? d.presupuestoUsd : "");
   poner("Forma de pago", enLista(d.formaDePago, FORMAS_DE_PAGO));
   poner("Plazo", enLista(d.plazo, PLAZOS));
@@ -188,10 +197,12 @@ export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string,
   return fila;
 }
 
-/** Lo mínimo de Google Sheets que usa el CRM: leer un rango y agregar filas al final. */
+/** Lo mínimo de Google Sheets que usa el CRM: leer un rango, agregar filas al final y cambiar celdas puntuales. */
 export interface Hoja {
   leer(rango: string): Promise<string[][]>;
   agregar(pestania: string, filas: string[][]): Promise<void>;
+  /** Cambia celdas sueltas (cada rango, una celda), todas juntas. */
+  actualizar(celdas: { rango: string; valor: string }[]): Promise<void>;
 }
 
 /** La letra de la columna n (1 → A, 27 → AA). */
@@ -221,13 +232,33 @@ export function crearCRM(hoja: Hoja, { responsable = "" }: { responsable?: strin
       const filas = await hoja.leer(RANGO_CONTACTOS);
       return filas.filter((f) => f[col("ID")]).map(contactoDeFila);
     },
-    async crearContacto(d, ahora) {
-      const fila = filaContactoNuevo(d, nuevoIdContacto(), ahora, responsable);
+    async crearContacto(d, ahora, etapa) {
+      const fila = filaContactoNuevo(d, nuevoIdContacto(), ahora, responsable, etapa);
       await hoja.agregar(PESTANIA_CONTACTOS, [fila]);
       return contactoDeFila(fila);
     },
     async anotarActividad({ contacto, detalle, ahora }) {
       await hoja.agregar(PESTANIA_ACTIVIDAD, [[ahora, USUARIO_ASISTENTE, contacto.id, contacto.nombre, "WhatsApp", detalle.slice(0, 2000), contacto.etapa]]);
+    },
+    async cambiarEtapa({ id, permitido, por, motivoDeDescarte, ahora }) {
+      // Se vuelve a leer: la fila y la etapa son las de este momento, no las de cuando empezó el mensaje.
+      const filas = await hoja.leer(RANGO_CONTACTOS);
+      const i = filas.findIndex((f) => (f[col("ID")] ?? "").trim() === id);
+      if (i < 0) return null;
+      const antes = contactoDeFila(filas[i]);
+      const etapa = permitido(antes.etapa);
+      if (!etapa || etapa === antes.etapa || !(ETAPAS as readonly string[]).includes(etapa)) return null;
+      const celda = (n: (typeof COLUMNAS_CONTACTOS)[number], valor: string) => ({ rango: `'${PESTANIA_CONTACTOS}'!${letraColumna(col(n) + 1)}${i + 2}`, valor });
+      const celdas = [celda("Etapa", etapa), celda("Entró a la etapa", ahora), celda("Actualizado", ahora)];
+      // Como en el hub: un descartado lleva motivo y no le queda un próximo paso colgado.
+      const motivo = etapa === "Descartado" ? (filas[i][col("Motivo de pérdida")] ?? "").trim() || motivoDeDescarte || "Sin dato" : "";
+      if (etapa === "Descartado") celdas.push(celda("Motivo de pérdida", motivo), celda("Próximo paso", ""), celda("Fecha próximo paso", ""), celda("Hora próximo paso", ""));
+      await hoja.actualizar(celdas);
+      const despues = { ...antes, etapa };
+      await hoja.agregar(PESTANIA_ACTIVIDAD, [
+        [ahora, USUARIO_ASISTENTE, id, antes.nombre, "Cambio de etapa", `${antes.etapa} → ${etapa}${motivo ? ` (${motivo})` : ""}. Automático: ${por}`.slice(0, 2000), etapa],
+      ]);
+      return despues;
     },
   };
 }

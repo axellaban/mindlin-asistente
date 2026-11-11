@@ -1,4 +1,5 @@
 import type { MensajeHistorial } from "../chatwoot/evento";
+import type { ReglasEtapa } from "../etapas/reglas";
 
 /** La ficha de un desarrollo: lo único que el agente puede decir sobre él. */
 export interface Proyecto {
@@ -24,6 +25,10 @@ export interface Tono {
   instrucciones: string;
   criterios_comerciales: string;
   cuando_pasar_a_persona: string;
+  /** Quiénes son, trayectoria y preguntas frecuentes: vale para todos los proyectos. */
+  sobre_la_empresa?: string;
+  /** Cómo responder objeciones, cómo hablarle a cada perfil, señales y qué no decir. */
+  objeciones?: string;
   /** Modo «presenta y pasa»: cuando la persona responde después de la presentación, sigue el equipo. */
   pasar_al_responder?: boolean;
 }
@@ -57,6 +62,8 @@ export interface Conversacion {
   telefono: string | null;
   nombre: string | null;
   interesado?: Anotado;
+  /** Cuándo salió el último seguimiento automático (solo se lee: lo anota la corrida de seguimientos). */
+  ultimo_seguimiento?: string | null;
 }
 
 /** «Si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones. */
@@ -98,7 +105,7 @@ export interface SeguimientoEnviado {
   enviado: string;
 }
 
-export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "volvio_al_bot" | "seguimiento" | "crm" | "pausa" | "error";
+export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "volvio_al_bot" | "seguimiento" | "crm" | "etapa" | "pausa" | "error";
 
 /** Dónde guarda y lee el asistente (Postgres en Neon en producción, memoria en las pruebas). */
 export interface Almacen {
@@ -126,6 +133,8 @@ export interface Almacen {
   pausado(): Promise<boolean>;
   /** Conversaciones del bot donde lo último lo dijimos nosotros hace más de un día. */
   candidatosSeguimiento(ahora: string): Promise<CandidatoSeguimiento[]>;
+  /** A qué etapa del CRM mueve cada evento (lib/etapas/reglas.ts). Lo que no está o es null, no mueve. */
+  reglasEtapa(): Promise<ReglasEtapa>;
   /** Las reglas activas y a prueba (no las archivadas). */
   reglasVigentes(): Promise<ReglaSeguimiento[]>;
   /**

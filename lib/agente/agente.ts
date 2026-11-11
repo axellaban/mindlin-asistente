@@ -8,6 +8,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import type { MensajeHistorial } from "../chatwoot/evento";
+import { SENALES, type Senal } from "../etapas/reglas";
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 type Tool = Anthropic.Beta.BetaTool;
@@ -33,6 +34,8 @@ export interface Herramientas {
   registrarInteresado(d: DatosRegistro): Promise<string>;
   /** Devuelve la ficha del proyecto elegido, o un error si el id no existe. */
   elegirProyecto(id: string): Promise<string>;
+  /** Algo importante que pasó con la persona (quiere visitar, señal de compra, no le interesa): mueve la etapa en el CRM según las reglas. */
+  marcarSenal?(senal: Senal, detalle: string): Promise<string>;
 }
 
 export interface Resultado {
@@ -92,6 +95,21 @@ export function definirHerramientas(proyectos: string[]): Tool[] {
       },
     },
   ];
+  tools.push({
+    name: "marcar_senal",
+    description:
+      "Avisa al equipo de algo importante que acaba de pasar con esta persona, para que el CRM quede al día. Usala solo cuando sea claro y una sola vez por señal, sin decírselo a la persona. quiere_visita: pidió visitar el proyecto, reunirse o que la llamen. senal_de_compra: pregunta por una unidad puntual, el piso o la orientación, la reserva, la forma de pago exacta o los gastos. no_le_interesa: dijo claramente que no le interesa o pidió que no le escriban más (no la uses por una duda, una objeción o un «lo pienso»).",
+    strict: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["senal", "detalle"],
+      properties: {
+        senal: { type: "string", enum: [...SENALES], description: "Qué pasó." },
+        detalle: texto("En pocas palabras, qué dijo (por ejemplo «quiere ir el sábado» o «ya compró en otro lado»)."),
+      },
+    },
+  });
   if (proyectos.length > 1) {
     tools.push({
       name: "elegir_proyecto",
@@ -187,6 +205,10 @@ export async function responder({
         let contenido: string;
         if (uso.name === "registrar_interesado") contenido = await herramientas.registrarInteresado(entrada as unknown as DatosRegistro);
         else if (uso.name === "elegir_proyecto") contenido = await herramientas.elegirProyecto(entrada.proyecto_id);
+        else if (uso.name === "marcar_senal") {
+          if (!(SENALES as readonly string[]).includes(entrada.senal)) throw new Error(`No existe la señal ${entrada.senal}.`);
+          contenido = (await herramientas.marcarSenal?.(entrada.senal as Senal, entrada.detalle ?? "")) ?? "Anotado.";
+        }
         else if (uso.name === "pasar_a_persona") {
           pasarAPersona = { motivo: entrada.motivo ?? "", resumen: entrada.resumen ?? "" };
           contenido = "Listo: cuando mandes tu mensaje, la conversación pasa al equipo. Despedite avisando que alguien le va a escribir.";

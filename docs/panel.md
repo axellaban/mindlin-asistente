@@ -15,13 +15,14 @@
 | **Resumen** | **Lo que falta para que atienda bien** (variables, tono, los datos clave de cada ficha —precios, disponibilidad, financiación, tipologías, ubicación— y reglas de seguimiento), con el link para resolver cada cosa. Qué IA está respondiendo, pausar o reactivar, lo de los últimos 7 días (personas que escribieron, respuestas, pases al equipo, seguimientos, errores) y lo último que hizo el asistente. |
 | **Conversaciones** | Las que pasaron por el asistente y quién atiende cada una. En cada conversación: el historial como chat (con el formato de WhatsApp), quién la atiende, el proyecto, lo que anotó el asistente y su último resumen, el contacto del CRM, los seguimientos y lo que hizo. Link para abrirla en Chatwoot (para responder se entra ahí). |
 | **Fichas** | La ficha de cada proyecto: lo único que el asistente puede decir. Arriba va la **Presentación**: lo primero que cuenta cuando alguien pregunta por ese proyecto. Lo vacío no lo dice: ofrece que lo contacte el equipo. Se da de alta un proyecto nuevo y se puede apagar (deja de ofrecerlo). Las notas internas no las lee. |
-| **Tono y ejemplos** | Cómo habla, los criterios comerciales, cuándo pasa la conversación al equipo, el modo **«presenta y pasa»** (como los bots de Kommo: cuando la persona responde, sigue el equipo), y conversaciones de ejemplo (sin datos de personas). Un ejemplo se puede dejar de usar sin borrarlo. |
+| **Tono y ejemplos** | Cómo habla, los criterios comerciales, cuándo pasa la conversación al equipo, lo que sabe de la empresa, cómo responder objeciones y a cada perfil, el modo **«presenta y pasa»** (como los bots de Kommo: cuando la persona responde, sigue el equipo), y conversaciones de ejemplo (sin datos de personas). Un ejemplo se puede dejar de usar sin borrarlo. |
 | **Seguimientos** | Las reglas (ver [`seguimientos.md`](seguimientos.md)), con cómo le llega el mensaje a una persona, cuántos se mandaron y cuántos respondieron por versión. Una regla que ya se mandó no se borra (se perdería la medición): se archiva. |
+| **Etapas** | Etapas automáticas: a qué etapa del CRM mueve el asistente al lead cuando pasa cada cosa (respondió, no respondió a los seguimientos, quiere visita, no le interesa…), con cuántos movió en los últimos 30 días. Ver [`integracion-crm.md`](integracion-crm.md). |
 | **Probar** | Chatear con el asistente como si fueras un interesado: mismo tono, fichas, ejemplos e IA que en WhatsApp, pero **no sale nada por WhatsApp ni se escribe en el CRM**. Debajo de cada respuesta muestra lo que haría (anotar en el CRM, elegir un proyecto, pasar al equipo). Desde cada ficha hay un link para probar con ese proyecto ya elegido. La charla vive en el navegador: se pierde al recargar. Cada mensaje usa la IA de verdad (tiene costo). |
 
 Todo lo que se guarda lo usa el asistente desde el mensaje siguiente.
 
-Lo mismo se puede leer y cambiar desde el hub de Mindlin, por la API ([`api-hub.md`](api-hub.md)).
+Lo mismo se configura desde el hub de Mindlin: HQ → Comercial → Asistente de WhatsApp, que usa la API ([`api-hub.md`](api-hub.md)).
 
 ## Código
 

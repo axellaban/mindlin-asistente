@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { claveCorrecta, COOKIE_SESION, crearToken, DURACION_SESION_MS, limpiarNombre } from "@/lib/panel/sesion";
-import { ESTADOS_REGLA, validarEjemplo, validarProyecto, validarRegla, validarTono } from "@/lib/panel/validar";
+import { ESTADOS_REGLA, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "@/lib/panel/validar";
 import type { ReglaSeguimiento } from "@/lib/datos/tipos";
 import { estadoDesdeNavegador, MAX_LARGO_PRUEBA, probar, type RespuestaPrueba } from "@/lib/agente/prueba";
 import { conexionesDesdeEnv } from "@/lib/servicios";
@@ -125,6 +125,14 @@ export async function cambiarEstadoRegla(f: FormData) {
   volver("/panel/seguimientos", { ok: "Regla actualizada." });
 }
 
+export async function guardarEtapa(f: FormData) {
+  const por = await exigirSesion();
+  const r = validarReglaEtapa(String(f.get("evento") ?? ""), f.get("etapa"));
+  if (!r.ok) return volver("/panel/etapas", { error: r.error });
+  await base("/panel/etapas").guardarEtapa(r.valor.evento, r.valor.etapa, por);
+  volver("/panel/etapas", { ok: r.valor.etapa ? `Listo: ese evento mueve a «${r.valor.etapa}».` : "Listo: ese evento ya no mueve a nadie." });
+}
+
 export async function borrarRegla(f: FormData) {
   await exigirSesion();
   const id = idDe(f);
@@ -146,8 +154,8 @@ export async function probarMensaje(estado: unknown, texto: string): Promise<{ o
   if (!almacen) return { ok: false, error: "Falta la base de datos (DATABASE_URL) en Vercel." };
   if (!modelo) return { ok: false, error: "Falta la clave de la IA (ANTHROPIC_API_KEY) en Vercel." };
   try {
-    const [proyectos, tono, ejemplos] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos()]);
-    return { ok: true, respuesta: await probar({ modelo, proyectos, tono, ejemplos, estado: estadoDesdeNavegador(estado), texto: t }) };
+    const [proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos(), almacen.reglasEtapa().catch(() => ({}))]);
+    return { ok: true, respuesta: await probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado: estadoDesdeNavegador(estado), texto: t }) };
   } catch (e) {
     return { ok: false, error: `La IA no pudo responder: ${(e instanceof Error ? e.message : String(e)).slice(0, 300)}` };
   }

@@ -18,6 +18,7 @@
    - La IA responde (`lib/agente/agente.ts`), con Claude u OpenAI (ver «Modelo»). Puede usar tres herramientas:
      - `registrar_interesado`: lo guarda en la conversación (`conversaciones.interesado`) y da de alta en el CRM del hub si no existe; si ya existe, suma actividad **solo con lo que cambió** (si no hay nada nuevo, no escribe).
      - `pasar_a_persona`.
+     - `marcar_senal`: avisa que pidió una visita, mostró una señal de compra o dijo que no le interesa (esta última, además, frena los seguimientos). Sirve para las etapas automáticas.
      - `elegir_proyecto`: solo si hay más de un proyecto activo. Con un proyecto ya elegido, ve los nombres de los otros (sin sus datos) para poder cambiar si preguntan por otro.
    - Manda la respuesta por Chatwoot, con el formato de WhatsApp (`lib/agente/whatsapp.ts`: `**negrita**` → `*negrita*`, sin `#` ni `[links](…)`).
    - **Si pasa a una persona:** deja una nota interna con el motivo y el resumen, abre la conversación y lo anota en el CRM.
@@ -70,6 +71,16 @@ Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy
 - **Respuestas cortadas.** Si la IA llega al tope de largo, no manda el mensaje a medias: pasa la conversación al equipo.
 - **Tiempos.** Cada pedido a Chatwoot y a Google tiene 20 segundos como máximo; a la IA, 60 con un reintento.
 
+## Etapas automáticas
+
+Después de responder, el asistente mueve al lead de etapa en el CRM según lo que pasó en ese mensaje (`lib/etapas/`):
+
+- **Qué pasó:** el primer mensaje que le contesta; una respuesta más; la respuesta a un seguimiento automático (si lo último que le mandamos fue un seguimiento); y lo que marque la IA con `marcar_senal` (visita, señal de compra, no le interesa). Si pasa la conversación al equipo, también cuenta.
+- **En la corrida de seguimientos:** cada seguimiento que sale, y «no respondió a ningún seguimiento» cuando ya no hay un paso más y pasó al menos un día.
+- **A qué etapa:** lo que esté configurado para cada evento (hub o `/panel/etapas`). Si en un mismo mensaje pasan varias cosas, se aplican en orden.
+- **Cuidados fijos:** no toca Reserva ni Vendido; dentro del embudo solo avanza; a En pausa o Descartado solo desde las primeras etapas; reactiva a quien vuelve a escribir. Antes de mover, vuelve a leer la fila del CRM.
+- Si el CRM falla, la respuesta al interesado sale igual y el error queda en el registro.
+
 ## Qué guarda
 
 - **La base (Neon):**
@@ -77,7 +88,7 @@ Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy
   - qué proyecto y qué contacto del CRM tiene cada conversación, y lo que el asistente anotó de la persona;
   - mensajes ya respondidos;
   - registro de lo que hizo el bot.
-- **CRM del hub:** contacto nuevo (etapa Nuevo, origen WhatsApp, con «Entró por WhatsApp (asistente)» en las notas) y actividad tipo WhatsApp con el usuario «Asistente WhatsApp» (también cada seguimiento automático). Nunca cambia lo que cargó una persona. Las etapas y columnas son las del hub desde noviembre de 2026 (con la columna Tags); las etapas de antes se leen como las de ahora.
+- **CRM del hub:** contacto nuevo (etapa Contacto inicial, o Nuevo si no hay reglas de etapas; origen WhatsApp, con «Entró por WhatsApp (asistente)» en las notas), actividad tipo WhatsApp con el usuario «Asistente WhatsApp» (también cada seguimiento automático) y los **cambios de etapa** automáticos, anotados como «Cambio de etapa» ([`integracion-crm.md`](integracion-crm.md)). Nunca cambia los datos que cargó una persona. Las etapas y columnas son las del hub desde noviembre de 2026 (con la columna Tags); las etapas de antes se leen como las de ahora.
 
 ## Prueba local de punta a punta
 

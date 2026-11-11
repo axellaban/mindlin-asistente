@@ -50,6 +50,13 @@ describe("probar el asistente desde el panel", () => {
     expect(r2.estado.pasada).toBe(true);
   });
 
+  it("muestra las señales que marcaría y a qué etapa movería al lead", async () => {
+    const m = modeloFalso(respuesta([{ type: "tool_use", id: "t1", name: "marcar_senal", input: { senal: "quiere_visita", detalle: "quiere ir el sábado" } }]), respuesta([{ type: "text", text: "¡Dale! Te escriben para coordinar." }]));
+    const r = await probar({ modelo: m.modelo, proyectos: [lerma()], tono, ejemplos: [], estado: estadoInicial(), texto: "¿Puedo ir el sábado?", reglasEtapa: { quiere_visita: "Visita / reunión" }, ahora: AHORA });
+    expect(r.acciones).toEqual(["🏷️ Pidió una visita, una reunión o que la llamen («quiere ir el sábado»): lo movería a «Visita / reunión» en el CRM"]);
+    expect(m.pedidos[0].tools.map((t) => t.name)).toContain("marcar_senal");
+  });
+
   it("lo que viene del navegador se revisa: nada de roles ni campos inventados", () => {
     expect(
       estadoDesdeNavegador({

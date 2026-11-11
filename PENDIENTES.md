@@ -16,7 +16,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 2. **Axel y Panel:** escanear el QR con el celular de la línea de prueba y probar un mensaje (tarea 5).
 3. **Panel:** asignar el Agent Bot a la bandeja y probar de punta a punta con datos inventados (tarea 6): respuesta, paso a una persona, devolverla al bot y la fila en el CRM.
 4. **Mindlin:** revisar los borradores que se cargaron desde Kommo ([`docs/kommo.md`](docs/kommo.md)): la ficha de Lerma 439 y las cinco apagadas, el modo («presenta y pasa» o conversar) y los seguimientos archivados. Probarlo en `/panel/probar` antes de abrir la línea.
-5. **Axel y Mindlin:** cuando quieran configurarlo desde el hub: cargar `HUB_CLAVE` en los dos proyectos de Vercel y armar las pantallas del hub sobre la API ([`docs/api-hub.md`](docs/api-hub.md)). Mientras tanto se configura todo desde `/panel`.
+5. **Axel:** conectar el hub: `HUB_CLAVE` acá, y `ASISTENTE_URL` y `ASISTENTE_CLAVE` (la misma clave) en el proyecto del hub. Volver a publicar los dos. Desde ahí se configura todo en el hub: Comercial → Asistente de WhatsApp ([`docs/api-hub.md`](docs/api-hub.md)).
 6. **Claude con Axel:** probar las respuestas con Claude de verdad y ajustar el tono con el material de Mindlin.
 7. **Panel:** actualizar el instalador en el servidor (tarea 8).
 
@@ -26,13 +26,13 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - [ ] Los contactos que da de alta el asistente entran en etapa **Nuevo**, y en el hub eso dispara la alarma «nuevo sin contactar en 2 h». ¿Está bien así (que el equipo lo mire enseguida) o tienen que entrar en «Contacto inicial», porque ya les habló el asistente? — Mindlin
 - [ ] Seguimientos: quedaron cargados y **archivados** los de Kommo (uno por proyecto, a las 24 h). Falta que Mindlin los revise, los pase a «Activa» y decida si suma más pasos. Sin reglas activas no sale ninguno. — Mindlin
 - [ ] Modo de atención: ¿«presenta y pasa» (como Kommo: cuando la persona responde, sigue el equipo) o que el asistente siga la conversación (como está hoy)? Se cambia en Tono. — Mindlin
-- [ ] ¿El asistente puede **mover de etapa** en el CRM (como hacía Kommo cuando alguien respondía o no respondía)? Hoy solo agrega filas y nunca cambia lo que cargó una persona. — Mindlin y Axel
-- [ ] ¿Quién arma las pantallas del hub para configurar el asistente? La API ya está (`docs/api-hub.md`); hoy se configura desde `/panel`. — Axel y Mindlin
+- [ ] Etapas automáticas: revisar las de fábrica (Comercial → Asistente de WhatsApp → Etapas automáticas). Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve. — Mindlin
+- [ ] VIA 53 y Torre Cuatro Vientos: los dos documentos de Mindlin tienen datos distintos (precios, entrega, forma de pago, el semipiso). Confirmar cuáles valen antes de activarlos (está en las notas internas de cada ficha). — Mindlin
 - [ ] Audios: cargar `OPENAI_API_KEY` para transcribirlos (Axel: «luego»). Mientras tanto, el bot pide que lo escriban. — Axel
 - [ ] Horario del equipo comercial: el asistente supone de lunes a viernes de 9 a 20 (fuera de eso, si pasa la conversación avisa que le escriben apenas vuelvan). ¿Es así? Se cambia en `HORARIO_EQUIPO` (`lib/agente/contexto.ts`). — Mindlin
 - [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
 
-Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); responde **Claude** (Axel, 10/11; OpenAI queda como opción); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11).
+Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); responde **Claude** (Axel, 10/11; OpenAI queda como opción); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11); el asistente mueve a los leads de etapa y se configura desde el hub, que arma Claude (Axel, 11/11); lotes y correos quedan afuera por ahora (Axel, 11/11).
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
@@ -45,6 +45,7 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 - [x] «Probar» en el panel: chatear con el asistente sin WhatsApp ni CRM, para ajustar tono y fichas. — Claude, 11/11
 - [x] Lo que hacían los bots de Kommo, configurable (`docs/kommo.md`): presentación por proyecto, modo «presenta y pasa», calificación con «de dónde es» y «hace cuánto busca», y el criterio de alquiler. — Claude, 11/11
 - [x] API para que el hub lea y cambie toda la configuración (`docs/api-hub.md`). — Claude, 11/11
+- [x] Base comercial del documento de Mindlin: «Sobre la empresa» y «Objeciones, perfiles y señales», editables en el hub. Y la herramienta marcar_senal para que la IA avise visita, señal de compra o «no me interesa». — Claude, 11/11
 - [ ] Tono: revisar el borrador y sumar 10 a 20 conversaciones reales de ejemplo, sin datos personales. — Mindlin
 - [ ] Probar con Claude de verdad (en las pruebas se usó uno simulado) y ajustar. — Claude con Axel
 - [ ] Con la línea real, confirmar que los mensajes del bot no vuelven a entrar como si los hubiera escrito una persona (el webhook ya descarta ese eco). — Claude y Panel
@@ -60,12 +61,16 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 
 - [x] Busca a la persona por teléfono y consulta etapa, responsable y notas; da de alta al interesado con lo que busca y anota el resumen en la actividad. Nunca cambia lo que cargó una persona. — Claude, 07/11
 - [x] Columnas, etapas y orígenes al día con el hub de noviembre. — Claude, 10/11
+- [x] **Etapas automáticas:** mueve al lead de etapa según lo que pasa (respondió, no respondió a los seguimientos, quiere visita, no le interesa…) y lo anota como «Cambio de etapa», con cuidados fijos (no toca Reserva ni Vendido, no retrocede). Configurable desde el hub y `/panel/etapas`. — Claude, 11/11
+- [x] Pantallas en el hub: HQ → Comercial → Asistente de WhatsApp (repo `mindlinhub`). — Claude, 11/11
+- [ ] Probar las etapas con la planilla real y la línea de prueba. — Claude y Panel
 - [x] Busca por el ID anotado además del teléfono (sin eso, un contacto sin número se repetía en cada mensaje) y lee para qué busca, presupuesto y próximo paso. — Claude, 11/11
 - [x] Planilla compartida con la cuenta de servicio y `CRM_SHEET_ID` en Vercel. — Panel, 09/11
 - [x] El acuerdo de integración: qué lee y escribe, y qué tiene que cuidar Mindlin ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 10/11
 - [x] Decidido: el CRM es una planilla de Google, que es lo que el asistente ya usa. Mindlin no tiene que construir nada para la integración. — Axel, 10/11
 - [ ] Confirmar si es la planilla del CRM del hub (la que ya está en `CRM_SHEET_ID`) u otra. Si es otra: mismas pestañas y columnas, compartirla con la cuenta de servicio y cambiar `CRM_SHEET_ID` (`docs/integracion-crm.md`). — Axel
 - [ ] Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas sin avisar. — Axel
+- [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. — Axel
 - [ ] Probar el CRM con la planilla real (con la línea de prueba). — Claude y Panel
 
 ## 4. Seguimientos

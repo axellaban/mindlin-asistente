@@ -98,6 +98,37 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("DELETE", `reglas/${id}`)).status).toBe(409);
   });
 
+  it("etapas automáticas: las de fábrica, cambiar una, sacarla y la base comercial en el tono", async () => {
+    const j = (await hub("GET", "config")).json as { etapas: { evento: string; etapa: string | null; titulo: string }[]; opciones: { etapas_destino: string[]; eventos_de_etapa: { evento: string }[] }; tono: { sobre_la_empresa: string } };
+    expect(j.etapas.map((e) => [e.evento, e.etapa])).toEqual([
+      ["primer_contacto", "Contacto inicial"],
+      ["respondio", "Seguimiento"],
+      ["seguimiento_enviado", null],
+      ["respondio_seguimiento", "Seguimiento"],
+      ["sin_respuesta", "En pausa"],
+      ["quiere_visita", "Visita / reunión"],
+      ["senal_de_compra", null],
+      ["no_le_interesa", "Descartado"],
+      ["paso_al_equipo", null],
+    ]);
+    expect(j.etapas[0].titulo).toBe("El asistente le respondió por primera vez");
+    expect(j.opciones.etapas_destino).toEqual(["Contacto inicial", "Seguimiento", "Visita / reunión", "Negociación", "En pausa", "Descartado"]);
+    expect(j.opciones.eventos_de_etapa).toHaveLength(9);
+    expect(j.tono.sobre_la_empresa).toContain("Borok Construcciones");
+
+    const cambio = await hub("PUT", "etapas/senal_de_compra", { etapa: "Negociación" }, { usuario: "Mati" });
+    expect((cambio.json.etapas as { evento: string; etapa: string | null; actualizado_por: string }[]).find((e) => e.evento === "senal_de_compra")).toMatchObject({ etapa: "Negociación", actualizado_por: "Mati" });
+    expect((await crearAlmacen(pool).reglasEtapa()).senal_de_compra).toBe("Negociación");
+    // «No mover»: etapa vacía o null.
+    await hub("PUT", "etapas/no_le_interesa", { etapa: null });
+    expect((await crearAlmacen(pool).reglasEtapa()).no_le_interesa).toBeNull();
+    expect((await hub("PUT", "etapas/respondio", { etapa: "Vendido" })).status).toBe(400);
+    expect((await hub("PUT", "etapas/inventado", { etapa: "Seguimiento" })).status).toBe(400);
+    // El tono guarda también la base comercial.
+    expect((await hub("PUT", "tono", { objeciones: "«Me parece caro»: poner en contexto." })).json.tono).toMatchObject({ objeciones: "«Me parece caro»: poner en contexto." });
+    expect((await crearAlmacen(pool).tono()).sobre_la_empresa).toContain("Borok Construcciones");
+  });
+
   it("ejemplos, pausa y resumen", async () => {
     const alta = await hub("POST", "ejemplos", { titulo: "Consulta por 2 ambientes", conversacion: "Interesado: Hola\nMindlin: ¡Hola!" });
     expect(alta.status).toBe(201);

@@ -13,6 +13,7 @@ import { MAX_LARGO_PRUEBA, MAX_MENSAJES_PRUEBA, type EstadoPrueba, type MensajeP
 import { responder, type Herramientas, type Modelo } from "./agente";
 import { CAMPOS_ANOTADOS, sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
+import { tituloEvento, type ReglasEtapa } from "../etapas/reglas";
 import { paraWhatsApp } from "./whatsapp";
 
 export { estadoInicial, MAX_LARGO_PRUEBA, MAX_MENSAJES_PRUEBA, type EstadoPrueba, type MensajePrueba, type RespuestaPrueba } from "./prueba-comun";
@@ -24,8 +25,11 @@ export async function probar({
   ejemplos,
   estado,
   texto,
+  reglasEtapa,
   ahora = new Date(),
 }: {
+  /** Para mostrar a qué etapa movería cada señal (si no vienen, solo muestra la señal). */
+  reglasEtapa?: ReglasEtapa;
   modelo: Modelo;
   proyectos: Proyecto[];
   tono: Tono;
@@ -54,6 +58,11 @@ export async function probar({
       proyectoId = p.id;
       acciones.push(`🏢 Eligió el proyecto ${p.nombre}`);
       return `Quedó elegido. Ficha:\n\n${ficha(p)}`;
+    },
+    async marcarSenal(senal, detalle) {
+      const etapa = reglasEtapa?.[senal];
+      acciones.push(`🏷️ ${tituloEvento(senal)}${detalle ? ` («${detalle}»)` : ""}${etapa ? `: lo movería a «${etapa}» en el CRM` : ""}`);
+      return "Anotado para el equipo. Seguí la conversación sin mencionarlo.";
     },
   };
 

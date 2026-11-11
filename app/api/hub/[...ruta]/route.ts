@@ -23,7 +23,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
   }
   const { almacen, modelo } = conexionesDesdeEnv();
   const r = await manejarHub(
-    { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: req.headers.get("x-hub-usuario") },
+    { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: nombreDelEncabezado(req.headers.get("x-hub-usuario")) },
     {
       clave: process.env.HUB_CLAVE,
       datos: datos(),
@@ -32,13 +32,23 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       probar:
         almacen && modelo
           ? async (estado, texto) => {
-              const [proyectos, tono, ejemplos] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos()]);
-              return probar({ modelo, proyectos, tono, ejemplos, estado: estadoDesdeNavegador(estado), texto: texto.slice(0, MAX_LARGO_PRUEBA) });
+              const [proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos(), almacen.reglasEtapa().catch(() => ({}))]);
+              return probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado: estadoDesdeNavegador(estado), texto: texto.slice(0, MAX_LARGO_PRUEBA) });
             }
           : null,
     },
   );
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });
+}
+
+/** Los encabezados no llevan acentos: el hub manda el nombre codificado («Jos%C3%A9»). Si viene sin codificar, se usa tal cual. */
+function nombreDelEncabezado(valor: string | null): string | null {
+  if (!valor) return null;
+  try {
+    return decodeURIComponent(valor);
+  } catch {
+    return valor;
+  }
 }
 
 export { atender as GET, atender as PUT, atender as POST, atender as PATCH, atender as DELETE };

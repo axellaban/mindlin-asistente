@@ -1,6 +1,7 @@
 import pg from "pg";
 import { MAX_PASOS } from "../seguimientos/reglas";
 import type { MensajeHistorial } from "../chatwoot/evento";
+import type { ReglasEtapa } from "../etapas/reglas";
 import type { Almacen, CandidatoSeguimiento, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, Tono } from "./tipos";
 
 /**
@@ -95,8 +96,9 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rowCount === 1;
     },
     async conversacion(id) {
-      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado from conversaciones where chatwoot_id = $1", [id]);
-      return rows[0] ? ({ ...rows[0], chatwoot_id: Number(rows[0].chatwoot_id) } as Conversacion) : null;
+      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento from conversaciones where chatwoot_id = $1", [id]);
+      const r = rows[0];
+      return r ? ({ ...r, chatwoot_id: Number(r.chatwoot_id), ultimo_seguimiento: r.ultimo_seguimiento ? new Date(r.ultimo_seguimiento).toISOString() : null } as Conversacion) : null;
     },
     async guardarConversacion(c) {
       // Solo se actualizan los campos que vienen: lo demás queda como estaba.
@@ -115,8 +117,8 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rows as Proyecto[];
     },
     async tono() {
-      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder from tono where id = 1");
-      return (rows[0] as Tono | undefined) ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false };
+      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones from tono where id = 1");
+      return (rows[0] as Tono | undefined) ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, sobre_la_empresa: "", objeciones: "" };
     },
     async ejemplos() {
       const { rows } = await db.query("select titulo, conversacion from ejemplos where activo order by id");
@@ -143,7 +145,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         `select chatwoot_id, nombre, interesado->>'nombre' as nombre_anotado, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida
          from (
            select *, greatest(ultimo_mensaje_bot, ultimo_seguimiento) as ultima_salida from conversaciones
-           where not sin_seguimientos and ultimo_mensaje_interesado is not null and paso_seguimiento < $1
+           where not sin_seguimientos and ultimo_mensaje_interesado is not null and paso_seguimiento <= $1
          ) c
          where ultima_salida > ultimo_mensaje_interesado
            and ultima_salida < $2::timestamptz - interval '1 day'
@@ -158,6 +160,10 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         paso_seguimiento: Number(r.paso_seguimiento),
         ultima_salida: new Date(r.ultima_salida).toISOString(),
       })) as CandidatoSeguimiento[];
+    },
+    async reglasEtapa() {
+      const { rows } = await db.query("select evento, etapa from reglas_etapa");
+      return Object.fromEntries(rows.map((r) => [r.evento, r.etapa])) as ReglasEtapa;
     },
     async reglasVigentes() {
       const { rows } = await db.query(

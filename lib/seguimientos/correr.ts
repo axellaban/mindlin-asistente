@@ -10,6 +10,8 @@
 import type { Chatwoot } from "../chatwoot/api";
 import { claveTelefono, type ContactoCRM, type CRM } from "../crm/planilla";
 import type { Almacen } from "../datos/tipos";
+import { moverEtapa } from "../etapas/mover";
+import type { ReglasEtapa } from "../etapas/reglas";
 import { elegirRegla, enHorario, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
 
 /** Cuántos seguimientos como mucho por corrida: WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. */
@@ -20,6 +22,8 @@ export interface ResultadoCorrida {
   revisadas: number;
   enviados: number;
   errores: number;
+  /** Leads que cambiaron de etapa en el CRM en esta corrida (lib/etapas/reglas.ts). */
+  movidos: number;
 }
 
 const detalle = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -37,12 +41,16 @@ export async function correrSeguimientos({
   ahora?: Date;
   tope?: number;
 }): Promise<ResultadoCorrida> {
-  const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0 };
+  const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0, movidos: 0 };
   if (!enHorario(ahora)) return { ...resultado, estado: "fuera de horario" };
   if (await almacen.pausado()) return { ...resultado, estado: "pausado" };
   const reglas = await almacen.reglasVigentes();
   if (!reglas.length) return { ...resultado, estado: "sin reglas" };
-  const [candidatos, proyectos] = await Promise.all([almacen.candidatosSeguimiento(ahora.toISOString()), almacen.proyectosActivos()]);
+  const [candidatos, proyectos, reglasEtapa] = await Promise.all([
+    almacen.candidatosSeguimiento(ahora.toISOString()),
+    almacen.proyectosActivos(),
+    almacen.reglasEtapa().catch((): ReglasEtapa => ({})),
+  ]);
   if (!candidatos.length) return resultado;
 
   // La etapa sale del CRM. Si el CRM está conectado pero no responde, no se manda nada: sin la
@@ -66,7 +74,15 @@ export async function correrSeguimientos({
     const etapa = contacto?.etapa ?? "Nuevo";
     const paso = c.paso_seguimiento + 1;
     const regla = elegirRegla(reglas, { etapa, paso, proyecto: c.proyecto, conversacion: c.chatwoot_id });
-    if (!regla || !pasaronLosDias(c, regla, ahora)) continue;
+    if (!regla) {
+      // Ya recibió seguimientos, no hay un paso más y pasó al menos un día sin respuesta
+      // (los candidatos son los de más de un día): «no respondió a ningún seguimiento».
+      if (c.paso_seguimiento >= 1 && (await moverEtapa({ crm, almacen, conversacion: c.chatwoot_id, contacto, eventos: ["sin_respuesta"], reglas: reglasEtapa, ahora: ahora.toISOString() }))) {
+        resultado.movidos++;
+      }
+      continue;
+    }
+    if (!pasaronLosDias(c, regla, ahora)) continue;
 
     const cuando = ahora.toISOString();
     if (!(await almacen.reclamarSeguimiento({ conversacion: c.chatwoot_id, pasoAnterior: c.paso_seguimiento, regla: regla.id, ahora: cuando }))) continue;
@@ -79,6 +95,7 @@ export async function correrSeguimientos({
       if (crm && contacto) {
         await crm.anotarActividad({ contacto, detalle: `Seguimiento automático (${paso}.º): ${texto}`, ahora: cuando }).catch(() => {});
       }
+      if (await moverEtapa({ crm, almacen, conversacion: c.chatwoot_id, contacto, eventos: ["seguimiento_enviado"], reglas: reglasEtapa, ahora: cuando })) resultado.movidos++;
       resultado.enviados++;
     } catch (e) {
       // Ya quedó contado: no se reintenta en la próxima corrida (mejor uno menos que uno repetido).

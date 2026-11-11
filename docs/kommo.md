@@ -9,13 +9,19 @@ Mindlin pasó el relevamiento de sus automatizaciones de Kommo («Reglas de segu
 | **Clasificar** la consulta por palabras clave y derivarla al proyecto. Si no encuentra, manda un menú. | Cada ficha tiene sus «palabras para reconocerlo». La IA entiende de qué proyecto hablan aunque lo escriban distinto; si no queda claro, pregunta. Nunca mezcla datos de dos proyectos. | Fichas → Palabras para reconocerlo. |
 | **Primer contacto:** la presentación del proyecto en varios mensajes fijos (qué es, unidades, precios, financiación, brochure). | La ficha tiene una **Presentación**: es lo primero que cuenta, adaptado a lo que le preguntaron. El resto de la ficha (precios, financiación, links) lo usa para responder. | Fichas → Presentación y los demás campos. |
 | **Seguimiento a las 24 h** sin respuesta, con un mensaje por proyecto. | Reglas de seguimiento por etapa, paso, días y proyecto, con versiones para comparar mensajes. De 9 a 20 y con tope. | Seguimientos. |
-| Segundas 24 h sin respuesta: despedir y mandar a «Trash» (no estaba automatizado en todos). | Se puede cargar un 2.º paso con el mensaje de despedida. Mover de etapa, no (ver abajo). | Seguimientos → paso 2. |
+| Segundas 24 h sin respuesta: despedir y mandar a «Trash» (no estaba automatizado en todos). | Se puede cargar un 2.º paso con el mensaje de despedida. Si no responde a ningún seguimiento, pasa a «En pausa». | Seguimientos → paso 2, y Etapas automáticas. |
 | **Cuando el lead responde, el bot se calla** y sigue Tade o alguien del equipo. | Dos modos. **Presenta y pasa** (como Kommo): cuando la persona responde después de la presentación, la conversación pasa al equipo con una nota. **Conversa** (por defecto): el asistente sigue la charla, responde dudas con la ficha, anota lo que busca y pasa la conversación cuando corresponde. | Tono → Modo «presenta y pasa», y «Cuándo pasar la conversación al equipo». |
 | **Calificación** a criterio de quien atiende: para qué quiere la unidad, hace cuánto busca, de dónde es, qué necesita. | El asistente lo pregunta de a una cosa por mensaje y lo anota: para qué, ambientes, presupuesto, forma de pago, plazo, **de dónde es** y **hace cuánto busca**. Queda en el CRM y en la conversación. | Tono → Criterios comerciales (qué preguntar primero, qué evitar). |
 | **Alquiler:** responde que solo venden. | Está en los criterios comerciales. | Tono → Criterios comerciales. |
-| **Mover el lead de etapa** (sin respuesta, respondió). | **No lo hace.** El asistente solo agrega filas en el CRM; nunca cambia lo que cargó una persona. Decisión abierta (ver `PENDIENTES.md`). | — |
+| **Mover el lead de etapa** (sin respuesta, respondió). | **Etapas automáticas:** mueve al lead según lo que pasa (primer contacto, respondió, seguimiento enviado, respondió a un seguimiento, sin respuesta, quiere visita, señal de compra, no le interesa, pasó al equipo) y lo anota como «Cambio de etapa». Nunca toca Reserva ni Vendido, ni retrocede. | Hub → Comercial → Asistente de WhatsApp → Etapas automáticas (o `/panel/etapas`). |
 | **Bot para lotes** (dueños de terrenos: ciudad, superficie, frente, qué quieren hacer). | No está. La propuesta de la primera versión deja «terrenos» afuera. | — |
 | **Correos VIA 53** (a las 24 h, a los 7 y a los 14 días). | No está. El email quedó previsto para más adelante (`arquitectura.md`, sección 9). | — |
+
+## El otro documento: la base comercial
+
+Mindlin pasó también un documento con la información de la empresa (Mindlin Developers y Borok Construcciones), los proyectos, preguntas frecuentes, objeciones, perfiles de leads, señales de compra y descarte, y qué no decir. Quedó cargado (migración 8) como **«Sobre la empresa»** y **«Objeciones, perfiles y señales»**, dos textos que el asistente lee siempre y que se editan en el hub (Inteligencia comercial) o en `/panel/tono`.
+
+Algunos datos de ese documento no coinciden con el de los bots (VIA 53: precios, entrega y forma de pago; Torre Cuatro Vientos: el semipiso). No se pisó nada: quedó anotado en las notas internas de cada ficha para que Mindlin confirme cuál vale.
 
 ## Lo que ya quedó cargado (como borrador)
 

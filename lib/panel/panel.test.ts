@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { claveCorrecta, crearToken, DURACION_SESION_MS, leerToken } from "./sesion";
 import { queFalta } from "./listo";
-import { idDesdeNombre, validarEjemplo, validarProyecto, validarRegla, validarTono } from "./validar";
+import { idDesdeNombre, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "./validar";
 
 const form = (campos: Record<string, string>) => {
   const f = new FormData();
@@ -47,7 +47,7 @@ describe("validaciones del panel", () => {
   });
 
   it("el tono necesita al menos cómo habla; un ejemplo, título y conversación", () => {
-    expect(validarTono(form({ instrucciones: "Voseo, cálido." }))).toEqual({ ok: true, valor: { instrucciones: "Voseo, cálido.", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false } });
+    expect(validarTono(form({ instrucciones: "Voseo, cálido." }))).toEqual({ ok: true, valor: { instrucciones: "Voseo, cálido.", criterios_comerciales: "", cuando_pasar_a_persona: "", sobre_la_empresa: "", objeciones: "", pasar_al_responder: false } });
     expect(validarTono(form({ instrucciones: "x", pasar_al_responder: "on" }))).toMatchObject({ valor: { pasar_al_responder: true } });
     expect(validarTono(form({ criterios_comerciales: "x" })).ok).toBe(false);
     expect(validarEjemplo(form({ titulo: "Consulta por 2 ambientes", conversacion: "Interesado: Hola\r\nMindlin: ¡Hola!" }))).toEqual({
@@ -69,6 +69,16 @@ describe("validaciones del panel", () => {
     expect(validarRegla(form({ ...base, dias_sin_respuesta: "0" }), []).ok).toBe(false);
     expect(validarRegla(form({ ...base, proyecto: "no-existe" }), []).ok).toBe(false);
     expect(validarRegla(form({ ...base, mensaje: "Hola {{apellido}}" }), [])).toEqual({ ok: false, error: "Solo se pueden usar {{nombre}} y {{proyecto}} (no {{apellido}})." });
+  });
+});
+
+describe("reglas de etapas", () => {
+  it("un evento que existe, hacia una etapa a la que el asistente puede mandar (o a ninguna)", () => {
+    expect(validarReglaEtapa("respondio", "Seguimiento")).toEqual({ ok: true, valor: { evento: "respondio", etapa: "Seguimiento" } });
+    expect(validarReglaEtapa("respondio", "")).toEqual({ ok: true, valor: { evento: "respondio", etapa: null } });
+    expect(validarReglaEtapa("respondio", null)).toEqual({ ok: true, valor: { evento: "respondio", etapa: null } });
+    expect(validarReglaEtapa("respondio", "Vendido")).toMatchObject({ ok: false, error: expect.stringContaining("Reserva y Vendido los decide una persona") });
+    expect(validarReglaEtapa("inventado", "Seguimiento").ok).toBe(false);
   });
 });
 

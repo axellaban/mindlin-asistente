@@ -14,7 +14,7 @@ En «CRM Contactos» busca a la persona primero por el **ID** que ya quedó anot
 
 | Dato | Para qué |
 | --- | --- |
-| Etapa | Se la dice a la IA y elige con ella las reglas de seguimiento. |
+| Etapa | Se la dice a la IA, elige con ella las reglas de seguimiento y decide si corresponde moverla (etapas automáticas). |
 | Responsable | Se la dice a la IA y la pone en la nota cuando pasa la conversación al equipo. |
 | Notas | Para que la IA sepa lo que el equipo ya sabe de la persona (los primeros 600 caracteres). |
 | Para, ambientes, presupuesto, forma de pago, plazo | Para que la IA no vuelva a preguntar lo que el equipo ya sabe. |
@@ -25,14 +25,17 @@ Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto in
 
 ### Qué escribe
 
-**Solo agrega filas: nunca cambia ni borra una fila que cargó una persona.**
+**Nunca borra ni cambia los datos que cargó una persona.** Agrega filas y, de un contacto que ya existe, lo único que cambia es la **etapa** (ver abajo).
 
-- **Un contacto nuevo** en «CRM Contactos», si la persona no estaba: ID, proyecto, nombre (o «WhatsApp +54…» si no lo dijo), teléfono, tipo «Beneficiario al costo», origen **WhatsApp**, etapa **Nuevo**, presupuesto, forma de pago, plazo, para qué busca, ambientes, notas («Entró por WhatsApp (asistente).» y el resumen), responsable (`CRM_RESPONSABLE`, si está) y las fechas. Las opciones son las mismas listas del hub: si la IA entiende algo que no es una opción, deja la celda vacía.
+- **Un contacto nuevo** en «CRM Contactos», si la persona no estaba: ID, proyecto, nombre (o «WhatsApp +54…» si no lo dijo), teléfono, tipo «Beneficiario al costo», origen **WhatsApp**, etapa **Contacto inicial** (la del «primer contacto» en las etapas automáticas; sin reglas, **Nuevo**), presupuesto, forma de pago, plazo, para qué busca, ambientes, notas («Entró por WhatsApp (asistente).» y el resumen), responsable (`CRM_RESPONSABLE`, si está) y las fechas. Las opciones son las mismas listas del hub: si la IA entiende algo que no es una opción, deja la celda vacía.
 - **Actividad** en «CRM Actividad», tipo WhatsApp y usuario «Asistente WhatsApp»:
   - el alta («Alta por WhatsApp…»);
   - cada dato nuevo que cuenta la persona, si ya era contacto (solo lo que cambió: lo que ya estaba anotado no se repite);
   - cuando pasa la conversación al equipo, con el motivo y el resumen;
   - cada seguimiento automático.
+- **Cambio de etapa** (etapas automáticas, pedido de Mindlin del 11/11/2026): según lo que pasa en la conversación, mueve al lead de etapa. En la fila cambia solo «Etapa», «Entró a la etapa» y «Actualizado» (y, si lo descarta, «Motivo de pérdida» y el próximo paso, como el hub). En «CRM Actividad» lo anota como **«Cambio de etapa»** («Contacto inicial → Seguimiento. Automático: …»), igual que cuando lo mueve alguien desde el hub.
+  - Qué evento mueve a qué etapa se configura en el hub (Comercial → Asistente de WhatsApp → Etapas automáticas) o en `/panel/etapas`. El detalle y los cuidados están en `lib/etapas/reglas.ts`.
+  - Cuidados fijos: no toca **Reserva** ni **Vendido**; dentro del embudo solo avanza; a En pausa o Descartado solo desde Nuevo, Contacto inicial o Seguimiento; si alguien en pausa o descartado vuelve a escribir, lo reactiva. Antes de mover vuelve a leer la fila, por si alguien la cambió recién.
 
 ### Lo que tiene que cuidar Mindlin
 
@@ -40,6 +43,8 @@ Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto in
 - Si el hub cambia las etapas, las opciones o las columnas, hay que actualizar `lib/crm/planilla.ts` en este repo.
 
 ### Si se usa otra planilla
+
+**El hub y el asistente tienen que usar la misma.** Desde el 11/11 el hub puede guardar el CRM en una planilla comercial aparte (`CRM_CONTACTOS_SHEET_ID` en su proyecto de Vercel; si no está, usa `CRM_SHEET_ID` y después la de la cola). Si la cargan, `CRM_SHEET_ID` acá tiene que tener **el mismo ID**: si no, el asistente escribiría en una planilla que el hub ya no lee.
 
 Hoy `CRM_SHEET_ID` apunta a la planilla del CRM del hub. Si Mindlin quiere que el asistente use otra planilla de Google, hace falta:
 
@@ -52,7 +57,8 @@ Si quieren otras columnas u otras etapas, se cambia `lib/crm/planilla.ts` (y sus
 ### Límites de una planilla
 
 - Google permite una cantidad de pedidos por minuto. El asistente usa su propia cuenta de servicio y hace una o dos lecturas por mensaje y una por corrida de seguimientos: para el volumen de un piloto sobra.
-- El asistente solo agrega filas. Mover a alguien de etapa, asignar responsable o corregir datos lo hace el equipo, a mano o desde el hub.
+- El asistente agrega filas y mueve de etapa (con los cuidados de arriba). Asignar responsable, corregir datos, pasar a Reserva o a Vendido lo hace el equipo, a mano o desde el hub.
+- Si el hub pasa su CRM a la base de datos (`DATABASE_URL` en su proyecto), deja de leer esta planilla: el asistente tendría que escribir en el hub y no acá. Hoy el CRM del hub está en la planilla.
 
 ## Lo que queda en Chatwoot
 

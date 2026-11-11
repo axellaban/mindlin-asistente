@@ -1,13 +1,14 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
-import { lerma, otroProyecto, respuesta, tono } from "../../test/fixtures";
+import { aplicarCeldas, lerma, otroProyecto, respuesta, tono } from "../../test/fixtures";
 import type { Chatwoot } from "../chatwoot/api";
 import type { Accion, MensajeHistorial } from "../chatwoot/evento";
 import { COLUMNAS_CONTACTOS, crearCRM, type Hoja } from "../crm/planilla";
 import { almacenEnMemoria } from "../datos/memoria";
 import type { Proyecto } from "../datos/tipos";
 import type { Modelo } from "./agente";
-import { atender, conTranscripciones, laTomoUnaPersona, nombreDeAudio } from "./servicio";
+import { REGLAS_POR_DEFECTO } from "../etapas/reglas";
+import { atender, conTranscripciones, eventoDelMensaje, laTomoUnaPersona, nombreDeAudio } from "./servicio";
 
 type Responder = Extract<Accion, { tipo: "responder" }>;
 const AHORA = new Date("2026-11-07T21:05:00Z");
@@ -44,6 +45,9 @@ function hojaFalsa(contactos: string[][] = []) {
     async agregar(p, filas) {
       pestanias[p].push(...filas);
     },
+    async actualizar(celdas) {
+      aplicarCeldas(pestanias, celdas);
+    },
   };
   return { hoja, pestanias, fallar: (n: number) => (fallarLecturas = n) };
 }
@@ -67,6 +71,17 @@ function preparar({ proyectos = [lerma()], contactos = [] as string[][], histori
   const cw = chatwootFalso();
   const hoja = hojaFalsa(contactos);
   return { datos, cw, hoja, crm: crearCRM(hoja.hoja, { responsable: "Tadeo" }) };
+}
+
+/** Como preparar(), con las etapas automáticas de fábrica prendidas. `s(...)` arma los servicios con las respuestas de la IA para ese mensaje. */
+function conEtapas({ contactos = [] as string[][], historial = [] as MensajeHistorial[] } = {}) {
+  const datos = almacenEnMemoria({ proyectos: [lerma()], tono, etapas: REGLAS_POR_DEFECTO });
+  for (const m of historial) void datos.almacen.guardarMensaje(m);
+  const cw = chatwootFalso();
+  const hoja = hojaFalsa(contactos);
+  const crm = crearCRM(hoja.hoja, { responsable: "Tadeo" });
+  const s = (...respuestas: Anthropic.Beta.BetaMessage[]) => ({ ...sinEspera, almacen: datos.almacen, chatwoot: cw.chatwoot, modelo: modeloFalso(...respuestas).modelo, crm });
+  return { datos, cw, hoja, crm, s };
 }
 
 const msg = (id: number, rol: MensajeHistorial["rol"], texto: string, minuto = id): MensajeHistorial => ({
@@ -119,7 +134,7 @@ describe("atender un mensaje", () => {
     expect(pedido.system[0].text).toContain("Villa Crespo");
     expect(pedido.system[1].text).toContain("primera vez");
     expect(pedido.messages).toEqual([{ role: "user", content: "Hola, ¿tienen 2 ambientes?" }]);
-    expect(pedido.tools.map((t) => t.name)).toEqual(["registrar_interesado", "pasar_a_persona"]);
+    expect(pedido.tools.map((t) => t.name)).toEqual(["registrar_interesado", "pasar_a_persona", "marcar_senal"]);
     // La segunda vuelta lleva el pedido de herramienta y su resultado.
     expect(m.pedidos[1].messages.at(-1)).toMatchObject({ role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "Listo: quedó en el CRM como contacto nuevo." }] });
   });
@@ -303,6 +318,85 @@ describe("atender un mensaje", () => {
     expect(p.datos.conversaciones.get(7)?.interesado).toMatchObject({ zona: "La Plata", busca_desde: "3 meses" });
     expect(p.hoja.pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Notas")]).toBe("Entró por WhatsApp (asistente). Es de La Plata. Es de: La Plata. Busca hace: 3 meses.");
     expect(m.pedidos[0].tools[0].input_schema.required).toContain("zona");
+  });
+
+  it("etapas automáticas: el alta entra como «Contacto inicial», y cada respuesta mueve según las reglas", async () => {
+    const etapaDe = (p: ReturnType<typeof conEtapas>) => p.hoja.pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Etapa")];
+    const registrar = respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "", ambientes: "2", presupuesto_usd: "", forma_de_pago: "", plazo: "", resumen: "Busca 2." } }]);
+
+    // Primer mensaje: el asistente lo da de alta ya en «Contacto inicial» (no en «Nuevo»).
+    const p = conEtapas({ historial: [msg(1, "interesado", "Hola, busco 2 ambientes")] });
+    await atender(p.s(registrar, respuesta([{ type: "text", text: "¡Hola! ¿Para vivir o invertir?" }])), accion(1, "Hola, busco 2 ambientes"));
+    expect(etapaDe(p)).toBe("Contacto inicial");
+
+    // Responde: pasa a «Seguimiento», con el cambio anotado en la actividad y en el registro.
+    void p.datos.almacen.guardarMensaje(msg(2, "bot", "¡Hola! ¿Para vivir o invertir?"));
+    void p.datos.almacen.guardarMensaje(msg(3, "interesado", "Para invertir"));
+    await atender(p.s(respuesta([{ type: "text", text: "¡Bárbaro!" }])), accion(3, "Para invertir"));
+    expect(etapaDe(p)).toBe("Seguimiento");
+    expect(p.hoja.pestanias["CRM Actividad"].at(-1)!.slice(4, 7)).toEqual(["Cambio de etapa", "Contacto inicial → Seguimiento. Automático: la persona respondió y la conversación sigue", "Seguimiento"]);
+    expect(p.datos.registro.filter((r) => r.tipo === "etapa").map((r) => r.detalle)).toEqual(["Contacto inicial → Seguimiento: la persona respondió y la conversación sigue."]);
+
+    // Pide una visita: la IA lo avisa con marcar_senal y pasa a «Visita / reunión».
+    void p.datos.almacen.guardarMensaje(msg(4, "bot", "¡Bárbaro!"));
+    void p.datos.almacen.guardarMensaje(msg(5, "interesado", "¿Puedo ir a verlo el sábado?"));
+    const visita = respuesta([{ type: "tool_use", id: "t2", name: "marcar_senal", input: { senal: "quiere_visita", detalle: "quiere ir el sábado" } }]);
+    await atender(p.s(visita, respuesta([{ type: "text", text: "¡Claro! Te escribe alguien del equipo para coordinar." }])), accion(5, "¿Puedo ir a verlo el sábado?"));
+    expect(etapaDe(p)).toBe("Visita / reunión");
+
+    // Ya en visita, otro mensaje no lo hace retroceder a «Seguimiento».
+    void p.datos.almacen.guardarMensaje(msg(6, "bot", "¡Claro!"));
+    void p.datos.almacen.guardarMensaje(msg(7, "interesado", "Gracias"));
+    const antes = p.hoja.pestanias["CRM Actividad"].length;
+    await atender(p.s(respuesta([{ type: "text", text: "¡De nada!" }])), accion(7, "Gracias"));
+    expect(etapaDe(p)).toBe("Visita / reunión");
+    expect(p.hoja.pestanias["CRM Actividad"]).toHaveLength(antes);
+  });
+
+  it("etapas automáticas: un contacto que ya estaba en «Nuevo» avanza con la primera respuesta; «no me interesa» lo descarta y frena los seguimientos", async () => {
+    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+5491155550000", Etapa: "Nuevo" })[c as "ID"] ?? "");
+    const p = conEtapas({ contactos: [existente], historial: [msg(1, "interesado", "Hola")] });
+    await atender(p.s(respuesta([{ type: "text", text: "¡Hola!" }])), accion(1, "Hola"));
+    const fila = () => p.hoja.pestanias["CRM Contactos"][0];
+    expect(fila()[COLUMNAS_CONTACTOS.indexOf("Etapa")]).toBe("Contacto inicial");
+
+    void p.datos.almacen.guardarMensaje(msg(2, "bot", "¡Hola!"));
+    void p.datos.almacen.guardarMensaje(msg(3, "interesado", "No me interesa, no me escriban más"));
+    const no = respuesta([{ type: "tool_use", id: "t1", name: "marcar_senal", input: { senal: "no_le_interesa", detalle: "pidió que no le escriban" } }]);
+    await atender(p.s(no, respuesta([{ type: "text", text: "Entendido, ¡gracias por avisar!" }])), accion(3, "No me interesa, no me escriban más"));
+    expect([fila()[COLUMNAS_CONTACTOS.indexOf("Etapa")], fila()[COLUMNAS_CONTACTOS.indexOf("Motivo de pérdida")]]).toEqual(["Descartado", "Otro"]);
+    expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+  });
+
+  it("etapas automáticas: a quien el equipo tiene en Negociación o Reserva no lo toca; sin reglas, tampoco mueve a nadie", async () => {
+    for (const etapa of ["Negociación", "Reserva"]) {
+      const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+5491155550000", Etapa: etapa })[c as "ID"] ?? "");
+      const p = conEtapas({ contactos: [existente], historial: [msg(1, "interesado", "Hola"), msg(2, "bot", "¡Hola!"), msg(3, "interesado", "¿Y la cochera?")] });
+      await atender(p.s(respuesta([{ type: "text", text: "Te lo confirma el equipo." }])), accion(3, "¿Y la cochera?"));
+      expect(p.hoja.pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Etapa")]).toBe(etapa);
+      expect(p.hoja.pestanias["CRM Actividad"]).toHaveLength(0);
+    }
+    // Sin reglas cargadas (como antes de este cambio): el alta entra en Nuevo y nadie se mueve.
+    const sinReglas = preparar({ historial: [msg(1, "interesado", "Hola")] });
+    const m = modeloFalso(
+      respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "", ambientes: "2", presupuesto_usd: "", forma_de_pago: "", plazo: "", resumen: "x" } }]),
+      respuesta([{ type: "text", text: "¡Hola!" }]),
+    );
+    await atender({ ...sinEspera, almacen: sinReglas.datos.almacen, chatwoot: sinReglas.cw.chatwoot, modelo: m.modelo, crm: sinReglas.crm }, accion(1, "Hola"));
+    expect(sinReglas.hoja.pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Etapa")]).toBe("Nuevo");
+  });
+
+  it("reconoce si el mensaje es el primero, la respuesta a un seguimiento o una respuesta más", () => {
+    const h = (...roles: [string, string][]) => roles.map(([rol, fecha]) => ({ rol, fecha }));
+    expect(eventoDelMensaje(h(["interesado", "2026-11-07T21:00:00Z"]), null)).toBe("primer_contacto");
+    expect(eventoDelMensaje(h(["interesado", "2026-11-07T21:00:00Z"], ["bot", "2026-11-07T21:01:00Z"], ["interesado", "2026-11-07T21:05:00Z"]), null)).toBe("respondio");
+    // El seguimiento se anotó unos segundos antes de la hora que le puso Chatwoot al mensaje.
+    const conSeguimiento = h(["interesado", "2026-11-05T21:00:00Z"], ["bot", "2026-11-05T21:01:00Z"], ["bot", "2026-11-07T14:00:09Z"], ["interesado", "2026-11-07T15:00:00Z"], ["interesado", "2026-11-07T15:00:30Z"]);
+    expect(eventoDelMensaje(conSeguimiento, "2026-11-07T14:00:00.000Z")).toBe("respondio_seguimiento");
+    // Si después del seguimiento ya hubo otra respuesta del asistente, es una respuesta más.
+    expect(eventoDelMensaje([...conSeguimiento, { rol: "bot", fecha: "2026-11-07T15:01:00Z" }, { rol: "interesado", fecha: "2026-11-07T15:02:00Z" }], "2026-11-07T14:00:00.000Z")).toBe("respondio");
+    // Lo último lo escribió una persona del equipo: no fue un seguimiento automático.
+    expect(eventoDelMensaje(h(["interesado", "2026-11-07T13:00:00Z"], ["persona", "2026-11-07T14:00:05Z"], ["interesado", "2026-11-07T15:00:00Z"]), "2026-11-07T14:00:00.000Z")).toBe("respondio");
   });
 
   it("sin CRM conectado, igual contesta", async () => {

@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { lerma } from "../../test/fixtures";
+import { aplicarCeldas, lerma } from "../../test/fixtures";
 import type { Chatwoot } from "../chatwoot/api";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import { COLUMNAS_CONTACTOS, crearCRM, type Hoja } from "../crm/planilla";
 import { almacenEnMemoria } from "../datos/memoria";
 import type { ReglaSeguimiento } from "../datos/tipos";
+import { REGLAS_POR_DEFECTO, type ReglasEtapa } from "../etapas/reglas";
 import { correrSeguimientos } from "./correr";
 import { elegirRegla, enHorario, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
 
@@ -70,8 +71,8 @@ describe("reglas de seguimiento", () => {
   });
 });
 
-function preparar({ reglas = [regla()], contactos = [] as string[][] } = {}) {
-  const datos = almacenEnMemoria({ proyectos: [lerma()], reglas });
+function preparar({ reglas = [regla()], contactos = [] as string[][], etapas = {} as ReglasEtapa } = {}) {
+  const datos = almacenEnMemoria({ proyectos: [lerma()], reglas, etapas });
   const hechos: string[] = [];
   let falla = false;
   const chatwoot: Chatwoot = {
@@ -96,6 +97,9 @@ function preparar({ reglas = [regla()], contactos = [] as string[][] } = {}) {
     async agregar(p, filas) {
       pestanias[p].push(...filas);
     },
+    async actualizar(celdas) {
+      aplicarCeldas(pestanias, celdas);
+    },
   };
   const crm = crearCRM(hoja);
   /** Una conversación del bot: el interesado escribió hace `dias` días y el bot le contestó un minuto después. */
@@ -115,7 +119,7 @@ describe("la corrida de seguimientos", () => {
   it("le escribe a quien dejó de responder, por Chatwoot, y lo anota para medir y en el CRM", async () => {
     const p = preparar({ contactos: [filaCRM({ ID: "c1", Nombre: "Ana María Prueba", Teléfono: "+54 9 11 5555-0000", Etapa: "Nuevo" })] });
     await p.charla(7, 3);
-    expect(await p.correr()).toEqual({ estado: "listo", revisadas: 1, enviados: 1, errores: 0 });
+    expect(await p.correr()).toEqual({ estado: "listo", revisadas: 1, enviados: 1, errores: 0, movidos: 0 });
     expect(p.hechos).toEqual(["enviar 7: Hola Ana, ¿pudiste ver lo de Lerma 439?"]);
     expect(p.datos.enviados).toMatchObject([{ conversacion: 7, regla: 1, etapa: "Nuevo", paso: 1, version: 1, mensaje_id: 907, respondio: null }]);
     expect(p.datos.registro.map((r) => r.tipo)).toEqual(["seguimiento"]);
@@ -130,6 +134,29 @@ describe("la corrida de seguimientos", () => {
     await p.datos.almacen.guardarConversacion({ chatwoot_id: 7, interesado: { nombre: "beatriz gómez" } });
     await p.correr();
     expect(p.hechos).toEqual(["enviar 7: Hola Beatriz, ¿pudiste ver lo de Lerma 439?"]);
+  });
+
+  it("etapas automáticas: si no responde a ningún seguimiento pasa a «En pausa»; y un seguimiento puede mover de etapa", async () => {
+    const etapa = (p: ReturnType<typeof preparar>) => p.pestanias["CRM Contactos"][0][COLUMNAS_CONTACTOS.indexOf("Etapa")];
+    const p = preparar({ contactos: [filaCRM({ ID: "c1", Nombre: "Ana", Teléfono: "+5491155550000", Etapa: "Nuevo" })], etapas: REGLAS_POR_DEFECTO });
+    await p.charla(7, 3);
+    // Sale el único seguimiento (de fábrica, mandar un seguimiento no mueve a nadie).
+    expect(await p.correr()).toMatchObject({ enviados: 1, movidos: 0 });
+    expect(etapa(p)).toBe("Nuevo");
+    // A los 15 minutos todavía no pasó un día desde el seguimiento: no se mueve.
+    expect(await p.correr(new Date(AHORA.getTime() + 15 * 60_000))).toMatchObject({ enviados: 0, movidos: 0 });
+    // Pasó más de un día sin respuesta y no hay otro paso: «En pausa», anotado en la actividad. Una sola vez.
+    const despues = new Date(AHORA.getTime() + 26 * 3600_000);
+    expect(await p.correr(despues)).toMatchObject({ enviados: 0, movidos: 1 });
+    expect(etapa(p)).toBe("En pausa");
+    expect(p.pestanias["CRM Actividad"].at(-1)!.slice(4, 6)).toEqual(["Cambio de etapa", "Nuevo → En pausa. Automático: no respondió a ningún seguimiento"]);
+    expect(await p.correr(new Date(despues.getTime() + 15 * 60_000))).toMatchObject({ movidos: 0 });
+
+    // Como en Kommo: que el seguimiento lo mueva de etapa al salir.
+    const kommo = preparar({ contactos: [filaCRM({ ID: "c1", Nombre: "Ana", Teléfono: "+5491155550000", Etapa: "Nuevo" })], etapas: { seguimiento_enviado: "Seguimiento" } });
+    await kommo.charla(7, 3);
+    expect(await kommo.correr()).toMatchObject({ enviados: 1, movidos: 1 });
+    expect(etapa(kommo)).toBe("Seguimiento");
   });
 
   it("no escribe antes de los días de la regla, fuera de horario ni sin reglas", async () => {
