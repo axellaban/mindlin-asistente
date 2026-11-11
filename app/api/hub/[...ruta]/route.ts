@@ -23,7 +23,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
   }
   const { almacen, modelo } = conexionesDesdeEnv();
   const r = await manejarHub(
-    { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: req.headers.get("x-hub-usuario") },
+    { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: nombreDelEncabezado(req.headers.get("x-hub-usuario")) },
     {
       clave: process.env.HUB_CLAVE,
       datos: datos(),
@@ -39,6 +39,16 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
     },
   );
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });
+}
+
+/** Los encabezados no llevan acentos: el hub manda el nombre codificado («Jos%C3%A9»). Si viene sin codificar, se usa tal cual. */
+function nombreDelEncabezado(valor: string | null): string | null {
+  if (!valor) return null;
+  try {
+    return decodeURIComponent(valor);
+  } catch {
+    return valor;
+  }
 }
 
 export { atender as GET, atender as PUT, atender as POST, atender as PATCH, atender as DELETE };
