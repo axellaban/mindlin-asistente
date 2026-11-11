@@ -44,6 +44,8 @@ Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto in
 
 ### Si se usa otra planilla
 
+**El hub y el asistente tienen que usar la misma.** Desde el 11/11 el hub puede guardar el CRM en una planilla comercial aparte (`CRM_CONTACTOS_SHEET_ID` en su proyecto de Vercel; si no está, usa `CRM_SHEET_ID` y después la de la cola). Si la cargan, `CRM_SHEET_ID` acá tiene que tener **el mismo ID**: si no, el asistente escribiría en una planilla que el hub ya no lee.
+
 Hoy `CRM_SHEET_ID` apunta a la planilla del CRM del hub. Si Mindlin quiere que el asistente use otra planilla de Google, hace falta:
 
 1. Que tenga las pestañas **«CRM Contactos»** y **«CRM Actividad»**, con las mismas columnas y en el mismo orden (están en `lib/crm/planilla.ts`: `COLUMNAS_CONTACTOS` y `COLUMNAS_ACTIVIDAD`), con los títulos en la primera fila.
