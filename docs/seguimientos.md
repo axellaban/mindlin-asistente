@@ -10,7 +10,7 @@ Cada regla dice: **«si la persona está en tal etapa del CRM y pasan tantos dí
 | --- | --- |
 | Etapa | La del CRM del hub: Nuevo, Contacto inicial, Seguimiento, Visita / reunión, Negociación, Reserva o En pausa. Sin contacto en el CRM, cuenta como Nuevo. |
 | Paso | 1 para el primer seguimiento, 2 para el segundo… hasta 5. |
-| Días sin respuesta | Desde lo último que le mandamos (el bot, el equipo o el seguimiento anterior). |
+| Días sin respuesta | Desde lo último que le mandamos (el bot, el equipo o el seguimiento anterior). Con una corrida por día, sale en la corrida más cercana a cuando se cumplen (ver «Cómo corre»). |
 | Proyecto | Vacío: vale para todos. Si hay una regla para el proyecto de la conversación, va esa. |
 | Mensaje | Puede usar `{{nombre}}` (el nombre de pila) y `{{proyecto}}`. Sin nombre, «Hola {{nombre}}, …» queda «Hola, …». |
 | Versión y estado | `activa`, `a_prueba` o `archivada`. Ver «Comparar versiones». |
@@ -40,5 +40,7 @@ Para probar dos mensajes para la misma etapa y paso, se carga uno como `activa` 
 
 - `vercel.json` programa `GET /api/cron/seguimientos` una vez por día, a las 13:00 UTC (las 10 de la mañana en Buenos Aires, dentro de la franja de 9 a 20). Vercel manda `Authorization: Bearer <CRON_SECRET>`: sin esa variable cargada, la ruta no hace nada.
 - **Por qué una vez por día y no cada 15 minutos:** el 13/11 Axel movió el proyecto a la cuenta `mindlindevelopers.ia`, que es plan Hobby, y Hobby solo admite crons diarios. Las reglas se miden en días, así que una corrida diaria las respeta igual; lo que se pierde es puntualidad dentro del día. Si el proyecto vuelve a un equipo con plan Pro, se puede volver a `*/15 * * * *`.
+- **Margen de media corrida** (13/11). Una regla vence medio día antes (`MARGEN_MS` en `lib/seguimientos/reglas.ts`). Sin eso, con una sola corrida por día, una regla de «1 día» para alguien a quien le escribimos ayer a las 11 no salía hoy a las 10 (iban 23 horas) sino mañana. Además, en Hobby, Vercel corre el cron en cualquier minuto de esa hora, así que entre dos corridas puede haber un poco menos de 24 horas. Con el margen, «1 día» quiere decir «en la corrida de mañana a las 10» para todo lo que se mandó hasta las 22.
+- **Cada cuánto corre está en un solo lugar:** `CORRIDA` en `lib/seguimientos/reglas.ts` (el margen sale de ahí, y el panel y el hub muestran su texto). Una prueba controla que coincida con `vercel.json`: si se vuelve a cada 15 minutos, se cambian los dos (`cadaMs: 15 * 60_000`, `texto: "cada 15 minutos"`).
 - La lógica está en `lib/seguimientos/reglas.ts` (puro: horario, qué regla toca, el texto) y `lib/seguimientos/correr.ts` (la corrida). Pruebas en `lib/seguimientos/seguimientos.test.ts` y, contra Postgres, en `lib/datos/postgres.test.ts`.
 - La base (`db/migraciones/202611100003_seguimientos.sql`): cada mensaje actualiza en `conversaciones` cuándo escribió cada uno, el paso y si la tomó una persona; `seguimientos_enviados` guarda cada seguimiento con su regla, su versión y si respondió.

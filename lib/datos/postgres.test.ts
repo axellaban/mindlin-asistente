@@ -143,8 +143,11 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     expect(await a.reclamarSeguimiento({ conversacion: 40, pasoAnterior: 0, regla, ahora })).toBe(true);
     expect(await a.reclamarSeguimiento({ conversacion: 40, pasoAnterior: 0, regla, ahora })).toBe(false);
     await a.anotarSeguimiento({ conversacion: 40, regla, etapa: "Nuevo", paso: 1, version: 1, texto: "Hola Ana", mensaje_id: 402, enviado: ahora });
-    // Recién se mandó: hasta dentro de un día no vuelve a ser candidata.
+    // Recién se mandó: hasta la corrida siguiente (con el margen de media corrida) no vuelve a ser candidata.
     expect(await a.candidatosSeguimiento(ahora)).toEqual([]);
+    const despues = (horas: number) => new Date(Date.parse(ahora) + horas * 3600_000).toISOString();
+    expect(await a.candidatosSeguimiento(despues(11))).toEqual([]);
+    expect((await a.candidatosSeguimiento(despues(13)))[0]).toMatchObject({ chatwoot_id: 40, paso_seguimiento: 1 });
     expect((await a.candidatosSeguimiento("2026-11-11T14:01:00.000Z"))[0]).toMatchObject({ chatwoot_id: 40, paso_seguimiento: 1, ultima_salida: ahora });
 
     // Responde: queda anotado en el seguimiento y el paso vuelve a cero.

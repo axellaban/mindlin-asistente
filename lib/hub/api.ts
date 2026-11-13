@@ -12,16 +12,17 @@
  */
 
 import { estadoInicial, type EstadoPrueba, type RespuestaPrueba } from "../agente/prueba-comun";
-import { HORARIO_EQUIPO } from "../agente/contexto";
+import { HORARIO_EQUIPO_DE_FABRICA, NOMBRES_DIAS } from "../agente/horario";
 import { bearerCorrecto } from "../cron";
 import type { DatosPanel } from "../panel/datos";
 import { queFalta } from "../panel/listo";
 import { limpiarNombre } from "../panel/sesion";
 import { CAMPOS_FICHA, ESTADOS_REGLA, ETAPAS_SEGUIMIENTO, MAX_CAMPO_FICHA, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "../panel/validar";
 import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
-import { HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
+import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
 import type { ReglaSeguimiento } from "../datos/tipos";
+import type { Chequeo } from "../chequeo";
 
 export interface PedidoHub {
   metodo: string;
@@ -41,6 +42,8 @@ export interface DependenciasHub {
   ia?: unknown;
   /** Probar el asistente (lib/agente/prueba.ts). Null si falta la clave de la IA. */
   probar?: ((estado: unknown, texto: string) => Promise<RespuestaPrueba>) | null;
+  /** Probar las conexiones de verdad (lib/chequeo.ts). */
+  chequear?: (() => Promise<Chequeo>) | null;
 }
 
 export interface RespuestaHub {
@@ -65,6 +68,16 @@ function formulario(o: Objeto): Pick<FormData, "get"> {
   };
 }
 
+/** El horario del equipo viaja como objeto; el formulario lo lee en campos sueltos, como el panel. */
+function camposHorario(h: unknown): Objeto {
+  if (!esObjeto(h)) return {};
+  const campos: Objeto = {};
+  if (h.dias !== undefined) campos.equipo_dias = Array.isArray(h.dias) ? h.dias : String(h.dias);
+  if (h.desde !== undefined) campos.equipo_desde = h.desde;
+  if (h.hasta !== undefined) campos.equipo_hasta = h.hasta;
+  return campos;
+}
+
 const idDe = (t: string | undefined) => {
   const n = Number(t);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -81,8 +94,11 @@ export const OPCIONES = {
   estados_regla: ESTADOS_REGLA,
   pasos_maximos: MAX_PASOS,
   variables_del_mensaje: VARIABLES,
-  horario_seguimientos: { ...HORARIO, tope_por_corrida: TOPE_POR_CORRIDA },
-  horario_equipo: { dias: HORARIO_EQUIPO.dias, desde: HORARIO_EQUIPO.desde, hasta: HORARIO_EQUIPO.hasta },
+  /** `corre`: cada cuánto sale la tanda de seguimientos («una vez por día, a las 10»). */
+  horario_seguimientos: { ...HORARIO, tope_por_corrida: TOPE_POR_CORRIDA, corre: CORRIDA.texto },
+  /** El horario del equipo de fábrica (el que vale está en `tono.horario_equipo`) y los nombres de los días: 0 es domingo. */
+  horario_equipo: HORARIO_EQUIPO_DE_FABRICA,
+  dias_semana: NOMBRES_DIAS,
 } as const;
 
 export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<RespuestaHub> {
@@ -125,7 +141,10 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
 
       case "tono": {
         if (metodo !== "PUT" || id) return noSePuede();
-        const r = validarTono(formulario({ ...(await datos.tono()), ...cuerpo }));
+        if (cuerpo.horario_equipo !== undefined && !esObjeto(cuerpo.horario_equipo)) return error(400, "«horario_equipo» va como { dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20 }.");
+        const actual = await datos.tono();
+        // Lo que no viene queda como estaba, también dentro del horario (se puede mandar solo «hasta»).
+        const r = validarTono(formulario({ ...actual, ...camposHorario(actual.horario_equipo), ...cuerpo, ...camposHorario(cuerpo.horario_equipo) }));
         if (!r.ok) return error(400, r.error);
         await datos.guardarTono(r.valor, por);
         return { status: 200, json: { tono: await datos.tono() } };
@@ -189,6 +208,12 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
         if (!texto) return error(400, "Mandá «texto»: el mensaje del interesado.");
         const estado: EstadoPrueba | unknown = cuerpo.estado ?? estadoInicial(typeof cuerpo.proyecto === "string" ? cuerpo.proyecto : null);
         return { status: 200, json: { ...(await d.probar(estado, texto)) } };
+      }
+
+      case "chequeo": {
+        if (metodo !== "GET" || id) return noSePuede();
+        if (!d.chequear) return error(503, "El chequeo de conexiones no está disponible.");
+        return { status: 200, json: { chequeo: await d.chequear() } };
       }
 
       default:

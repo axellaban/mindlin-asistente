@@ -29,7 +29,7 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
 ```json
 {
   "proyectos": [{ "id": "lerma-439", "nombre": "Lerma 439", "activo": true, "palabras_clave": ["lerma"], "presentacion": "…", "precios": "…", "notas_internas": "…" }],
-  "tono": { "instrucciones": "…", "criterios_comerciales": "…", "cuando_pasar_a_persona": "…", "pasar_al_responder": false, "actualizado": "2026-11-10T14:00:00.000Z", "actualizado_por": "Tadeo" },
+  "tono": { "instrucciones": "…", "criterios_comerciales": "…", "cuando_pasar_a_persona": "…", "pasar_al_responder": false, "horario_equipo": { "dias": [1, 2, 3, 4, 5], "desde": 9, "hasta": 20 }, "actualizado": "2026-11-10T14:00:00.000Z", "actualizado_por": "Tadeo" },
   "ejemplos": [{ "id": 1, "titulo": "…", "conversacion": "…", "activo": true }],
   "reglas": [{ "id": 3, "etapa": "Nuevo", "paso": 1, "dias_sin_respuesta": 1, "version": 1, "estado": "activa", "proyecto": "lerma-439", "mensaje": "Hola {{nombre}}…", "enviados": 12, "respondieron": 5 }],
   "etapas": [{ "evento": "respondio", "titulo": "La persona respondió y la conversación sigue", "etapa": "Seguimiento", "actualizado": null, "actualizado_por": null, "movidos_30_dias": 4 }],
@@ -45,8 +45,9 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
     "estados_regla": ["activa", "a_prueba", "archivada"],
     "pasos_maximos": 5,
     "variables_del_mensaje": ["{{nombre}}", "{{proyecto}}"],
-    "horario_seguimientos": { "desde": 9, "hasta": 20, "tope_por_corrida": 20 },
-    "horario_equipo": { "dias": [1, 2, 3, 4, 5], "desde": 9, "hasta": 20 }
+    "horario_seguimientos": { "desde": 9, "hasta": 20, "tope_por_corrida": 20, "corre": "una vez por día, a las 10" },
+    "horario_equipo": { "dias": [1, 2, 3, 4, 5], "desde": 9, "hasta": 20 },
+    "dias_semana": ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
   }
 }
 ```
@@ -54,6 +55,8 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
 - `opciones` sirve para armar los formularios sin copiar las reglas: qué campos tiene una ficha y con qué título, qué etapas pueden llevar seguimiento, etcétera.
 - `falta` es la misma lista que muestra el Resumen del panel («para que atienda bien, falta…»).
 - En cada regla, `enviados` y `respondieron` dicen cuántos seguimientos salieron con esa regla y cuántos tuvieron respuesta: con eso se comparan versiones.
+- `opciones.horario_seguimientos.corre` dice cada cuánto sale la tanda de seguimientos, para mostrarlo tal cual (hoy, «una vez por día, a las 10»; ver [`seguimientos.md`](seguimientos.md)).
+- `tono.horario_equipo` es el horario del equipo comercial que vale hoy; `opciones.horario_equipo`, el de fábrica. Días: 0 es domingo … 6 sábado (`opciones.dias_semana`); horas enteras de Buenos Aires, de `desde` a `hasta`.
 
 ## Cambiar
 
@@ -63,7 +66,8 @@ En las fichas y en el tono **solo cambia lo que se manda**: lo demás queda como
 | --- | --- | --- |
 | Crear o cambiar una ficha | `PUT /api/hub/proyectos/{id}` | Los campos de la ficha que cambian: `nombre`, `activo`, `palabras_clave` (lista), `presentacion`, `descripcion`, `ubicacion`, `etapa_obra`, `entrega`, `tipologias`, `precios`, `financiacion`, `disponibilidad`, `amenities`, `preguntas_frecuentes`, `links`, `notas_internas`. Para uno nuevo, `nombre` es obligatorio. El `id` va en minúsculas, números y guiones (`via-53`). |
 | Apagar o prender un proyecto | `PUT /api/hub/proyectos/{id}` | `{ "activo": false }` |
-| Cambiar el tono y los criterios | `PUT /api/hub/tono` | `instrucciones`, `criterios_comerciales`, `cuando_pasar_a_persona`, `sobre_la_empresa`, `objeciones`, `pasar_al_responder` (true o false) |
+| Cambiar el tono y los criterios | `PUT /api/hub/tono` | `instrucciones`, `criterios_comerciales`, `cuando_pasar_a_persona`, `sobre_la_empresa`, `objeciones`, `pasar_al_responder` (true o false), `horario_equipo` |
+| Cambiar el horario del equipo | `PUT /api/hub/tono` | `{ "horario_equipo": { "dias": [1, 2, 3, 4, 5, 6], "desde": 9, "hasta": 19 } }`. Se puede mandar solo una parte (`{ "horario_equipo": { "hasta": 19 } }`): lo demás queda. Al menos un día, y `desde` antes que `hasta` (de 0 a 24). |
 | A qué etapa mueve un evento (etapas automáticas) | `PUT /api/hub/etapas/{evento}` | `{ "etapa": "Seguimiento" }`, o `{ "etapa": null }` para que no mueva. Solo a las de `opciones.etapas_destino`: Reserva y Vendido los decide una persona. |
 | Agregar un ejemplo | `POST /api/hub/ejemplos` | `{ "titulo": "…", "conversacion": "…" }` |
 | Usar o dejar de usar un ejemplo | `PATCH /api/hub/ejemplos/{id}` | `{ "activo": false }` |
@@ -86,6 +90,20 @@ Para chatear con el asistente desde el hub como si fueras un interesado. Usa el 
 - Mensajes siguientes: mandar de vuelta el `estado` que vino, con el `texto` nuevo: `{ "estado": {…}, "texto": "Para invertir" }`. La charla la guarda el hub; el asistente no guarda nada de las pruebas.
 - `acciones` es lo que haría además de contestar (anotar en el CRM, elegir un proyecto, pasar al equipo). `pasada: true` quiere decir que en una conversación real ya la habría pasado al equipo.
 - Cada mensaje usa la IA de verdad: tiene costo y puede tardar unos segundos.
+
+## Probar las conexiones: `GET /api/hub/chequeo`
+
+Prueba de verdad cada pieza (no solo que las variables existan): Chatwoot con el token del Agent Bot, la base, la planilla del CRM y sus columnas, y la IA con un pedido chico. Muestra también lo último que pasó (el último mensaje que llegó, la última respuesta y si hubo un error después), si el asistente está pausado y si hay seguimientos en uso. No manda nada a nadie ni cambia nada.
+
+```json
+{ "chequeo": { "ok": false, "fecha": "2026-11-13T18:30:00.000Z", "pruebas": [
+  { "que": "Chatwoot", "estado": "falla", "detalle": "Chatwoot 4.19.1 en https://chat… no acepta el token del Agent Bot (CHATWOOT_BOT_TOKEN): puede ser el de un Chatwoot anterior." },
+  { "que": "IA", "estado": "ok", "detalle": "Responde Claude (claude-opus-5-5), en 1,2 segundos." }
+] } }
+```
+
+- `estado`: `ok` (anda), `aviso` (revisar: por ejemplo, el asistente está pausado o todavía no llegó ningún mensaje) o `falla` (no anda). `ok` es `true` si ninguna falla.
+- Tarda unos segundos (espera a la IA) y cada vez cuesta una fracción de centavo: llamarlo solo cuando alguien toca el botón.
 
 ## Números: `GET /api/hub/resumen`
 

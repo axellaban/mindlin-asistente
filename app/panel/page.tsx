@@ -51,7 +51,8 @@ export default async function Resumen({ searchParams }: { searchParams: Avisos }
           ))}
         </ul>
         <p className="nota">
-          Antes de abrir la línea (y cada vez que cambies una ficha o el tono), <Link href="/panel/probar">probá el asistente</Link> como si fueras un interesado.
+          Antes de abrir la línea (y cada vez que cambies una ficha o el tono), <Link href="/panel/probar">probá el asistente</Link> como si fueras un interesado. Si no contesta por WhatsApp,{" "}
+          <Link href="/panel/chequeo">probá las conexiones</Link>: dice qué pieza no anda.
         </p>
       </section>
       <section className={`estado ${estado.pausado ? "pausado" : ""}`} aria-labelledby="estado-titulo">

@@ -9,6 +9,7 @@ const SECCIONES = [
   ["/panel/seguimientos", "Seguimientos"],
   ["/panel/etapas", "Etapas"],
   ["/panel/probar", "Probar"],
+  ["/panel/chequeo", "Conexiones"],
 ] as const;
 
 export type Avisos = Promise<{ ok?: string; error?: string }>;

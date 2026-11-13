@@ -1,5 +1,6 @@
 import pg from "pg";
-import { MAX_PASOS } from "../seguimientos/reglas";
+import { limiteCandidatos, MAX_PASOS } from "../seguimientos/reglas";
+import { HORARIO_EQUIPO_DE_FABRICA, horarioValido } from "../agente/horario";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
 import type { Almacen, CandidatoSeguimiento, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, Tono } from "./tipos";
@@ -117,8 +118,10 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rows as Proyecto[];
     },
     async tono() {
-      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones from tono where id = 1");
-      return (rows[0] as Tono | undefined) ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, sobre_la_empresa: "", objeciones: "" };
+      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, horario_equipo from tono where id = 1");
+      const t = rows[0] as (Tono & { horario_equipo: unknown }) | undefined;
+      if (!t) return { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, sobre_la_empresa: "", objeciones: "", horario_equipo: HORARIO_EQUIPO_DE_FABRICA };
+      return { ...t, horario_equipo: horarioValido(t.horario_equipo) ?? HORARIO_EQUIPO_DE_FABRICA };
     },
     async ejemplos() {
       const { rows } = await db.query("select titulo, conversacion from ejemplos where activo order by id");
@@ -148,11 +151,11 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
            where not sin_seguimientos and ultimo_mensaje_interesado is not null and paso_seguimiento <= $1
          ) c
          where ultima_salida > ultimo_mensaje_interesado
-           and ultima_salida < $2::timestamptz - interval '1 day'
+           and ultima_salida < $3::timestamptz
            and ultima_salida > $2::timestamptz - interval '120 days'
          order by ultima_salida
          limit 500`,
-        [MAX_PASOS, ahora],
+        [MAX_PASOS, ahora, limiteCandidatos(new Date(ahora))],
       );
       return rows.map((r) => ({
         ...r,

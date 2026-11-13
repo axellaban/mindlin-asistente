@@ -185,7 +185,7 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     const resultado: Resultado = await responder({
       modelo: s.modelo,
       instrucciones: instrucciones({ tono, proyectos, proyecto: proyecto(proyectoId), ejemplos }),
-      situacion: situacion({ ahora: ahora(), nombre: nombre ?? "", telefono: telefono ?? "", crm: contactoCRM, anotado }),
+      situacion: situacion({ ahora: ahora(), nombre: nombre ?? "", telefono: telefono ?? "", crm: contactoCRM, anotado, horario: tono.horario_equipo }),
       historial,
       proyectos: proyectos.map((p) => p.id),
       herramientas,

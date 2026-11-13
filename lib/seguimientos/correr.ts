@@ -75,8 +75,8 @@ export async function correrSeguimientos({
     const paso = c.paso_seguimiento + 1;
     const regla = elegirRegla(reglas, { etapa, paso, proyecto: c.proyecto, conversacion: c.chatwoot_id });
     if (!regla) {
-      // Ya recibió seguimientos, no hay un paso más y pasó al menos un día sin respuesta
-      // (los candidatos son los de más de un día): «no respondió a ningún seguimiento».
+      // Ya recibió seguimientos, no hay un paso más y desde el último pasó al menos una corrida
+      // (los candidatos son los callados desde la corrida anterior): «no respondió a ningún seguimiento».
       if (c.paso_seguimiento >= 1 && (await moverEtapa({ crm, almacen, conversacion: c.chatwoot_id, contacto, eventos: ["sin_respuesta"], reglas: reglasEtapa, ahora: ahora.toISOString() }))) {
         resultado.movidos++;
       }

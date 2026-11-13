@@ -3,7 +3,7 @@ import { estadoDesdeNavegador, MAX_LARGO_PRUEBA, probar } from "@/lib/agente/pru
 import { describirIA } from "@/lib/agente/proveedor";
 import { estadoConfig } from "@/lib/config";
 import { manejarHub } from "@/lib/hub/api";
-import { datos } from "@/lib/panel/servidor";
+import { chequear, datos } from "@/lib/panel/servidor";
 import { conexionesDesdeEnv } from "@/lib/servicios";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +36,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
               return probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado: estadoDesdeNavegador(estado), texto: texto.slice(0, MAX_LARGO_PRUEBA) });
             }
           : null,
+      chequear: () => chequear(),
     },
   );
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });

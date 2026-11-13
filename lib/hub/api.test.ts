@@ -24,6 +24,17 @@ describe("API del hub: quién entra", () => {
   });
 });
 
+describe("API del hub: probar las conexiones", () => {
+  it("GET /chequeo devuelve el resultado; solo con GET y con la clave", async () => {
+    const chequeo = { ok: false, fecha: "2026-11-13T18:30:00.000Z", pruebas: [{ que: "Chatwoot", estado: "falla" as const, detalle: "No se llega." }] };
+    const datos = {} as DependenciasHub["datos"];
+    expect(await manejarHub(pedido("GET", "chequeo"), { clave: CLAVE, datos, chequear: async () => chequeo })).toEqual({ status: 200, json: { chequeo } });
+    expect((await manejarHub(pedido("POST", "chequeo"), { clave: CLAVE, datos, chequear: async () => chequeo })).status).toBe(405);
+    expect((await manejarHub(pedido("GET", "chequeo", null, { autorizacion: null }), { clave: CLAVE, datos, chequear: async () => chequeo })).status).toBe(401);
+    expect((await manejarHub(pedido("GET", "chequeo"), { clave: CLAVE, datos })).status).toBe(503);
+  });
+});
+
 /** Contra un Postgres de verdad, en su propio esquema (como lib/panel/datos.test.ts). */
 const url = process.env.PRUEBA_DATABASE_URL;
 const ESQUEMA = "prueba_hub";
@@ -81,6 +92,23 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect(tono.pasar_al_responder).toBe(true);
     expect(tono.instrucciones).toContain("Mindlin"); // lo que no vino, quedó
     expect((await hub("PUT", "tono", { instrucciones: "" })).status).toBe(400);
+  });
+
+  it("el horario del equipo: se lee con el tono y se cambia entero o de a una parte", async () => {
+    const j = (await hub("GET", "config")).json as { tono: { horario_equipo: unknown }; opciones: { horario_equipo: unknown; dias_semana: string[]; horario_seguimientos: { corre: string } } };
+    expect(j.tono.horario_equipo).toEqual({ dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20 });
+    expect(j.opciones.dias_semana[0]).toBe("domingo");
+    expect(j.opciones.horario_seguimientos.corre).toBe("una vez por día, a las 10");
+    const r = await hub("PUT", "tono", { horario_equipo: { dias: [1, 2, 3, 4, 5, 6], desde: 10 } });
+    expect(r).toMatchObject({ status: 200, json: { tono: { horario_equipo: { dias: [1, 2, 3, 4, 5, 6], desde: 10, hasta: 20 } } } });
+    // Lo demás del tono no se tocó.
+    expect((await crearAlmacen(pool).tono()).instrucciones).toContain("Mindlin");
+    expect((await hub("PUT", "tono", { horario_equipo: { hasta: 19 } })).json.tono).toMatchObject({ horario_equipo: { dias: [1, 2, 3, 4, 5, 6], desde: 10, hasta: 19 } });
+    expect(await hub("PUT", "tono", { horario_equipo: { dias: [] } })).toMatchObject({ status: 400, json: { error: "Marcá al menos un día en el horario del equipo." } });
+    expect((await hub("PUT", "tono", { horario_equipo: { desde: 21 } })).status).toBe(400);
+    expect((await hub("PUT", "tono", { horario_equipo: "de 9 a 20" })).status).toBe(400);
+    // El asistente lo usa desde el mensaje siguiente.
+    expect((await crearAlmacen(pool).tono()).horario_equipo).toEqual({ dias: [1, 2, 3, 4, 5, 6], desde: 10, hasta: 19 });
   });
 
   it("reglas de seguimiento: alta, cambio de estado y borrado (solo si nunca se mandó)", async () => {

@@ -53,7 +53,7 @@ Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy
 | `ASISTENTE_MODELO_AUDIOS` | Modelo para transcribir | `gpt-transcribe` |
 | `CRM_RESPONSABLE` | Responsable de los contactos nuevos en el CRM (el apodo como figura en el hub) | vacío |
 
-`/api/salud` y el panel dicen qué proveedor y qué modelo están respondiendo (nunca la clave).
+`/api/salud` y el panel dicen qué proveedor y qué modelo están respondiendo (nunca la clave). Para saber si de verdad responde, **Conexiones** en el panel (o «Probar las conexiones» en el hub) le hace un pedido chico a la IA y prueba también Chatwoot, la base y la planilla (ver [`panel.md`](panel.md)).
 
 ## Audios
 
@@ -67,7 +67,7 @@ Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy
 
 - **Lo que ya sabe de la persona.** Lo que anota con `registrar_interesado` queda en la conversación y lo ve en cada mensaje, aunque la charla sea larga y el principio ya no entre en los últimos 40 mensajes. Así no vuelve a preguntar lo mismo.
 - **El CRM, buscado bien.** Primero por el ID que ya quedó anotado en la conversación y después por teléfono. WhatsApp a veces no pasa el número (contactos con privacidad): antes eso creaba un contacto repetido en cada mensaje.
-- **El horario del equipo** (`HORARIO_EQUIPO` en `lib/agente/contexto.ts`: de lunes a viernes de 9 a 20). Fuera de ese horario sigue atendiendo igual, pero si pasa la conversación a una persona avisa que le escriben apenas vuelvan, sin prometer una hora.
+- **El horario del equipo comercial.** Lo carga Mindlin desde el hub (Inteligencia comercial) o el panel (Tono); se guarda con el tono. De fábrica, de lunes a viernes de 9 a 20 (hora de Buenos Aires). Fuera de ese horario sigue atendiendo igual, pero si pasa la conversación a una persona avisa que le escriben apenas vuelvan, sin prometer una hora. Código: `lib/agente/horario.ts`.
 - **Respuestas cortadas.** Si la IA llega al tope de largo, no manda el mensaje a medias: pasa la conversación al equipo.
 - **Tiempos.** Cada pedido a Chatwoot y a Google tiene 20 segundos como máximo; a la IA, 60 con un reintento.
 
@@ -76,7 +76,7 @@ Responde **Claude o OpenAI**, según la clave que esté cargada en Vercel. **Hoy
 Después de responder, el asistente mueve al lead de etapa en el CRM según lo que pasó en ese mensaje (`lib/etapas/`):
 
 - **Qué pasó:** el primer mensaje que le contesta; una respuesta más; la respuesta a un seguimiento automático (si lo último que le mandamos fue un seguimiento); y lo que marque la IA con `marcar_senal` (visita, señal de compra, no le interesa). Si pasa la conversación al equipo, también cuenta.
-- **En la corrida de seguimientos:** cada seguimiento que sale, y «no respondió a ningún seguimiento» cuando ya no hay un paso más y pasó al menos un día.
+- **En la corrida de seguimientos:** cada seguimiento que sale, y «no respondió a ningún seguimiento» cuando ya no hay un paso más y pasó al menos una corrida (un día) desde el último.
 - **A qué etapa:** lo que esté configurado para cada evento (hub o `/panel/etapas`). Si en un mismo mensaje pasan varias cosas, se aplican en orden.
 - **Cuidados fijos:** no toca Reserva ni Vendido; dentro del embudo solo avanza; a En pausa o Descartado solo desde las primeras etapas; reactiva a quien vuelve a escribir. Antes de mover, vuelve a leer la fila del CRM.
 - Si el CRM falla, la respuesta al interesado sale igual y el error queda en el registro.

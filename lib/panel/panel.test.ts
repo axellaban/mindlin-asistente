@@ -47,7 +47,10 @@ describe("validaciones del panel", () => {
   });
 
   it("el tono necesita al menos cómo habla; un ejemplo, título y conversación", () => {
-    expect(validarTono(form({ instrucciones: "Voseo, cálido." }))).toEqual({ ok: true, valor: { instrucciones: "Voseo, cálido.", criterios_comerciales: "", cuando_pasar_a_persona: "", sobre_la_empresa: "", objeciones: "", pasar_al_responder: false } });
+    expect(validarTono(form({ instrucciones: "Voseo, cálido." }))).toEqual({
+      ok: true,
+      valor: { instrucciones: "Voseo, cálido.", criterios_comerciales: "", cuando_pasar_a_persona: "", sobre_la_empresa: "", objeciones: "", pasar_al_responder: false, horario_equipo: { dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20 } },
+    });
     expect(validarTono(form({ instrucciones: "x", pasar_al_responder: "on" }))).toMatchObject({ valor: { pasar_al_responder: true } });
     expect(validarTono(form({ criterios_comerciales: "x" })).ok).toBe(false);
     expect(validarEjemplo(form({ titulo: "Consulta por 2 ambientes", conversacion: "Interesado: Hola\r\nMindlin: ¡Hola!" }))).toEqual({
@@ -55,6 +58,16 @@ describe("validaciones del panel", () => {
       valor: { titulo: "Consulta por 2 ambientes", conversacion: "Interesado: Hola\nMindlin: ¡Hola!" },
     });
     expect(validarEjemplo(form({ titulo: "Sin conversación" })).ok).toBe(false);
+  });
+
+  it("el horario del equipo: una casilla por día (o la lista que manda el hub) y horas enteras", () => {
+    const casillas = form({ instrucciones: "x", equipo_dia_1: "on", equipo_dia_3: "on", equipo_dia_6: "on", equipo_desde: "10", equipo_hasta: "18" });
+    expect(validarTono(casillas)).toMatchObject({ ok: true, valor: { horario_equipo: { dias: [1, 3, 6], desde: 10, hasta: 18 } } });
+    expect(validarTono(form({ instrucciones: "x", equipo_dias: "0, 6", equipo_desde: "9", equipo_hasta: "13" }))).toMatchObject({ valor: { horario_equipo: { dias: [6, 0], desde: 9, hasta: 13 } } });
+    expect(validarTono(form({ instrucciones: "x", equipo_desde: "9", equipo_hasta: "20" }))).toEqual({ ok: false, error: "Marcá al menos un día en el horario del equipo." });
+    expect(validarTono(form({ instrucciones: "x", equipo_dias: "1", equipo_desde: "20", equipo_hasta: "9" })).ok).toBe(false);
+    expect(validarTono(form({ instrucciones: "x", equipo_dias: "1", equipo_desde: "9", equipo_hasta: "25" })).ok).toBe(false);
+    expect(validarTono(form({ instrucciones: "x", equipo_dias: "8", equipo_desde: "9", equipo_hasta: "20" }))).toEqual({ ok: false, error: expect.stringContaining("de 0 (domingo) a 6 (sábado)") });
   });
 
   it("una regla de seguimiento: etapa del CRM, paso, días, proyecto existente y solo las variables que hay", () => {

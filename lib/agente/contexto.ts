@@ -10,6 +10,7 @@
 import type { ContactoCRM } from "../crm/planilla";
 import type { Anotado, Ejemplo, Proyecto, Tono } from "../datos/tipos";
 import { describirAnotado } from "./anotado";
+import { equipoTrabajando, HORARIO_EQUIPO_DE_FABRICA, textoHorario, type HorarioEquipo } from "./horario";
 
 const CAMPOS_FICHA: [keyof Proyecto, string][] = [
   ["descripcion", "Descripción"],
@@ -101,20 +102,6 @@ const FECHA = new Intl.DateTimeFormat("es-AR", {
   hourCycle: "h23",
 });
 
-/** Cuándo trabaja el equipo comercial (hora de Buenos Aires). Si cambia, se cambia acá. */
-export const HORARIO_EQUIPO = { dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20, texto: "de lunes a viernes de 9 a 20" } as const;
-
-const DIA_Y_HORA = new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short", hour: "numeric", hourCycle: "h23" });
-const DIAS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/** ¿Está trabajando el equipo ahora? */
-export function equipoTrabajando(ahora: Date): boolean {
-  const partes = DIA_Y_HORA.formatToParts(ahora);
-  const dia = DIAS.indexOf(partes.find((p) => p.type === "weekday")?.value ?? "");
-  const hora = Number(partes.find((p) => p.type === "hour")?.value);
-  return (HORARIO_EQUIPO.dias as readonly number[]).includes(dia) && hora >= HORARIO_EQUIPO.desde && hora < HORARIO_EQUIPO.hasta;
-}
-
 /** Lo que el CRM ya sabe de lo que busca (cargado por el equipo o por el asistente). */
 function loQueDiceElCRM(c: ContactoCRM): string {
   return [
@@ -135,17 +122,21 @@ export function situacion({
   telefono,
   crm,
   anotado,
+  horario,
 }: {
   ahora: Date;
   nombre: string;
   telefono: string;
   crm: ContactoCRM | null | undefined;
   anotado?: Anotado | null;
+  /** El horario del equipo comercial (se carga con el tono). Sin él, el de fábrica. */
+  horario?: HorarioEquipo | null;
 }): string {
   const lineas = [`- Fecha y hora en Buenos Aires: ${FECHA.format(ahora)}.`];
-  if (!equipoTrabajando(ahora)) {
+  const h = horario ?? HORARIO_EQUIPO_DE_FABRICA;
+  if (!equipoTrabajando(ahora, h)) {
     lineas.push(
-      `- El equipo comercial no está trabajando ahora (atiende ${HORARIO_EQUIPO.texto}). Vos seguí atendiendo normal; si pasás la conversación a una persona, avisale que le escriben apenas vuelvan, sin prometer una hora exacta.`,
+      `- El equipo comercial no está trabajando ahora (atiende ${textoHorario(h)}). Vos seguí atendiendo normal; si pasás la conversación a una persona, avisale que le escriben apenas vuelvan, sin prometer una hora exacta.`,
     );
   }
   lineas.push(`- Nombre en WhatsApp: ${nombre || "(no tiene)"}${telefono ? `. Teléfono: +${telefono}` : ""}.`);

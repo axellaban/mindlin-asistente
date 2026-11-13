@@ -49,7 +49,7 @@ Queremos saber si el servidor de Mindlin sirve para correr WAHA y Chatwoot. Entr
 
 ### Tarea 2 · Vercel y la base (hecha el 07/11)
 
-Ya está todo: el proyecto en la cuenta de Vercel de Axel (`https://mindlin-asistente.vercel.app`) y la base **Neon** conectada. Supabase no se usa: el plan gratis estaba lleno.
+Ya está todo: el proyecto en Vercel (`https://mindlin-asistente.vercel.app`) y la base **Neon** conectada. Supabase no se usa: el plan gratis estaba lleno. Desde el 13/11 el proyecto está en el equipo `mindlin-developers-ia` (cuenta `mindlindevelopers.ia`, plan Hobby).
 
 - **Las tablas se crean solas en cada publicación** (`scripts/migrar.mjs`). No hay que pegar nada a mano.
 - **Lo que queda de esta tarea** (actualizado el 10/11). Cada variable, en **Settings → Environment Variables**, para Production y Preview, como **Secret**:
@@ -58,8 +58,8 @@ Ya está todo: el proyecto en la cuenta de Vercel de Axel (`https://mindlin-asis
   3. `CRON_SECRET`: una clave al azar para los seguimientos. Se puede generar en la terminal con `openssl rand -hex 24` y pegarla directo en Vercel. Nadie más la necesita.
   4. `HUB_CLAVE`: otra clave al azar (`openssl rand -hex 24`). La **misma** va en el proyecto del hub como `ASISTENTE_CLAVE`, junto con `ASISTENTE_URL` (la dirección de este proyecto, por ejemplo `https://mindlin-asistente.vercel.app`). Con eso se configura el asistente desde el hub: HQ → Comercial → Asistente de WhatsApp. Sin ella, esa API está apagada.
   5. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
-  6. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: base al día (8 migraciones).` y anotarla.
-  7. En **Settings → Cron Jobs**, confirmar que aparece `/api/cron/seguimientos` cada 15 minutos. Si Vercel no deja publicar por el cron («Hobby accounts are limited to daily cron jobs»), anotalo y frená: el proyecto tiene que estar en el equipo con plan Pro.
+  6. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: … (10 migraciones).` y anotarla.
+  7. En **Settings → Cron Jobs**, confirmar que aparece `/api/cron/seguimientos` **una vez por día** (`0 13 * * *`, las 10 de Buenos Aires). Es lo que admite el plan Hobby desde el 13/11; si el proyecto vuelve a un plan Pro, Claude lo vuelve a cada 15 minutos.
   8. Abrir `/api/salud` y anotar la lista `faltan` y lo que dice `ia` (tiene que decir `"proveedor": "anthropic"`; `"audios": false` es lo esperado hasta que se cargue `OPENAI_API_KEY`).
   9. Abrir `/panel`, entrar con tu nombre («IA de paneles») y la clave, y anotar si se ve el resumen y que diga «El asistente está respondiendo». **No cambies las fichas, el tono ni la pausa:** eso lo maneja Mindlin.
   9. **Más adelante (Axel decide cuándo):** `OPENAI_API_KEY`, solo para transcribir los audios. Mientras no esté, el bot pide que lo escriban.
@@ -148,3 +148,25 @@ Axel decidió pasar WAHA y Chatwoot a Easypanel para manejarlos sin consola. Tod
 - después, `servidor.sh easypanel`, `conectar` y `bot` como antes, el QR con Axel y las cuatro variables nuevas en Vercel.
 
 Anotá en `docs/estado-paneles.md`, sección «Servidor», la salida de `verificar` y lo que haya salido distinto de la guía.
+
+### Tarea 10 · Prueba de punta a punta por WhatsApp (13/11)
+
+Para confirmar que el asistente contesta de verdad. Hace falta que esté publicado en Vercel el PR que trajo **Conexiones** (el del 13/11, con la migración `202611130010_horario_equipo.sql`). Todo con datos inventados: ningún nombre ni dato real en las notas.
+
+**No cambies las fichas, el tono, las etapas ni la pausa.** Si algo no anda, frená y anotá qué pasó (sin claves).
+
+1. **Conexiones.** En el panel del asistente (`/panel`, con tu nombre «IA de paneles» y la clave), entrá a **Conexiones** y tocá **«Probar las conexiones»**. Copiá la tabla en `docs/estado-paneles.md` (no tiene claves). Si Chatwoot dice que no acepta el token o que la cuenta no es la correcta, frená: hay que volver a copiar las cuatro variables de Chatwoot a Vercel y volver a publicar (con Axel). Si dice que el asistente está pausado, preguntale a Axel antes de reactivarlo.
+2. **Que la conversación la atienda el asistente.** El asistente solo contesta las conversaciones **pendientes**. La conversación 2 de la bandeja «WhatsApp Lerma 439» quedó **abierta** (la atiende el equipo), así que a ese número no le contesta. Dos opciones:
+   - en Chatwoot, abrí la conversación 2 y cambiale el estado a **Pendiente** (o **resolvela**: el mensaje siguiente la reabre como pendiente); o
+   - escribí desde un número que nunca le escribió a la línea.
+
+   Mientras dure la prueba, **nadie del equipo responde a mano**: si alguien escribe en la conversación, el asistente se corre a propósito.
+3. **Primera respuesta.** Desde el teléfono de prueba (no el de la línea), mandá: «Hola, quería info de Lerma 439». En unos 10 a 20 segundos tiene que llegar la respuesta al WhatsApp. Anotá si llegó y cuánto tardó, y si en Chatwoot se ve una sola vez (el webhook descarta el eco del propio bot: no tiene que aparecer repetida ni pasar la conversación a abierta).
+4. **El CRM.** Respondé con datos inventados: «Soy Juan Prueba, busco 2 ambientes para invertir». En la planilla del CRM tiene que aparecer una fila nueva en «CRM Contactos» (origen WhatsApp, etapa «Contacto inicial» o «Seguimiento») y «Alta por WhatsApp» en «CRM Actividad». Anotá el ID del contacto (no el teléfono).
+5. **Cambio de etapa.** Mandá: «¿Puedo ir a ver el showroom esta semana?». La etapa del contacto tiene que pasar a «Visita / reunión», con un «Cambio de etapa» en la actividad.
+6. **Pasar a una persona.** Mandá: «Prefiero hablar con alguien del equipo». El asistente avisa que le van a escribir, deja una nota interna y la conversación pasa a **Abierta**. Mandá otro mensaje: el asistente **no** tiene que contestar.
+7. **Devolvérsela al asistente.** En Chatwoot, poné la conversación en **Pendiente**. Mandá otro mensaje: el asistente vuelve a contestar.
+8. **Conexiones otra vez.** Repetí el paso 1 y copiá la tabla: «Respuestas del asistente» tiene que mostrar la de recién, sin errores después.
+
+Anotá todo en `docs/estado-paneles.md`, sección «Chatwoot», como «Prueba de punta a punta (Easypanel)». La fila de prueba del CRM no la borres: avisale a Axel cuál es, así decide si se borra o se pasa a «Descartado».
+

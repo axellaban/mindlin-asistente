@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lerma, otroProyecto, tono } from "../../test/fixtures";
-import { equipoTrabajando, ficha, instrucciones, situacion } from "./contexto";
+import { ficha, instrucciones, situacion } from "./contexto";
+import { equipoTrabajando, horarioValido, textoHorario } from "./horario";
 
 describe("contexto del agente", () => {
   it("la ficha marca lo que falta para que no lo invente", () => {
@@ -86,5 +87,27 @@ describe("contexto del agente", () => {
     const sabado = situacion({ ahora: new Date("2026-11-07T15:00:00Z"), nombre: "Ana", telefono: "", crm: null });
     expect(sabado).toContain("El equipo comercial no está trabajando ahora");
     expect(situacion({ ahora: new Date("2026-11-10T15:00:00Z"), nombre: "Ana", telefono: "", crm: null })).not.toContain("no está trabajando");
+  });
+
+  it("usa el horario que cargó Mindlin y lo dice en castellano", () => {
+    const sabados = { dias: [6], desde: 10, hasta: 14 };
+    expect(equipoTrabajando(new Date("2026-11-07T15:00:00Z"), sabados)).toBe(true); // sábado 12:00
+    expect(equipoTrabajando(new Date("2026-11-10T15:00:00Z"), sabados)).toBe(false); // martes 12:00
+    const martes = situacion({ ahora: new Date("2026-11-10T15:00:00Z"), nombre: "Ana", telefono: "", crm: null, horario: sabados });
+    expect(martes).toContain("no está trabajando ahora (atiende los sábados de 10 a 14)");
+    expect(textoHorario({ dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20 })).toBe("de lunes a viernes de 9 a 20");
+    expect(textoHorario({ dias: [0, 1, 2, 3, 4, 5, 6], desde: 0, hasta: 24 })).toBe("todos los días todo el día");
+    expect(textoHorario({ dias: [1, 3, 5], desde: 10, hasta: 18 })).toBe("lunes, miércoles y viernes de 10 a 18");
+    expect(textoHorario({ dias: [5, 6], desde: 9, hasta: 13 })).toBe("viernes y sábado de 9 a 13");
+    expect(textoHorario({ dias: [1], desde: 9, hasta: 13 })).toBe("los lunes de 9 a 13");
+  });
+
+  it("solo acepta horarios bien armados (y los ordena de lunes a domingo)", () => {
+    expect(horarioValido({ dias: [0, 5, 1, 1], desde: 9, hasta: 20 })).toEqual({ dias: [1, 5, 0], desde: 9, hasta: 20 });
+    expect(horarioValido({ dias: [], desde: 9, hasta: 20 })).toBeNull();
+    expect(horarioValido({ dias: [7], desde: 9, hasta: 20 })).toBeNull();
+    expect(horarioValido({ dias: [1], desde: 20, hasta: 9 })).toBeNull();
+    expect(horarioValido({ dias: [1], desde: 8.5, hasta: 20 })).toBeNull();
+    expect(horarioValido("lunes a viernes")).toBeNull();
   });
 });
