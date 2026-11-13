@@ -91,7 +91,7 @@ También guarda el historial de mensajes (solo el texto). El token del Agent Bot
 - Reglas del tipo «si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones para comparar cuál convierte mejor.
 - Solo a quien ya escribió, de 9 a 20, con tope de intentos. Frenan si el interesado responde o si una persona tomó la conversación.
 - Salen por Chatwoot, así quedan a la vista en la bandeja.
-- Corren cada 15 minutos con el cron de Vercel (plan Pro de Axel). La etapa sale del CRM del hub. Detalle en [`seguimientos.md`](seguimientos.md).
+- Corren una vez por día con el cron de Vercel, a las 10 de la mañana de Buenos Aires (13:00 UTC). Era cada 15 minutos; pasó a diario el 13/11, cuando el proyecto quedó en una cuenta con plan Hobby, que no admite crons más seguidos. La etapa sale del CRM del hub. Detalle en [`seguimientos.md`](seguimientos.md).
 
 ## 9. Email (previsto, no hecho)
 
