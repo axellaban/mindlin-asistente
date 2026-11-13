@@ -123,6 +123,84 @@ Recursos antes de publicar Caddy: 1722 de 3915 MB RAM usados y 38 GB libres de 4
 Swap: 2 GB. Respaldo nocturno programado y primer respaldo comprobado.
 ```
 
+### Reinstalación con Easypanel (tarea 9, 13/11/2026)
+
+Hecha con Axel siguiendo `docs/easypanel.md`, sobre el mismo VPS (Hostinger KVM 1, `srv2145105.hstgr.cloud`, 187.53.99.210).
+
+- **DNS (DonWeb):** se agregó `A waha.mindlindevelopers.com → 187.53.99.210`, TTL 900, igual que `chat`. No se creó el registro opcional `panel` ni se tocó ningún otro registro.
+- **Reinstalación:** hPanel → Sistema operativo → «Ubuntu 24.04 with Easypanel». Axel puso la contraseña de root y confirmó el borrado. Tardó unos 3 minutos.
+- **Firewall de Hostinger:** no hay ninguna regla creada, así que no bloquea 22, 80, 443 ni 3000.
+- **Easypanel:** v2.38.0, en español, usuario administrador creado por Axel. El panel quedó en `http://187.53.99.210:3000`, sin dominio propio.
+- **Servicio:** proyecto `mindlin`, servicio Compose `asistente` con `infra/easypanel/docker-compose.yml` de `main` (commit `777e85d`, 137 líneas) en Fuente: Inline. En Entorno, las nueve variables (dos dominios, dos de hilos y las cinco claves) con «Crear archivo .env» prendido.
+- **Implementación:** la primera tardó 2 minutos. Los cinco contenedores quedaron corriendo.
+- **Dominios:** `chat.mindlindevelopers.com` → `chatwoot-rails:3000` y `waha.mindlindevelopers.com` → `waha:3000`, los dos con HTTPS y certificado emitido por Easypanel.
+- **Comprobaciones por HTTPS:** `chat…/api` devolvió `{"version":"4.19.1","queue_services":"ok","data_services":"ok"}` y `waha…/health` devolvió `401 Unauthorized`, que es lo esperado con la clave activa.
+- **Chatwoot:** cuenta 1 «Mindlin Developers», alta hecha por Axel.
+- **Línea:** `conectar default "WhatsApp Lerma 439"` creó la sesión en WAHA, la bandeja 1 y la conexión WAHA → Chatwoot. Axel escaneó el QR y la sesión pasó `STARTING` → `SCAN_QR_CODE` → `WORKING` a las 13:07, vinculada al número del chip.
+- **Recepción probada:** los mensajes mandados desde otro teléfono entraron en la bandeja (conversación 2, tres mensajes entre las 13:09 y las 13:27).
+
+Salida de `bash /root/servidor.sh easypanel` (verificar):
+
+```
+Creando 2 GB de swap (/swapfile)
+  ✓ Swap de 2 GB activo (queda configurado para cada arranque)
+  ✓ Proyecto de Easypanel: mindlin_asistente · Chatwoot en chat.mindlindevelopers.com · WAHA en waha.mindlindevelopers.com
+  ✓ Respaldo de las bases programado todas las noches a las 3
+
+Contenedores
+  ✓ chatwoot-rails
+  ✓ chatwoot-sidekiq
+  ✓ postgres
+  ✓ redis
+  ✓ waha
+
+Servicios
+  ✓ Chatwoot 4.19.1
+  ✓ WAHA 2026.10.1
+
+HTTPS
+  ✓ https://chat.mindlindevelopers.com responde con certificado válido
+
+Líneas de WhatsApp
+  (todavía no hay ninguna: bash servidor.sh conectar)
+
+Recursos
+  RAM: 1865 MB usados de 3915 MB
+  Swap: 0 MB usados de 2047 MB
+  Disco: 13G usados de 48G (35G libre)
+
+  ✓ Todo en orden.
+```
+
+(Se corrió antes de `conectar`; por eso la sección de líneas figura vacía.)
+
+#### Lo que salió distinto de la guía
+
+1. En hPanel, la plantilla de Easypanel no está en la pestaña «Aplicaciones» sino en **«Panel de control»**.
+2. Los dominios creados después de la primera implementación no los tomó el proxy: `chat…` devolvía «Service is not reachable» con Chatwoot sano por dentro. Se resolvió **volviendo a implementar**. Conviene crear los dominios y después implementar, o implementar de nuevo al final.
+3. Easypanel crea solo un dominio por defecto, `mindlin-asistente.7qcwuq.easypanel.host → mindlin_asistente:80`, que no apunta a ningún servicio del Compose. Se dejó como está.
+4. `servidor.sh generar` no se pudo usar en ese momento porque el instalador todavía no estaba en el servidor (el repo es privado, así que no se puede bajar con `curl` desde el VPS). Las cinco claves se generaron en la consola con los mismos comandos del script (`openssl rand -hex`, largos 24, 24, 64, 24 y 16) y se pegaron directo en el Entorno de Easypanel. Después el archivo se pasó con `cat > /root/servidor.sh` y un pegado desde «Copy raw file» de GitHub; el `md5sum` coincide con el de `main` salvo un salto de línea final de más.
+5. Por indicación de Axel, no se pausó el asistente desde el hub antes del paso del bot.
+
+#### Pendiente para cerrar la tarea 9
+
+`servidor.sh bot` se corrió con la bandeja 1 y `https://mindlin-asistente.vercel.app`, y Axel cargó las cuatro variables en Vercel. **Falta volver a publicar en Vercel:** mientras tanto sigue sirviendo el despliegue anterior, con el token y el secreto del Chatwoot viejo. Por eso Chatwoot anotó en la conversación 2 «Conversation was marked open by system due to an error with the agent bot» y el asistente no contestó ninguno de los tres mensajes de prueba. `/api/salud` devuelve `configuracionCompleta: true`, pero eso solo comprueba que las variables existan, no que sean las nuevas.
+
+Dato para la próxima: el proyecto `mindlin-asistente` no aparece en Vercel desde la cuenta `axellaban@gmail.com` ni en «laban's projects» ni en «Grego», aunque `mindlin-asistente.vercel.app` responde. Falta confirmar con Axel en qué cuenta o equipo está.
+
+### Vercel después de la mudanza de cuenta (13/11/2026)
+
+El 13/11, con el servidor ya andando, Axel movió el proyecto `mindlin-asistente` de Vercel al equipo **`mindlin-developers-ia`** (cuenta `mindlindevelopers.ia@gmail.com`), que está en **plan Hobby**. El objetivo es que el hub y sus proyectos queden bajo las cuentas de Mindlin. Eso destapó dos límites del plan, uno detrás del otro:
+
+1. **Cron.** Vercel rechazó la publicación: «Hobby accounts are limited to daily cron jobs. This cron expression (`*/15 * * * *`) would run more than once per day.» Se resolvió con el PR #17, que pasó el cron de seguimientos a `0 13 * * *` (las 10 de Buenos Aires). Es reversible si el proyecto vuelve a un plan Pro.
+2. **Autor del commit.** Con el cron ya diario, la publicación de `main` (`b80d9f5`) quedó en estado **Blocked**: «The deployment was blocked because the commit author did not have contributing access to the project on Vercel. The Hobby Plan does not support collaboration for private repositories.» En Hobby con repositorio privado, Vercel solo publica los commits firmados por la cuenta dueña; acá los firman `axellaban` y Claude. Ser colaborador en GitHub no alcanza: el permiso que mira Vercel es el de su propio equipo, y un equipo Hobby no admite miembros.
+
+Axel decidió **hacer público el repositorio** para destrabarlo, en vez de pagar Pro o devolver el proyecto al equipo anterior. Se revisó el repo y su historial reciente: no hay claves, tokens ni archivos `.env` versionados, en línea con la regla del repo. Sí quedan a la vista datos de infraestructura: la IP y el nombre del VPS, los dominios, las cuentas de correo y los identificadores de Neon y Vercel.
+
+Estado de las variables en la cuenta nueva: las cuatro de Chatwoot (`CHATWOOT_URL`, `CHATWOOT_ACCOUNT_ID`, `CHATWOOT_BOT_TOKEN`, `CHATWOOT_WEBHOOK_SECRET`) figuran actualizadas el 13/11 alrededor de las 15:20, en Production. Las de Neon sobrevivieron la mudanza (`DATABASE_URL_UNPOOLED`, `PGHOST`, `PGPASSWORD`, `NEON_PROJECT_ID` y las demás, en Production y Preview).
+
+**Pendiente:** que salga una publicación en Ready con esas variables. Hasta entonces producción sigue sirviendo un despliegue anterior a la carga, el Agent Bot usa las credenciales del Chatwoot viejo y Chatwoot anota «Conversation was marked open by system due to an error with the agent bot». Los mensajes entrantes sí llegan a la bandeja; lo único que falta es la respuesta del asistente.
+
 ## Chatwoot (tareas 5 a 7)
 
 - Cuenta administradora: `mindlindevelopers.ia@gmail.com`, cuenta Chatwoot 3 «Mindlin Developers». Alta completada, panel en español con zona horaria de Buenos Aires.
