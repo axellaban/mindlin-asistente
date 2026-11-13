@@ -136,7 +136,7 @@ Hecha con Axel siguiendo `docs/easypanel.md`, sobre el mismo VPS (Hostinger KVM 
 - **Dominios:** `chat.mindlindevelopers.com` → `chatwoot-rails:3000` y `waha.mindlindevelopers.com` → `waha:3000`, los dos con HTTPS y certificado emitido por Easypanel.
 - **Comprobaciones por HTTPS:** `chat…/api` devolvió `{"version":"4.19.1","queue_services":"ok","data_services":"ok"}` y `waha…/health` devolvió `401 Unauthorized`, que es lo esperado con la clave activa.
 - **Chatwoot:** cuenta 1 «Mindlin Developers», alta hecha por Axel.
-- **Línea:** `conectar default "WhatsApp Lerma 439"` creó la sesión en WAHA, la bandeja 1 y la conexión WAHA → Chatwoot. Axel escaneó el QR y la sesión pasó `STARTING` → `SCAN_QR_CODE` → `WORKING` a las 13:07, vinculada a `5491170338236@c.us`.
+- **Línea:** `conectar default "WhatsApp Lerma 439"` creó la sesión en WAHA, la bandeja 1 y la conexión WAHA → Chatwoot. Axel escaneó el QR y la sesión pasó `STARTING` → `SCAN_QR_CODE` → `WORKING` a las 13:07, vinculada al número del chip.
 - **Recepción probada:** los mensajes mandados desde otro teléfono entraron en la bandeja (conversación 2, tres mensajes entre las 13:09 y las 13:27).
 
 Salida de `bash /root/servidor.sh easypanel` (verificar):
@@ -187,6 +187,19 @@ Recursos
 `servidor.sh bot` se corrió con la bandeja 1 y `https://mindlin-asistente.vercel.app`, y Axel cargó las cuatro variables en Vercel. **Falta volver a publicar en Vercel:** mientras tanto sigue sirviendo el despliegue anterior, con el token y el secreto del Chatwoot viejo. Por eso Chatwoot anotó en la conversación 2 «Conversation was marked open by system due to an error with the agent bot» y el asistente no contestó ninguno de los tres mensajes de prueba. `/api/salud` devuelve `configuracionCompleta: true`, pero eso solo comprueba que las variables existan, no que sean las nuevas.
 
 Dato para la próxima: el proyecto `mindlin-asistente` no aparece en Vercel desde la cuenta `axellaban@gmail.com` ni en «laban's projects» ni en «Grego», aunque `mindlin-asistente.vercel.app` responde. Falta confirmar con Axel en qué cuenta o equipo está.
+
+### Vercel después de la mudanza de cuenta (13/11/2026)
+
+El 13/11, con el servidor ya andando, Axel movió el proyecto `mindlin-asistente` de Vercel al equipo **`mindlin-developers-ia`** (cuenta `mindlindevelopers.ia@gmail.com`), que está en **plan Hobby**. El objetivo es que el hub y sus proyectos queden bajo las cuentas de Mindlin. Eso destapó dos límites del plan, uno detrás del otro:
+
+1. **Cron.** Vercel rechazó la publicación: «Hobby accounts are limited to daily cron jobs. This cron expression (`*/15 * * * *`) would run more than once per day.» Se resolvió con el PR #17, que pasó el cron de seguimientos a `0 13 * * *` (las 10 de Buenos Aires). Es reversible si el proyecto vuelve a un plan Pro.
+2. **Autor del commit.** Con el cron ya diario, la publicación de `main` (`b80d9f5`) quedó en estado **Blocked**: «The deployment was blocked because the commit author did not have contributing access to the project on Vercel. The Hobby Plan does not support collaboration for private repositories.» En Hobby con repositorio privado, Vercel solo publica los commits firmados por la cuenta dueña; acá los firman `axellaban` y Claude. Ser colaborador en GitHub no alcanza: el permiso que mira Vercel es el de su propio equipo, y un equipo Hobby no admite miembros.
+
+Axel decidió **hacer público el repositorio** para destrabarlo, en vez de pagar Pro o devolver el proyecto al equipo anterior. Se revisó el repo y su historial reciente: no hay claves, tokens ni archivos `.env` versionados, en línea con la regla del repo. Sí quedan a la vista datos de infraestructura: la IP y el nombre del VPS, los dominios, las cuentas de correo y los identificadores de Neon y Vercel.
+
+Estado de las variables en la cuenta nueva: las cuatro de Chatwoot (`CHATWOOT_URL`, `CHATWOOT_ACCOUNT_ID`, `CHATWOOT_BOT_TOKEN`, `CHATWOOT_WEBHOOK_SECRET`) figuran actualizadas el 13/11 alrededor de las 15:20, en Production. Las de Neon sobrevivieron la mudanza (`DATABASE_URL_UNPOOLED`, `PGHOST`, `PGPASSWORD`, `NEON_PROJECT_ID` y las demás, en Production y Preview).
+
+**Pendiente:** que salga una publicación en Ready con esas variables. Hasta entonces producción sigue sirviendo un despliegue anterior a la carga, el Agent Bot usa las credenciales del Chatwoot viejo y Chatwoot anota «Conversation was marked open by system due to an error with the agent bot». Los mensajes entrantes sí llegan a la bandeja; lo único que falta es la respuesta del asistente.
 
 ## Chatwoot (tareas 5 a 7)
 
