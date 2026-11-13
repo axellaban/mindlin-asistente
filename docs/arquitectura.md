@@ -1,10 +1,10 @@
 # Arquitectura
 
-Acordada con Axel el 07/11/2026. Si cambia algo, se actualiza acá en el mismo PR.
+Acordada con Axel el 07/11/2026 y puesta al día el 10/11 (servidor en Hostinger, seguimientos). Si cambia algo, se actualiza acá en el mismo PR.
 
 ```
 Interesado ──WhatsApp──► WAHA ──► Chatwoot ◄──── Equipo comercial (web y app del celular)
-                        (DonWeb)  (DonWeb)
+                    (Hostinger, chat.mindlindevelopers.com)
                                      │ Agent Bot: un aviso por cada mensaje
                                      ▼
                          Asistente (Vercel, este repo) ──► Claude
@@ -29,7 +29,7 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 - WAHA le pasa los mensajes con su integración propia (sin código). Lo que alguien mande desde el celular de la línea también aparece, **como mensaje y no como nota interna** (así el bot sabe que lo tomó una persona).
 - Una conversación por chat, como en WhatsApp. WAHA crea además una conversación «Integración de WhatsApp» para avisos y el QR: el bot la ignora.
 - Lo instala y opera `infra/servidor.sh` (ver `infra/README.md`).
-- **Necesita unos 4 GB de RAM** (Chatwoot con su Postgres y Redis, más WAHA). Si el servidor de DonWeb no da: ampliarlo o usar Chatwoot Cloud (pago por usuario).
+- **Servidor:** el VPS de DonWeb (1 GB) no alcanzaba. Axel contrató un Hostinger KVM 1 (1 vCPU, 4 GB de RAM, 50 GB) por 24 meses, el 09/11. Alcanza para el piloto con 2 GB de swap y Chatwoot ajustado para poca memoria (lo hace `servidor.sh`). Con varias líneas o más uso, pasar a KVM 2 (8 GB). Los DNS siguen en DonWeb: `chat` apunta al VPS.
 
 ## 3. El bot es un Agent Bot de Chatwoot
 
@@ -89,7 +89,12 @@ También guarda el historial de mensajes (solo el texto). El token del Agent Bot
 - Reglas del tipo «si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones para comparar cuál convierte mejor.
 - Solo a quien ya escribió, de 9 a 20, con tope de intentos. Frenan si el interesado responde o si una persona tomó la conversación.
 - Salen por Chatwoot, así quedan a la vista en la bandeja.
-- Corren cada 15 minutos con un cron (Vercel o el servidor de DonWeb, según el plan de Vercel).
+- Corren cada 15 minutos con un cron **del VPS** (`servidor.sh seguimientos`): el plan gratis de Vercel solo permite tareas programadas una vez por día. El cron llama a `/api/cron/seguimientos` con `CRON_SECRET`.
+- El texto es el de la regla, tal cual lo aprueba Mindlin: la IA no lo inventa. Con `{{nombre}}` y `{{proyecto}}`.
+- La etapa es la del contacto en el CRM («Nuevo» si no está). Si avanzó a una etapa sin reglas, no se le manda nada.
+- Si hay una regla «activa» y otra «a_prueba» para la misma etapa y paso, se reparten las conversaciones mitad y mitad, y el registro guarda cuál se usó para comparar.
+- De lunes a sábado, de 9 a 20; hasta 10 por corrida y con 5 segundos entre uno y otro. Si una persona del equipo escribió, tomó o cerró la conversación, nunca más.
+- Las reglas sugeridas quedan archivadas: no sale nada hasta que Mindlin apruebe los textos y las active. Detalle en [`asistente.md`](asistente.md).
 
 ## Lo que se reutiliza de otros proyectos de Axel
 

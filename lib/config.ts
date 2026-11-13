@@ -47,7 +47,7 @@ export const GRUPOS: Grupo[] = [
   },
   {
     nombre: "Tareas programadas",
-    variables: [{ nombre: "CRON_SECRET", para: "Que solo el cron pueda disparar los seguimientos." }],
+    variables: [{ nombre: "CRON_SECRET", para: "Que solo el cron del servidor pueda disparar los seguimientos (la genera «servidor.sh seguimientos»)." }],
   },
 ];
 

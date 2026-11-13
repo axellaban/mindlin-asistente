@@ -29,6 +29,8 @@ Si GitHub se complica, pasale el texto a Axel y que lo cargue él.
 
 ## Las tareas
 
+**Al 10/11:** las tareas 1 a 4 están hechas (el servidor es un Hostinger KVM 1 en `chat.mindlindevelopers.com`), y la 5 y la 6 casi: falta el QR y asignar el bot. Lo que sigue son la **8** y la **9**, al final. La 7 espera a que Axel defina el equipo y el correo.
+
 Las tareas 1, 2 y 3 se pueden hacer ya y en cualquier orden. La 4 depende de la 1. Las 5 y 6 dependen de la 4.
 
 ### Tarea 1 · Revisar DonWeb (solo mirar)
@@ -111,6 +113,24 @@ Hace falta la tarea 2 terminada (la dirección de Vercel) y que Claude haya deja
 1. **Configuración → Agentes → Agregar agente**, con el nombre y el mail de cada persona del equipo comercial que diga Axel.
 2. Chatwoot manda la invitación por mail. Si no llega (el servidor todavía no tiene un correo configurado), anotalo: Claude o Axel lo resuelven.
 3. App del celular: «Chatwoot» en App Store o Google Play → al iniciar sesión, elegir servidor propio y poner `https://chat.<dominio>`.
+
+### Tarea 8 · Actualizar el servidor y programar los seguimientos
+
+`servidor.sh` cambió el 10/11: fija las imágenes por digest, suma swap si falta y ajusta Chatwoot para 4 GB de RAM. Además tiene un comando nuevo para los seguimientos.
+
+1. Pasá la versión nueva de [`infra/servidor.sh`](infra/servidor.sh) a `/opt/mindlin-asistente/servidor.sh`, igual que en la tarea 4 (opción A o B). **No borres** `.env`, `asistente.env` ni nada más de esa carpeta.
+2. `bash /opt/mindlin-asistente/servidor.sh actualizar`. Hace un respaldo antes y reinicia Chatwoot y WAHA, así que conviene hacerlo cuando nadie esté atendiendo. Pegá la verificación del final en «Servidor».
+3. `bash /opt/mindlin-asistente/servidor.sh seguimientos`. Pide la dirección del asistente (Enter acepta `https://mindlin-asistente.vercel.app`) y muestra una variable `CRON_SECRET`. Cargala **directo en Vercel** (Production) y volvé a publicar.
+4. `bash /opt/mindlin-asistente/servidor.sh correr-seguimientos`. Tiene que responder `HTTP 200` con `"motivo":"no hay reglas activas"` (o «fuera de horario»): está bien, las reglas se activan cuando Mindlin apruebe los textos. Anotá la respuesta.
+5. Abrí `/api/salud`: la lista `faltan` tiene que quedar vacía.
+
+### Tarea 9 · WhatsApp y la primera prueba (con Axel y el celular de prueba)
+
+1. En Chatwoot, conversación «Integración de WhatsApp» de la bandeja «WhatsApp Lerma 439»: escribí `start` para que aparezca un QR nuevo. Axel lo escanea desde el celular de prueba. Confirmá con `servidor.sh verificar` que la línea `default` queda «conectada» y con qué número.
+2. **Asignar el bot** a la bandeja: Chatwoot → **Configuración → Bandejas de entrada → WhatsApp Lerma 439 → Bot** → elegí «Asistente Mindlin» → Guardar. No corras `servidor.sh bot` otra vez: crearía un bot nuevo con otras claves.
+3. **Antes de probar, avisale a Axel** que el contacto de prueba va a quedar en el CRM real del hub. Desde otro teléfono, mandá al número de prueba algo como «Hola, quiero info de Lerma 439». En unos 10 segundos tiene que contestar el asistente.
+4. Pedí hablar con una persona («¿me puede llamar alguien?»): la conversación tiene que pasar a «Abiertas» con una nota interna del motivo.
+5. Anotá en «Chatwoot» qué pasó en cada paso y, en el CRM, el ID del contacto de prueba para que Axel lo borre.
 
 ## Si algo falla en el servidor
 

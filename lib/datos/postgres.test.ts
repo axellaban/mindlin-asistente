@@ -60,4 +60,50 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     const { rows } = await pool.query("select tipo, detalle, datos from registro");
     expect(rows).toEqual([{ tipo: "respuesta", detalle: "hola", datos: { fin: "respuesta" } }]);
   });
+
+  it("deja las reglas sugeridas archivadas: no manda nada hasta que Mindlin las active", async () => {
+    const a = crearAlmacen(pool);
+    const { rows } = await pool.query("select etapa, paso, estado from reglas_seguimiento order by paso");
+    expect(rows).toEqual([
+      { etapa: "Nuevo", paso: 1, estado: "archivada" },
+      { etapa: "Nuevo", paso: 2, estado: "archivada" },
+    ]);
+    expect(await a.reglasSeguimiento()).toEqual([]);
+    await pool.query("update reglas_seguimiento set estado = 'activa' where paso = 1");
+    expect((await a.reglasSeguimiento()).map((r) => [r.id > 0, r.etapa, r.paso, r.dias_sin_respuesta, r.proyecto])).toEqual([[true, "Nuevo", 1, 1, null]]);
+  });
+
+  it("elige para seguimiento solo las conversaciones del bot sin respuesta ni intervención del equipo", async () => {
+    const a = crearAlmacen(pool);
+    const hace = (dias: number) => new Date(Date.now() - dias * 86_400_000).toISOString();
+    const conv = async (n: number, roles: ("interesado" | "bot" | "persona")[]) => {
+      await a.guardarConversacion({ chatwoot_id: n, telefono: `54911555500${n}`, nombre: "Ana", proyecto: "lerma-439" });
+      for (const [i, rol] of roles.entries()) await a.guardarMensaje({ id: n * 100 + i, conversacion: n, rol, texto: rol, fecha: hace(5 - i * 0.1) });
+    };
+    await conv(31, ["interesado", "bot"]); // sí
+    await conv(32, ["interesado", "bot", "interesado"]); // no: le toca al bot contestar
+    await conv(33, ["interesado", "persona", "bot"]); // no: escribió el equipo
+    await conv(34, ["interesado", "bot"]); // no: la tomó el equipo
+    await a.permitirSeguimientos(34, false);
+    await conv(35, ["bot"]); // no: la persona nunca escribió
+
+    const hasta = new Date(Date.now() - 86_400_000);
+    const candidatos = await a.candidatosSeguimiento(hasta);
+    expect(candidatos.map((c) => c.chatwoot_id)).toEqual([31]);
+    expect(candidatos[0]).toMatchObject({ nombre: "Ana", telefono: "5491155550031", proyecto: "lerma-439", paso: 0 });
+    // Demasiado reciente para el corte.
+    expect(await a.candidatosSeguimiento(new Date(Date.now() - 10 * 86_400_000))).toEqual([]);
+
+    // Después del primer seguimiento queda en el paso 1…
+    await a.anotarSeguimiento(31, 1, 1, hace(1));
+    expect((await a.candidatosSeguimiento(new Date()))[0]).toMatchObject({ chatwoot_id: 31, paso: 1 });
+    // …y si la persona vuelve a escribir, vuelve a 0.
+    await a.guardarMensaje({ id: 3190, conversacion: 31, rol: "interesado", texto: "hola de nuevo", fecha: hace(0.5) });
+    await a.guardarMensaje({ id: 3191, conversacion: 31, rol: "bot", texto: "¡Hola!", fecha: hace(0.4) });
+    expect((await a.candidatosSeguimiento(new Date()))[0]).toMatchObject({ chatwoot_id: 31, paso: 0 });
+
+    // Si el equipo la toma y después vuelve al bot, se permiten de nuevo (la 31 tiene un mensaje reciente).
+    await a.permitirSeguimientos(34, true);
+    expect((await a.candidatosSeguimiento(hasta)).map((c) => c.chatwoot_id)).toEqual([34]);
+  });
 });

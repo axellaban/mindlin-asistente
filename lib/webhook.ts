@@ -4,7 +4,7 @@
  * Chatwoot espera la respuesta solo 5 segundos.
  */
 
-import { type Accion, accionPara, mensajeParaHistorial } from "./chatwoot/evento";
+import { type Accion, accionPara, estadoDeConversacion, mensajeParaHistorial } from "./chatwoot/evento";
 import { firmaValida } from "./chatwoot/firma";
 import type { Conexiones } from "./servicios";
 import { atender, laTomoUnaPersona, type Servicios } from "./agente/servicio";
@@ -47,6 +47,10 @@ export async function manejarWebhook(
       return { status: 500, json: { error: `No se pudo guardar el mensaje: ${e instanceof Error ? e.message : String(e)}` } };
     }
   }
+
+  // Si la conversación la atiende una persona (o se cerró), el bot no le manda seguimientos.
+  const estado = estadoDeConversacion(evento);
+  if (estado && almacen) await almacen.permitirSeguimientos(estado.conversacion, estado.atiendeBot).catch(() => {});
 
   if (accion.tipo === "ignorar") return { status: 200, json: { accion: "ignorar", motivo: accion.motivo } };
   if (!chatwoot) return { status: 200, json: { accion: "ignorar", motivo: "falta configurar Chatwoot en Vercel" } };

@@ -98,4 +98,18 @@ describe("webhook del Agent Bot", () => {
     expect(r.json).toEqual({ accion: "ignorar", motivo: "es la conversación de avisos de WAHA" });
     expect(a.datos.mensajes.size).toBe(0);
   });
+
+  it("corta los seguimientos cuando el equipo toma o cierra la conversación, y los vuelve a permitir si vuelve al bot", async () => {
+    const a = armar();
+    await a.llamar(evento());
+    expect(a.datos.seguimientos.get(2)?.permitido).toBe(true);
+    await a.llamar({ event: "conversation_resolved", id: 2, status: "resolved" });
+    expect(a.datos.seguimientos.get(2)?.permitido).toBe(false);
+    await a.llamar({ event: "conversation_status_changed", id: 2, status: "pending" });
+    expect(a.datos.seguimientos.get(2)?.permitido).toBe(true);
+    const r = await a.llamar(evento({ id: 22, message_type: "outgoing", sender: { id: 5, type: "user", name: "Vendedora" }, content: "Hola Ana, soy del equipo" }));
+    await r.tarea?.();
+    expect(a.datos.seguimientos.get(2)?.permitido).toBe(false);
+  });
 });
+

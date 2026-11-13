@@ -2,12 +2,14 @@
 # Servidor del asistente comercial de Mindlin: WhatsApp (WAHA) + la bandeja del equipo (Chatwoot),
 # con HTTPS (Caddy). Todo en Docker, en una carpeta: /opt/mindlin-asistente.
 #
-# Uso, como root en el servidor (Ubuntu 22.04 o 24.04, 4 GB de RAM o más):
+# Uso, como root en el servidor (Ubuntu 22.04 o 24.04). Para el piloto alcanza con 1 vCPU y 4 GB
+# de RAM: con menos de 6 GB el script suma 2 GB de swap y ajusta Chatwoot para usar menos memoria.
 #
 #   bash servidor.sh instalar     Instala Docker si falta, genera las claves y levanta todo.
 #   bash servidor.sh verificar    Revisa que todo ande y dice qué falta.
 #   bash servidor.sh conectar     Crea una línea de WhatsApp conectada a una bandeja de Chatwoot.
 #   bash servidor.sh bot          Conecta el asistente (Agent Bot) a una bandeja de Chatwoot.
+#   bash servidor.sh seguimientos Programa los seguimientos del asistente (cron cada 15 minutos).
 #   bash servidor.sh claves       Muestra el usuario y la clave del panel de WAHA.
 #   bash servidor.sh respaldo     Guarda una copia de las bases (Chatwoot y WAHA) en respaldos/.
 #   bash servidor.sh actualizar   Baja las versiones fijadas en este archivo y reinicia.
@@ -20,8 +22,10 @@ set -euo pipefail
 
 DIR="${MINDLIN_DIR:-/opt/mindlin-asistente}"
 # Versiones fijadas: se probaron juntas. Para actualizar, se cambian acá y se corre «actualizar».
-IMAGEN_CHATWOOT="${CHATWOOT_IMAGEN:-chatwoot/chatwoot:v4.19.1}"
-IMAGEN_WAHA="${WAHA_IMAGEN:-devlikeapro/waha:gows-2026.10.1}"
+# Van con el digest (sha256) además de la etiqueta: así se baja exactamente la imagen probada,
+# aunque alguien vuelva a publicar la misma etiqueta.
+IMAGEN_CHATWOOT="${CHATWOOT_IMAGEN:-chatwoot/chatwoot:v4.19.1@sha256:a0d571a3a2f78f4fa4b1d7c21a53309c0184068d6021b3664ab37788faef04c1}"
+IMAGEN_WAHA="${WAHA_IMAGEN:-devlikeapro/waha:gows-2026.10.1@sha256:1f7faeb0227ad5edb5711f7058bfce807ea65e5f92234af0778e4db140f6eb46}"
 # Puertos solo para el propio servidor (127.0.0.1): los usa este script y sirven para un túnel SSH.
 PUERTO_CHATWOOT="${PUERTO_CHATWOOT:-3109}"
 PUERTO_WAHA="${PUERTO_WAHA:-3100}"
@@ -86,6 +90,27 @@ instalar_paquetes() {
   docker compose version >/dev/null 2>&1 || morir "Docker no tiene el plugin compose (docker compose)."
 }
 
+# MB de RAM del servidor.
+ram_mb() { awk '/^MemTotal:/ {print int($2 / 1024)}' /proc/meminfo; }
+
+preparar_swap() {
+  # Con poca RAM, un pico de Chatwoot (por ejemplo al migrar la base) puede hacer que el sistema
+  # mate un contenedor. 2 GB de swap lo evitan. Si ya hay swap, no se toca.
+  if [ "$(ram_mb)" -ge 6000 ] || [ -n "$(swapon --noheadings 2>/dev/null)" ]; then return 0; fi
+  info "Sumando 2 GB de swap (el servidor tiene $(ram_mb) MB de RAM)"
+  if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+  fi
+  swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >>/etc/fstab
+  # Que use el swap solo cuando hace falta.
+  echo 'vm.swappiness=10' >/etc/sysctl.d/90-mindlin-swap.conf
+  sysctl -q -p /etc/sysctl.d/90-mindlin-swap.conf || true
+  ok "swap de 2 GB activo"
+}
+
 escribir_env() {
   # Si ya existe, se conservan las claves (volver a instalar no rompe nada).
   if [ -f "$DIR/.env" ]; then
@@ -101,6 +126,14 @@ escribir_env() {
   : "${SECRET_KEY_BASE:=$(clave 64)}"
   : "${WAHA_API_KEY:=$(clave)}"
   : "${WAHA_DASHBOARD_PASSWORD:=$(clave 16)}"
+  # Con menos de 6 GB de RAM, Chatwoot corre con un solo proceso web y menos tareas en paralelo.
+  if [ "$(ram_mb)" -lt 6000 ]; then
+    CHATWOOT_WEB_PROCESOS=0
+    CHATWOOT_TAREAS=5
+  else
+    CHATWOOT_WEB_PROCESOS=2
+    CHATWOOT_TAREAS=10
+  fi
   umask 077
   cat >"$DIR/.env" <<EOF
 # Generado por servidor.sh. Contiene claves: no copiarlo a ningún lado.
@@ -127,6 +160,10 @@ RAILS_ENV=production
 NODE_ENV=production
 INSTALLATION_ENV=docker
 RAILS_MAX_THREADS=5
+# Procesos web de Puma (0 = uno solo, sin procesos hijos) y tareas en paralelo de Sidekiq.
+# Los fija servidor.sh según la RAM del servidor.
+WEB_CONCURRENCY=$CHATWOOT_WEB_PROCESOS
+SIDEKIQ_CONCURRENCY=$CHATWOOT_TAREAS
 RAILS_LOG_TO_STDOUT=true
 LOG_LEVEL=info
 POSTGRES_HOST=postgres
@@ -288,6 +325,7 @@ instalar() {
   # Una copia del script queda junto a la instalación (para el respaldo nocturno y los próximos comandos).
   [ "$(realpath "$0")" = "$(realpath "$DIR/servidor.sh" 2>/dev/null || true)" ] || cp "$0" "$DIR/servidor.sh"
   instalar_paquetes
+  preparar_swap
   escribir_env
   escribir_compose
   info "Bajando las imágenes (la primera vez tarda unos minutos)"
@@ -368,7 +406,7 @@ for x in s:
 '
 
   info "Recursos"
-  free -m | awk '/^Mem:/ {printf "  RAM: %s MB usados de %s MB\n", $3, $2}'
+  free -m | awk '/^Mem:/ {printf "  RAM: %s MB usados de %s MB\n", $3, $2} /^Swap:/ {printf "  Swap: %s MB usados de %s MB\n", $3, $2}'
   df -h / | awk 'NR==2 {printf "  Disco: %s usados de %s (%s libre)\n", $3, $2, $4}'
 
   echo
@@ -494,17 +532,57 @@ for b in json.load(sys.stdin)["payload"]:
 
   umask 077
   cat >"$DIR/asistente.env" <<EOF
-# Cargar estas cuatro variables en Vercel (Settings → Environment Variables) y volver a publicar.
+# Cargar las cuatro variables de Chatwoot en Vercel (Settings → Environment Variables) y volver a publicar.
 CHATWOOT_URL=https://$DOMINIO_CHAT
 CHATWOOT_ACCOUNT_ID=$CHATWOOT_CUENTA
 CHATWOOT_BOT_TOKEN=$bot_token
 CHATWOOT_WEBHOOK_SECRET=$clave_webhook
+# Para el cron de seguimientos (no van a Vercel):
+URL_ASISTENTE=$base
 EOF
   umask 022
   echo
   echo "Copiá estas cuatro variables directo a Vercel (no a un chat). Quedan guardadas en $DIR/asistente.env:"
   echo
   cat "$DIR/asistente.env"
+}
+
+# ---------- seguimientos ----------
+
+seguimientos() {
+  cargar_env
+  [ "$(id -u)" = 0 ] || morir "hay que correrlo como root."
+  # La clave y la dirección quedan en asistente.env (solo root puede leerlo).
+  if [ -f "$DIR/asistente.env" ]; then set -a; . "$DIR/asistente.env"; set +a; fi
+  preguntar URL_ASISTENTE "Dirección del asistente en Vercel" "${URL_ASISTENTE:-https://mindlin-asistente.vercel.app}"
+  local nueva=""
+  if [ -z "${CRON_SECRET:-}" ]; then CRON_SECRET=$(clave 32); nueva=1; fi
+  umask 077
+  touch "$DIR/asistente.env"
+  grep -v '^URL_ASISTENTE=\|^CRON_SECRET=' "$DIR/asistente.env" >"$DIR/asistente.env.tmp" || true
+  printf 'URL_ASISTENTE=%s\nCRON_SECRET=%s\n' "${URL_ASISTENTE%/}" "$CRON_SECRET" >>"$DIR/asistente.env.tmp"
+  mv "$DIR/asistente.env.tmp" "$DIR/asistente.env"
+  umask 022
+  echo "*/15 * * * * root MINDLIN_DIR=$DIR bash $DIR/servidor.sh correr-seguimientos >>/var/log/mindlin-seguimientos.log 2>&1" >/etc/cron.d/mindlin-seguimientos
+  ok "Seguimientos programados cada 15 minutos (el asistente solo manda de lunes a sábado, de 9 a 20)"
+  if [ -n "$nueva" ]; then
+    echo
+    echo "Cargá esta variable en Vercel (Settings → Environment Variables, Production) y volvé a publicar."
+    echo "No la pegues en ningún chat. Queda guardada en $DIR/asistente.env:"
+    echo
+    echo "CRON_SECRET=$CRON_SECRET"
+  fi
+  echo
+  echo "Para probar ahora: bash servidor.sh correr-seguimientos"
+}
+
+correr_seguimientos() {
+  [ -f "$DIR/asistente.env" ] || morir "falta $DIR/asistente.env: corré bash servidor.sh seguimientos"
+  set -a; . "$DIR/asistente.env"; set +a
+  [ -n "${URL_ASISTENTE:-}" ] && [ -n "${CRON_SECRET:-}" ] || morir "faltan URL_ASISTENTE o CRON_SECRET: corré bash servidor.sh seguimientos"
+  local respuesta
+  respuesta=$(curl -sS -m 150 -X POST -H "Authorization: Bearer $CRON_SECRET" "$URL_ASISTENTE/api/cron/seguimientos" -w ' (HTTP %{http_code})' 2>&1 || true)
+  echo "$(date '+%F %R') $respuesta"
 }
 
 claves() {
@@ -534,6 +612,7 @@ respaldo() {
 actualizar() {
   respaldo
   cargar_env
+  preparar_swap
   escribir_env
   escribir_compose
   [ -n "${SALTEAR_DESCARGA:-}" ] || compose pull
@@ -547,6 +626,8 @@ case "${1:-}" in
   verificar) verificar ;;
   conectar) shift; conectar "$@" ;;
   bot) bot ;;
+  seguimientos) seguimientos ;;
+  correr-seguimientos) correr_seguimientos ;;
   claves) claves ;;
   respaldo) respaldo ;;
   actualizar) actualizar ;;

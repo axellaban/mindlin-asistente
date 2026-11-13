@@ -1,6 +1,6 @@
 import pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
-import type { Almacen, Conversacion, Ejemplo, Proyecto, Tono } from "./tipos";
+import type { Almacen, CandidatoSeguimiento, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, Tono } from "./tipos";
 
 /**
  * La base del asistente: Postgres en Neon, creado desde Vercel (que carga DATABASE_URL solo).
@@ -93,6 +93,60 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
     async ejemplos() {
       const { rows } = await db.query("select titulo, conversacion from ejemplos where activo order by id");
       return rows as Ejemplo[];
+    },
+    async permitirSeguimientos(conversacion, permitido) {
+      await db.query(
+        "insert into conversaciones (chatwoot_id, sin_seguimientos) values ($1, $2) on conflict (chatwoot_id) do update set sin_seguimientos = excluded.sin_seguimientos, actualizada = now() where conversaciones.sin_seguimientos is distinct from excluded.sin_seguimientos",
+        [conversacion, !permitido],
+      );
+    },
+    async reglasSeguimiento() {
+      const { rows } = await db.query(
+        "select id, etapa, paso, dias_sin_respuesta, version, estado, proyecto, mensaje from reglas_seguimiento where estado <> 'archivada' order by etapa, paso, id",
+      );
+      return rows.map((r) => ({ ...r, id: Number(r.id) }) as ReglaSeguimiento);
+    },
+    async candidatosSeguimiento(hasta) {
+      // Mira los últimos 90 días: más atrás no tiene sentido escribirle a nadie.
+      const { rows } = await db.query(
+        `with ult as (
+           select conversacion,
+             max(fecha) as ultimo,
+             max(fecha) filter (where rol = 'interesado') as ultimo_interesado,
+             (array_agg(rol order by fecha desc, id desc))[1] as ultimo_rol,
+             bool_or(rol = 'persona') as hubo_persona
+           from mensajes
+           where fecha > now() - interval '90 days'
+           group by conversacion
+         )
+         select c.chatwoot_id, c.nombre, c.telefono, c.proyecto, u.ultimo,
+           case when c.ultimo_seguimiento is null or u.ultimo_interesado > c.ultimo_seguimiento then 0 else c.paso_seguimiento end as paso
+         from conversaciones c
+         join ult u on u.conversacion = c.chatwoot_id
+         where not c.sin_seguimientos
+           and u.ultimo_rol = 'bot'
+           and not u.hubo_persona
+           and u.ultimo_interesado is not null
+           and u.ultimo <= $1
+         order by u.ultimo`,
+        [hasta.toISOString()],
+      );
+      return rows.map(
+        (r): CandidatoSeguimiento => ({
+          chatwoot_id: Number(r.chatwoot_id),
+          nombre: r.nombre,
+          telefono: r.telefono,
+          proyecto: r.proyecto,
+          paso: Number(r.paso),
+          ultimo_mensaje: new Date(r.ultimo).toISOString(),
+        }),
+      );
+    },
+    async anotarSeguimiento(conversacion, paso, regla, fecha) {
+      await db.query(
+        "update conversaciones set paso_seguimiento = $2, regla_seguimiento = $3, ultimo_seguimiento = $4, actualizada = now() where chatwoot_id = $1",
+        [conversacion, paso, regla, fecha],
+      );
     },
     async registrar(r) {
       await db.query("insert into registro (tipo, conversacion, detalle, datos) values ($1, $2, $3, $4)", [

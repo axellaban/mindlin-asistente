@@ -154,6 +154,7 @@ async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; re
     .join("\n");
   await s.chatwoot.notaInterna(conv, nota);
   await s.chatwoot.pasarAPersona(conv);
+  await s.almacen.permitirSeguimientos(conv, false).catch(() => {});
   await s.almacen.registrar({ tipo: "paso_a_persona", conversacion: conv, detalle: p.motivo, datos: p });
   if (s.crm && contacto) {
     await s.crm.anotarActividad({ contacto, detalle: `Pasó al equipo: ${p.motivo}. ${p.resumen}`.trim(), ahora: ahora().toISOString() }).catch(() => {});
@@ -163,6 +164,7 @@ async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; re
 /** Una persona escribió en una conversación que atendía el bot: pasa a abierta y queda anotado. */
 export async function laTomoUnaPersona(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
   await s.chatwoot.pasarAPersona(conversacion);
+  await s.almacen.permitirSeguimientos(conversacion, false).catch(() => {});
   await s.almacen.registrar({ tipo: "la_tomo_una_persona", conversacion, detalle: "Una persona del equipo escribió: el asistente deja de responder." });
   return "pasó a abierta";
 }

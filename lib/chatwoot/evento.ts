@@ -142,3 +142,24 @@ export function mensajeParaHistorial(evento: unknown): MensajeHistorial | null {
   const rol: Rol = tipo === "incoming" ? "interesado" : loMandoElBot(e) ? "bot" : "persona";
   return { id: e.id, conversacion, rol, texto, fecha: fechaDe(e) };
 }
+
+/**
+ * Quién atiende la conversación según el evento: el bot si está «pendiente», una persona si no.
+ * Sirve para cortar los seguimientos cuando el equipo toma o cierra una conversación. Lo traen los
+ * mensajes (en `conversation.status`) y los avisos de cambio de estado (`conversation_opened`,
+ * `conversation_resolved`, `conversation_status_changed`), que traen la conversación arriba.
+ */
+export function estadoDeConversacion(evento: unknown): { conversacion: number; atiendeBot: boolean } | null {
+  if (!evento || typeof evento !== "object") return null;
+  const e = evento as EventoChatwoot & { status?: string };
+  if (e.event === "message_created") {
+    const id = e.conversation?.id;
+    const estado = e.conversation?.status;
+    if (typeof id !== "number" || typeof estado !== "string" || e.private || esIntegracion(e)) return null;
+    return { conversacion: id, atiendeBot: estado === "pending" };
+  }
+  if (/^conversation_(opened|resolved|status_changed)$/.test(e.event ?? "") && typeof e.id === "number" && typeof e.status === "string") {
+    return { conversacion: e.id, atiendeBot: e.status === "pending" };
+  }
+  return null;
+}

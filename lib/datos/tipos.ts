@@ -38,9 +38,36 @@ export interface Conversacion {
   nombre: string | null;
 }
 
+/** «Si quedó en tal etapa y pasaron tantos días sin respuesta, mandar este mensaje.» */
+export interface ReglaSeguimiento {
+  id: number;
+  /** Etapa del CRM del hub (Nuevo, Contactado, Interesado, Propuesta enviada). */
+  etapa: string;
+  paso: number;
+  dias_sin_respuesta: number;
+  version: number;
+  estado: "activa" | "a_prueba" | "archivada";
+  /** Null: vale para todos los proyectos. */
+  proyecto: string | null;
+  /** Variables: {{nombre}} y {{proyecto}}. */
+  mensaje: string;
+}
+
+/** Una conversación del bot donde la persona no volvió a escribir. */
+export interface CandidatoSeguimiento {
+  chatwoot_id: number;
+  nombre: string | null;
+  telefono: string | null;
+  proyecto: string | null;
+  /** Seguimientos ya mandados desde el último mensaje de la persona. */
+  paso: number;
+  /** Fecha del último mensaje de la conversación (del bot o de un seguimiento). */
+  ultimo_mensaje: string;
+}
+
 export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "seguimiento" | "crm" | "error";
 
-/** Dónde guarda y lee el asistente (Supabase en producción, memoria en las pruebas). */
+/** Dónde guarda y lee el asistente (Postgres en Neon en producción, memoria en las pruebas). */
 export interface Almacen {
   guardarMensaje(m: MensajeHistorial): Promise<void>;
   /** Los últimos mensajes de la conversación, del más viejo al más nuevo. */
@@ -52,5 +79,14 @@ export interface Almacen {
   proyectosActivos(): Promise<Proyecto[]>;
   tono(): Promise<Tono>;
   ejemplos(): Promise<Ejemplo[]>;
+  /** Si el bot puede mandarle seguimientos (no, desde que la atiende una persona). */
+  permitirSeguimientos(conversacion: number, permitido: boolean): Promise<void>;
+  reglasSeguimiento(): Promise<ReglaSeguimiento[]>;
+  /**
+   * Conversaciones donde el último mensaje es del bot, antes de `hasta`, sin intervención de una
+   * persona del equipo y con seguimientos permitidos.
+   */
+  candidatosSeguimiento(hasta: Date): Promise<CandidatoSeguimiento[]>;
+  anotarSeguimiento(conversacion: number, paso: number, regla: number, fecha: string): Promise<void>;
   registrar(r: { tipo: TipoRegistro; conversacion: number | null; detalle: string; datos?: unknown }): Promise<void>;
 }
