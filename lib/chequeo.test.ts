@@ -83,12 +83,21 @@ describe("chequeo de conexiones", () => {
       "CRM (planilla)": "ok",
       IA: "ok",
     });
-    expect(detalle(c, "Chatwoot")).toBe("Chatwoot 4.19.1 en https://chat.ejemplo.test responde y el token del Agent Bot entra a la cuenta 1.");
+    expect(detalle(c, "Chatwoot")).toBe("Chatwoot 4.19.1 en https://chat.ejemplo.test responde y acepta el token del Agent Bot (cuenta 1).");
     expect(detalle(c, "Mensajes de WhatsApp")).toContain("el último llegó el 13/11, 15:00 (conversación 3)");
     expect(detalle(c, "Seguimientos")).toBe("Corren una vez por día, a las 10, con 1 regla en uso.");
     expect(detalle(c, "IA")).toMatch(/^Responde Claude \(claude-opus-5-5\), en \d+,\d segundos\.$/);
     // El token se prueba contra una conversación que no existe (la 0), con Bearer.
     expect(cw.pedidos.at(-1)).toEqual({ url: "https://chat.ejemplo.test/api/v1/accounts/1/conversations/0/toggle_status", metodo: "POST", autorizacion: "Bearer token-de-prueba" });
+  });
+
+  it("Chatwoot 4.19.1: el 404 sin detalle («Resource could not be found») quiere decir que el token anda", async () => {
+    // Así contesta el Chatwoot de Easypanel (13/11): antes el chequeo lo marcaba como «Revisar».
+    const c = await chequearConexiones(deps({ pedir: chatwootFalso({ status: 404, cuerpo: '{"error":"Resource could not be found"}' }).pedir }));
+    expect(estados(c).Chatwoot).toBe("ok");
+    expect(detalle(c, "Chatwoot")).toContain("acepta el token del Agent Bot (cuenta 1)");
+    // Una respuesta que no se entiende sigue siendo «Revisar».
+    expect(estados(await chequearConexiones(deps({ pedir: chatwootFalso({ status: 500, cuerpo: "Internal Server Error" }).pedir }))).Chatwoot).toBe("aviso");
   });
 
   it("Chatwoot: el token del Chatwoot anterior, la cuenta equivocada, el bot sin bandeja o el servidor caído", async () => {

@@ -5,8 +5,10 @@
  *
  * No manda nada a nadie ni cambia nada:
  * - Chatwoot: lee la versión y prueba el token del Agent Bot pidiendo cambiar el estado de una
- *   conversación que no existe (la 0). Chatwoot revisa el token y la cuenta antes de buscar la
- *   conversación, así que «esa conversación no existe» quiere decir que el token y la cuenta andan.
+ *   conversación que no existe (la 0). Chatwoot revisa el token antes de buscar la conversación: un
+ *   token que no sirve da 401, y uno que sirve llega a buscarla y da 404. Ese 404 («Resource could
+ *   not be found» en Chatwoot 4.19.1) es el mismo si la cuenta no existe, así que la cuenta se
+ *   confirma de verdad con las respuestas: si estuviera mal, el error aparece en «Respuestas del asistente».
  * - Base: lee la pausa, las reglas y lo último que pasó (el último mensaje que llegó, la última
  *   respuesta y el último error).
  * - CRM: lee los títulos de las dos pestañas y los compara con las columnas que espera el asistente.
@@ -92,9 +94,12 @@ async function probarChatwoot({ chatwoot: cfg, pedir = fetch }: DependenciasCheq
       }),
     );
     const cuerpo = (await r.text().catch(() => "")).slice(0, 200);
-    if (r.status === 404 && /conversation/i.test(cuerpo)) return [{ que, estado: "ok", detalle: `${cual} responde y el token del Agent Bot entra a la cuenta ${cfg.cuenta}.` }];
-    if (r.status === 404 && /account/i.test(cuerpo)) return [{ que, estado: "falla", detalle: `${cual} responde, pero no tiene la cuenta ${cfg.cuenta}: revisá CHATWOOT_ACCOUNT_ID.` }];
-    if (r.ok) return [{ que, estado: "ok", detalle: `${cual} responde y el token del Agent Bot entra a la cuenta ${cfg.cuenta}.` }];
+    // Si Chatwoot dice que lo que no encuentra es la cuenta, es CHATWOOT_ACCOUNT_ID.
+    if (r.status === 404 && /account/i.test(cuerpo) && !/conversation/i.test(cuerpo)) {
+      return [{ que, estado: "falla", detalle: `${cual} responde, pero no tiene la cuenta ${cfg.cuenta}: revisá CHATWOOT_ACCOUNT_ID.` }];
+    }
+    // Cualquier otro 404 («Resource could not be found» en 4.19.1): el token pasó y buscó la conversación 0, que no existe.
+    if (r.status === 404 || r.ok) return [{ que, estado: "ok", detalle: `${cual} responde y acepta el token del Agent Bot (cuenta ${cfg.cuenta}).` }];
     if (r.status === 401 && /bot is not authorized|account/i.test(cuerpo)) {
       return [{ que, estado: "falla", detalle: `${cual} reconoce el token, pero el Agent Bot no está asignado a ninguna bandeja de la cuenta ${cfg.cuenta} (o la cuenta es otra). Respuesta: ${cuerpo}` }];
     }

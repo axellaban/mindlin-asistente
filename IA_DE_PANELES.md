@@ -138,7 +138,7 @@ El instalador ahora se ajusta solo a un servidor con 4 GB: crea el swap si falta
 
 Si en la instalación se cambiaron las imágenes a mano (por ejemplo, con el digest), `actualizar` vuelve a las versiones fijadas en el script (las mismas: Chatwoot 4.19.1 y WAHA 2026.10.1). Si hay otra diferencia, frená y anotala.
 
-### Tarea 9 · Reinstalar el servidor con Easypanel (13/11)
+### Tarea 9 · Reinstalar el servidor con Easypanel (hecha el 13/11)
 
 Axel decidió pasar WAHA y Chatwoot a Easypanel para manejarlos sin consola. Todavía no hay datos reales, así que se reinstala de cero. El paso a paso completo está en [`docs/easypanel.md`](docs/easypanel.md). En resumen:
 
@@ -149,7 +149,9 @@ Axel decidió pasar WAHA y Chatwoot a Easypanel para manejarlos sin consola. Tod
 
 Anotá en `docs/estado-paneles.md`, sección «Servidor», la salida de `verificar` y lo que haya salido distinto de la guía.
 
-### Tarea 10 · Prueba de punta a punta por WhatsApp (13/11)
+### Tarea 10 · Prueba de punta a punta por WhatsApp (hecha el 13/11)
+
+> **Hecha el 13/11 con Axel:** el asistente contesta de punta a punta (detalle en `docs/estado-paneles.md`). Se puede repetir igual después de un cambio grande (otro servidor, otra línea, otra cuenta de Vercel).
 
 Para confirmar que el asistente contesta de verdad. Hace falta que esté publicado en Vercel el PR que trajo **Conexiones** (el del 13/11, con la migración `202611130010_horario_equipo.sql`). Todo con datos inventados: ningún nombre ni dato real en las notas.
 
