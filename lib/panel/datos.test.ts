@@ -65,7 +65,11 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
   it("tono y ejemplos", async () => {
     const d = datosPanel(pool);
     await d.guardarTono({ instrucciones: "Voseo.", criterios_comerciales: "Primero entender.", cuando_pasar_a_persona: "Si pide visita." }, "Tadeo");
-    expect(await d.tono()).toMatchObject({ instrucciones: "Voseo.", actualizado_por: "Tadeo" });
+    // Sin horario: queda el de fábrica.
+    expect(await d.tono()).toMatchObject({ instrucciones: "Voseo.", actualizado_por: "Tadeo", horario_equipo: { dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20 } });
+    await d.guardarTono({ instrucciones: "Voseo.", criterios_comerciales: "", cuando_pasar_a_persona: "", horario_equipo: { dias: [1, 2, 3, 4, 5, 6], desde: 10, hasta: 19 } }, "Tadeo");
+    expect((await d.tono()).horario_equipo).toEqual({ dias: [1, 2, 3, 4, 5, 6], desde: 10, hasta: 19 });
+    expect((await crearAlmacen(pool).tono()).horario_equipo).toEqual({ dias: [1, 2, 3, 4, 5, 6], desde: 10, hasta: 19 });
     await d.agregarEjemplo({ titulo: "Uno", conversacion: "Hola" });
     await d.agregarEjemplo({ titulo: "Dos", conversacion: "Chau" });
     const [uno, dos] = await d.ejemplos();
@@ -114,6 +118,12 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
     expect((await d.registro({ conversacion: 50 })).map((r) => r.tipo)).toEqual(["respuesta"]);
     expect((await d.registro()).map((r) => r.tipo)).toEqual(["error", "respuesta"]);
     expect(await d.resumen()).toMatchObject({ respuesta: 1, error: 1, conversaciones: 1, seguimiento: 0 });
+    // Lo último que pasó (para el chequeo de conexiones): el último mensaje de un interesado, no del bot.
+    expect(await d.ultimaActividad()).toMatchObject({
+      ultimo_mensaje: { fecha: ahora, conversacion: 50 },
+      ultima_respuesta: { conversacion: 50, tipo: "respuesta", detalle: "¡Hola!" },
+      ultimo_error: { conversacion: null, tipo: "error", detalle: "CRM caído" },
+    });
   });
 
   it("pausar y reactivar el asistente, con quién lo hizo y en el registro", async () => {

@@ -6,6 +6,7 @@
 import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { Anotado, Ejemplo, ReglaSeguimiento, Tono, TipoRegistro } from "../datos/tipos";
+import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import { EVENTOS, type Evento } from "../etapas/reglas";
 import type { FichaEditable, ReglaNueva } from "./validar";
 
@@ -115,23 +116,45 @@ export function datosPanel(db: Db) {
       );
     },
 
-    async tono(): Promise<Tono & { actualizado: string | null; actualizado_por: string | null }> {
-      const { rows } = await db.query("select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, actualizado, actualizado_por from tono where id = 1");
+    async tono(): Promise<Tono & { horario_equipo: HorarioEquipo; actualizado: string | null; actualizado_por: string | null }> {
+      const { rows } = await db.query(
+        "select instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, horario_equipo, actualizado, actualizado_por from tono where id = 1",
+      );
       const t = rows[0];
       return t
-        ? { ...t, actualizado: iso(t.actualizado) }
-        : { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", pasar_al_responder: false, sobre_la_empresa: "", objeciones: "", actualizado: null, actualizado_por: null };
+        ? { ...t, horario_equipo: horarioValido(t.horario_equipo) ?? HORARIO_EQUIPO_DE_FABRICA, actualizado: iso(t.actualizado) }
+        : {
+            instrucciones: "",
+            criterios_comerciales: "",
+            cuando_pasar_a_persona: "",
+            pasar_al_responder: false,
+            sobre_la_empresa: "",
+            objeciones: "",
+            horario_equipo: HORARIO_EQUIPO_DE_FABRICA,
+            actualizado: null,
+            actualizado_por: null,
+          };
     },
 
     async guardarTono(t: Tono, por: string): Promise<void> {
       await db.query(
-        `insert into tono (id, instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, actualizado, actualizado_por)
-         values (1, $1, $2, $3, $4, $5, $6, now(), $7)
+        `insert into tono (id, instrucciones, criterios_comerciales, cuando_pasar_a_persona, pasar_al_responder, sobre_la_empresa, objeciones, horario_equipo, actualizado, actualizado_por)
+         values (1, $1, $2, $3, $4, $5, $6, $7, now(), $8)
          on conflict (id) do update set instrucciones = excluded.instrucciones, criterios_comerciales = excluded.criterios_comerciales,
            cuando_pasar_a_persona = excluded.cuando_pasar_a_persona, pasar_al_responder = excluded.pasar_al_responder,
-           sobre_la_empresa = excluded.sobre_la_empresa, objeciones = excluded.objeciones,
+           sobre_la_empresa = excluded.sobre_la_empresa, objeciones = excluded.objeciones, horario_equipo = excluded.horario_equipo,
            actualizado = now(), actualizado_por = excluded.actualizado_por`,
-        [t.instrucciones, t.criterios_comerciales, t.cuando_pasar_a_persona, t.pasar_al_responder === true, t.sobre_la_empresa ?? "", t.objeciones ?? "", por],
+        [
+          t.instrucciones,
+          t.criterios_comerciales,
+          t.cuando_pasar_a_persona,
+          t.pasar_al_responder === true,
+          t.sobre_la_empresa ?? "",
+          t.objeciones ?? "",
+          // jsonb: va como texto JSON.
+          JSON.stringify(horarioValido(t.horario_equipo) ?? HORARIO_EQUIPO_DE_FABRICA),
+          por,
+        ],
       );
     },
 
@@ -259,6 +282,22 @@ export function datosPanel(db: Db) {
         [pausado, por],
       );
       await db.query("insert into registro (tipo, detalle) values ('pausa', $1)", [pausado ? `${por} pausó el asistente.` : `${por} reactivó el asistente.`]);
+    },
+
+    /** Lo último que pasó: el último mensaje de un interesado, la última respuesta y el último error (para el chequeo de conexiones). */
+    async ultimaActividad(): Promise<{ ultimo_mensaje: { fecha: string; conversacion: number } | null; ultima_respuesta: RegistroPanel | null; ultimo_error: RegistroPanel | null }> {
+      const mensaje = await db.query("select fecha, conversacion from mensajes where rol = 'interesado' order by fecha desc, id desc limit 1");
+      const ultimo = async (tipo: TipoRegistro) => {
+        const { rows } = await db.query("select fecha, conversacion, tipo, detalle from registro where tipo = $1 order by fecha desc, id desc limit 1", [tipo]);
+        const r = rows[0];
+        return r ? ({ ...r, fecha: iso(r.fecha)!, conversacion: r.conversacion == null ? null : Number(r.conversacion) } as RegistroPanel) : null;
+      };
+      const m = mensaje.rows[0];
+      return {
+        ultimo_mensaje: m ? { fecha: iso(m.fecha)!, conversacion: Number(m.conversacion) } : null,
+        ultima_respuesta: await ultimo("respuesta"),
+        ultimo_error: await ultimo("error"),
+      };
     },
 
     /** Lo que hizo el bot en los últimos días, por tipo. */

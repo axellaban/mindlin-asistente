@@ -7,6 +7,7 @@ import { ETAPAS } from "../crm/planilla";
 import { esEvento, ETAPAS_DESTINO, type Evento } from "../etapas/reglas";
 import type { Proyecto, ReglaSeguimiento, Tono } from "../datos/tipos";
 import { MAX_PASOS } from "../seguimientos/reglas";
+import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 
 export type Resultado<T> = { ok: true; valor: T } | { ok: false; error: string };
 
@@ -77,10 +78,30 @@ export function validarTono(f: Formulario): Resultado<Tono> {
     sobre_la_empresa: texto(f, "sobre_la_empresa"),
     objeciones: texto(f, "objeciones"),
   };
-  const t = { ...textos, pasar_al_responder: f.get("pasar_al_responder") === "on" };
-  if (!t.instrucciones) return { ok: false, error: "Falta «Quién es y cómo habla»: sin eso el asistente no sabe qué tono usar." };
+  if (!textos.instrucciones) return { ok: false, error: "Falta «Quién es y cómo habla»: sin eso el asistente no sabe qué tono usar." };
   if (Object.values(textos).some((v) => v.length > MAX_CAMPO_FICHA)) return { ok: false, error: `Cada texto puede tener hasta ${MAX_CAMPO_FICHA} letras.` };
-  return { ok: true, valor: t };
+  const horario = leerHorario(f);
+  if (!horario.ok) return horario;
+  return { ok: true, valor: { ...textos, pasar_al_responder: f.get("pasar_al_responder") === "on", horario_equipo: horario.valor } };
+}
+
+/**
+ * El horario del equipo comercial. En el panel, una casilla por día (equipo_dia_1 … equipo_dia_0)
+ * y las horas (equipo_desde, equipo_hasta); el hub manda los días como lista (equipo_dias).
+ * Si no viene nada, el de fábrica.
+ */
+function leerHorario(f: Formulario): Resultado<HorarioEquipo> {
+  const lista = f.get("equipo_dias");
+  const desde = texto(f, "equipo_desde");
+  const hasta = texto(f, "equipo_hasta");
+  const casillas = [0, 1, 2, 3, 4, 5, 6].filter((d) => f.get(`equipo_dia_${d}`) === "on");
+  if (lista == null && !desde && !hasta && !casillas.length) return { ok: true, valor: HORARIO_EQUIPO_DE_FABRICA };
+  const dias = lista != null ? String(lista).split(/[,\s]+/).filter(Boolean).map(Number) : casillas;
+  if (!dias.length) return { ok: false, error: "Marcá al menos un día en el horario del equipo." };
+  if (dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return { ok: false, error: "Los días del horario del equipo van de 0 (domingo) a 6 (sábado)." };
+  const h = horarioValido({ dias, desde: desde === "" ? Number.NaN : Number(desde), hasta: hasta === "" ? Number.NaN : Number(hasta) });
+  if (!h) return { ok: false, error: "El horario del equipo va en horas enteras de 0 a 24, y «desde» tiene que ser antes que «hasta» (por ejemplo, de 9 a 20)." };
+  return { ok: true, valor: h };
 }
 
 export function validarEjemplo(f: Formulario): Resultado<{ titulo: string; conversacion: string }> {

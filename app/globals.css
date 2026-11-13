@@ -61,6 +61,10 @@ textarea { min-height: 6.5em; resize: vertical; }
 textarea.alto { min-height: 14em; }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
 .casilla { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+fieldset.horario { border: 1px solid var(--linea); border-radius: 8px; padding: 4px 16px 16px; margin: 20px 0 0; }
+fieldset.horario legend { font-weight: 600; padding: 0 6px; }
+.dias { display: flex; flex-wrap: wrap; gap: 0 18px; }
+.dias .casilla { margin: 8px 0 0; }
 button, .boton {
   font: inherit; cursor: pointer; border-radius: 6px; padding: 8px 16px; border: 1px solid var(--acento);
   background: var(--acento); color: var(--acento-texto); text-decoration: none; display: inline-block;

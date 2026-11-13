@@ -1,5 +1,6 @@
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
+import type { HorarioEquipo } from "../agente/horario";
 
 /** La ficha de un desarrollo: lo único que el agente puede decir sobre él. */
 export interface Proyecto {
@@ -31,6 +32,8 @@ export interface Tono {
   objeciones?: string;
   /** Modo «presenta y pasa»: cuando la persona responde después de la presentación, sigue el equipo. */
   pasar_al_responder?: boolean;
+  /** Cuándo trabaja el equipo comercial. Sin él, el de fábrica (de lunes a viernes de 9 a 20). */
+  horario_equipo?: HorarioEquipo;
 }
 
 export interface Ejemplo {

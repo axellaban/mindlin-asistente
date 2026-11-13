@@ -43,6 +43,8 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 ## 4. El asistente: una app aparte, en Vercel
 
 - Se publica sola: si el bot falla o tiene carga, no afecta al hub. Tampoco depende de la cuenta de GitHub suspendida.
+- **Dónde está (13/11):** en el equipo de Vercel `mindlin-developers-ia` (cuenta `mindlindevelopers.ia`), que es **plan Hobby**. Eso trajo dos cambios: el cron de seguimientos pasó a una vez por día (sección 8) y el repo se hizo público, porque en Hobby con repo privado Vercel solo publica los commits del dueño de la cuenta. Los dos se revierten si el proyecto vuelve a un plan Pro.
+- **Saber si anda de verdad:** «Conexiones» en el panel o «Probar las conexiones» en el hub prueban cada pieza (Chatwoot con el token del bot, la base, la planilla, la IA) sin mandar nada (`lib/chequeo.ts`). `/api/salud` solo dice si las variables existen.
 - Mismo stack y convenciones que el hub, para poder sumarlo como módulo más adelante si lo quieren adentro.
 - Su panel (`/panel`, con clave): conversaciones del bot, fichas de proyecto, tono y ejemplos, reglas de seguimiento. Ver [`panel.md`](panel.md).
 
@@ -75,7 +77,7 @@ También guarda el historial de mensajes (solo el texto). El token del Agent Bot
 
 ## 7. El agente: OpenAI o Claude, con herramientas
 
-- Responde la IA que tenga clave en Vercel. **Hoy, Claude** (Opus 5.5): Axel cargó `ANTHROPIC_API_KEY` el 10/11. OpenAI (GPT-6.1 Sol, por la API «Responses») queda como alternativa sin tocar código: el agente arma los pedidos siempre igual y un adaptador los traduce. Se cambia con variables (ver `asistente.md`).
+- Responde la IA que elija `ASISTENTE_PROVEEDOR` en Vercel: Claude (Opus 5.5) u OpenAI (GPT-6.1 Sol, por la API «Responses»). Están cargadas las dos claves; en la última lectura de `/api/salud` (13/11) respondía OpenAI. Elegir una es una decisión abierta de Axel (`PENDIENTES.md`). Cambiar de una a otra no toca código: el agente arma los pedidos siempre igual y un adaptador los traduce (ver `asistente.md`).
 - Instrucciones de tono y ejemplos, más la ficha del proyecto de la conversación. Van primero, para aprovechar el caché del proveedor. Si no sabe de qué proyecto se trata, pregunta.
 - El contacto del CRM se busca antes de responder: por el ID anotado en la conversación y, si no, por teléfono.
 - Herramientas:
@@ -91,7 +93,7 @@ También guarda el historial de mensajes (solo el texto). El token del Agent Bot
 - Reglas del tipo «si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones para comparar cuál convierte mejor.
 - Solo a quien ya escribió, de 9 a 20, con tope de intentos. Frenan si el interesado responde o si una persona tomó la conversación.
 - Salen por Chatwoot, así quedan a la vista en la bandeja.
-- Corren una vez por día con el cron de Vercel, a las 10 de la mañana de Buenos Aires (13:00 UTC). Era cada 15 minutos; pasó a diario el 13/11, cuando el proyecto quedó en una cuenta con plan Hobby, que no admite crons más seguidos. La etapa sale del CRM del hub. Detalle en [`seguimientos.md`](seguimientos.md).
+- Corren una vez por día con el cron de Vercel, a las 10 de la mañana de Buenos Aires (13:00 UTC). Era cada 15 minutos; pasó a diario el 13/11, cuando el proyecto quedó en una cuenta con plan Hobby, que no admite crons más seguidos. Para que una regla de «1 día» no salga a los dos días, cada regla vence medio día antes (margen de media corrida). La etapa sale del CRM del hub. Detalle en [`seguimientos.md`](seguimientos.md).
 
 ## 9. Email (previsto, no hecho)
 
@@ -103,7 +105,7 @@ La propuesta pide empezar por WhatsApp y dejar prevista la incorporación del em
 
 ## 10. El hub: configurar el asistente y, más adelante, Chatwoot
 
-Mindlin construye el hub (pantallas y funciones). **Todo lo comercial del asistente se configura sin tocar código** (fichas, presentación, tono, criterios, modo de atención, ejemplos, reglas de seguimiento, pausa), por dos caminos que usan los mismos datos:
+Mindlin construye el hub (pantallas y funciones). **Todo lo comercial del asistente se configura sin tocar código** (fichas, presentación, tono, criterios, modo de atención, horario del equipo, ejemplos, reglas de seguimiento, etapas automáticas, pausa), por dos caminos que usan los mismos datos:
 
 - el panel del asistente (`/panel`), que ya funciona;
 - la API para el hub ([`api-hub.md`](api-hub.md)), con una clave compartida (`HUB_CLAVE`). Las pantallas del hub están en HQ → Comercial → Asistente de WhatsApp (repo `mindlinhub`). El asistente es el dueño de esa configuración (está en su base); el hub la lee y la cambia. Así no hay dos copias que se desfasen.

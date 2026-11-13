@@ -1,6 +1,6 @@
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
-import { MAX_PASOS } from "../seguimientos/reglas";
+import { limiteCandidatos, MAX_PASOS } from "../seguimientos/reglas";
 import type { Almacen, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, SeguimientoEnviado, Tono, TipoRegistro } from "./tipos";
 
 /** Lo que el almacén en memoria sabe de cada conversación para los seguimientos (como las columnas de Postgres). */
@@ -101,7 +101,7 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
       return [...seguimiento.entries()]
         .map(([id, s]) => ({ id, s, salida: mayor(s.ultimo_mensaje_bot, s.ultimo_seguimiento) }))
         .filter(({ s, salida }) => !s.sin_seguimientos && s.ultimo_mensaje_interesado && s.paso_seguimiento <= MAX_PASOS && salida && salida > s.ultimo_mensaje_interesado)
-        .filter(({ salida }) => ms - Date.parse(salida!) > 86_400_000 && ms - Date.parse(salida!) < 120 * 86_400_000)
+        .filter(({ salida }) => Date.parse(salida!) < Date.parse(limiteCandidatos(new Date(ms))) && ms - Date.parse(salida!) < 120 * 86_400_000)
         .sort((a, b) => a.salida!.localeCompare(b.salida!))
         .map(({ id, s, salida }) => {
           const c = conv(id);

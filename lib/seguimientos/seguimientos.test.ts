@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { aplicarCeldas, lerma } from "../../test/fixtures";
 import type { Chatwoot } from "../chatwoot/api";
@@ -7,7 +8,7 @@ import { almacenEnMemoria } from "../datos/memoria";
 import type { ReglaSeguimiento } from "../datos/tipos";
 import { REGLAS_POR_DEFECTO, type ReglasEtapa } from "../etapas/reglas";
 import { correrSeguimientos } from "./correr";
-import { elegirRegla, enHorario, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
+import { CORRIDA, elegirRegla, enHorario, limiteCandidatos, MARGEN_MS, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
 
 const regla = (cambios: Partial<ReglaSeguimiento> = {}): ReglaSeguimiento => ({
   id: 1,
@@ -56,9 +57,38 @@ describe("reglas de seguimiento", () => {
     expect(elegida(3)).toBe(elegida(3));
   });
 
-  it("espera los días de la regla desde lo último que le mandamos", () => {
+  it("espera los días de la regla desde lo último que le mandamos, con el margen de media corrida", () => {
     expect(pasaronLosDias({ ultima_salida: haceDias(2) }, { dias_sin_respuesta: 2 }, AHORA)).toBe(true);
-    expect(pasaronLosDias({ ultima_salida: haceDias(2, 1) }, { dias_sin_respuesta: 2 }, AHORA)).toBe(false);
+    expect(pasaronLosDias({ ultima_salida: haceDias(2 - MARGEN_MS / 86_400_000) }, { dias_sin_respuesta: 2 }, AHORA)).toBe(true);
+    expect(pasaronLosDias({ ultima_salida: haceDias(2 - MARGEN_MS / 86_400_000, 1) }, { dias_sin_respuesta: 2 }, AHORA)).toBe(false);
+  });
+
+  it("con una corrida por día, una regla de «1 día» sale al día siguiente y no a los dos días", () => {
+    // Le escribimos ayer a las 11; la corrida de hoy es a las 10 y 5 (Vercel la corre en cualquier minuto de esa hora).
+    const ayerALas11 = new Date("2026-11-09T14:00:00Z").toISOString();
+    const hoyALas10 = new Date("2026-11-10T13:05:00Z");
+    expect(pasaronLosDias({ ultima_salida: ayerALas11 }, { dias_sin_respuesta: 1 }, hoyALas10)).toBe(true);
+    expect(Date.parse(ayerALas11) < Date.parse(limiteCandidatos(hoyALas10))).toBe(true);
+    // Lo de esta mañana a las 9 no: falta casi un día entero.
+    const hoyALas9 = new Date("2026-11-10T12:00:00Z").toISOString();
+    expect(pasaronLosDias({ ultima_salida: hoyALas9 }, { dias_sin_respuesta: 1 }, hoyALas10)).toBe(false);
+    expect(Date.parse(hoyALas9) < Date.parse(limiteCandidatos(hoyALas10))).toBe(false);
+  });
+
+  it("CORRIDA coincide con el cron de vercel.json", () => {
+    const { crons } = JSON.parse(readFileSync(new URL("../../vercel.json", import.meta.url), "utf8")) as { crons: { path: string; schedule: string }[] };
+    const cron = crons.find((c) => c.path === "/api/cron/seguimientos");
+    expect(cron).toBeDefined();
+    const [minuto, hora, ...resto] = cron!.schedule.split(" ");
+    if (/^\d+$/.test(minuto) && /^\d+$/.test(hora) && resto.join(" ") === "* * *") {
+      // Una vez por día: el texto dice la hora de Buenos Aires (UTC − 3).
+      expect(CORRIDA.cadaMs).toBe(86_400_000);
+      expect(CORRIDA.texto).toContain(`a las ${(Number(hora) + 21) % 24}`);
+    } else {
+      const cada = /^\*\/(\d+)$/.exec(minuto);
+      expect(cada && hora === "*" && resto.join(" ") === "* * *").toBeTruthy();
+      expect(CORRIDA.cadaMs).toBe(Number(cada![1]) * 60_000);
+    }
   });
 
   it("arma el mensaje con el nombre de pila y el proyecto, y sin nombre no queda raro", () => {
@@ -161,7 +191,8 @@ describe("la corrida de seguimientos", () => {
 
   it("no escribe antes de los días de la regla, fuera de horario ni sin reglas", async () => {
     const p = preparar();
-    await p.charla(7, 1.5);
+    // La regla es de 2 días: con el margen de medio día, todavía no.
+    await p.charla(7, 1.4);
     expect((await p.correr()).enviados).toBe(0);
     await p.charla(8, 3);
     expect((await p.correr(new Date("2026-11-10T02:00:00Z"))).estado).toBe("fuera de horario");

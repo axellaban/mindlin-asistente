@@ -1,5 +1,6 @@
 import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { MAX_CAMPO_FICHA } from "@/lib/panel/validar";
+import { NOMBRES_DIAS, textoHorario } from "@/lib/agente/horario";
 import { activarEjemplo, agregarEjemplo, borrarEjemplo, guardarTono } from "../acciones";
 import { fecha, Marco, SinBase, type Avisos } from "../marco";
 
@@ -19,7 +20,7 @@ export default async function Tono({ searchParams }: { searchParams: Avisos }) {
   return (
     <Marco nombre={nombre} actual="/panel/tono" titulo="Tono y ejemplos" avisos={searchParams}>
       <p className="nota">
-        Cómo habla el asistente. Además de esto, siempre cumple unas reglas fijas: no inventa precios ni condiciones, no mezcla proyectos y dice que es un asistente virtual si se lo preguntan.
+        Cómo habla el asistente y cuándo trabaja el equipo. Además de esto, siempre cumple unas reglas fijas: no inventa precios ni condiciones, no mezcla proyectos y dice que es un asistente virtual si se lo preguntan.
         {t.actualizado && ` Último cambio: ${fecha(t.actualizado)}${t.actualizado_por ? ` (${t.actualizado_por})` : ""}.`}
       </p>
       <form action={guardarTono}>
@@ -50,6 +51,29 @@ export default async function Tono({ searchParams }: { searchParams: Avisos }) {
         <p className="nota">
           Así trabajaban los bots de Kommo. Apagado, el asistente sigue la charla (responde dudas, anota lo que busca) y pasa la conversación solo cuando corresponde, según el texto de arriba.
         </p>
+        <fieldset className="horario">
+          <legend>Horario del equipo comercial</legend>
+          <p className="nota">
+            Hoy: {textoHorario(t.horario_equipo)}, hora de Buenos Aires. Fuera de ese horario el asistente sigue atendiendo igual; si pasa la conversación al equipo, le avisa a la persona que le escriben apenas vuelvan.
+          </p>
+          <div className="dias">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+              <label key={d} className="casilla">
+                <input type="checkbox" name={`equipo_dia_${d}`} defaultChecked={t.horario_equipo.dias.includes(d)} /> {NOMBRES_DIAS[d]}
+              </label>
+            ))}
+          </div>
+          <div className="fila-campos">
+            <div>
+              <label htmlFor="equipo_desde">Desde (hora)</label>
+              <input id="equipo_desde" name="equipo_desde" type="number" min={0} max={23} step={1} required defaultValue={t.horario_equipo.desde} />
+            </div>
+            <div>
+              <label htmlFor="equipo_hasta">Hasta (hora)</label>
+              <input id="equipo_hasta" name="equipo_hasta" type="number" min={1} max={24} step={1} required defaultValue={t.horario_equipo.hasta} />
+            </div>
+          </div>
+        </fieldset>
         <div className="acciones">
           <button type="submit">Guardar el tono</button>
         </div>

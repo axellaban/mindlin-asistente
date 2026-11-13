@@ -1,6 +1,6 @@
 import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { ETAPAS_SEGUIMIENTO } from "@/lib/panel/validar";
-import { HORARIO, MAX_PASOS, textoSeguimiento } from "@/lib/seguimientos/reglas";
+import { CORRIDA, HORARIO, MAX_PASOS, textoSeguimiento } from "@/lib/seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "@/lib/seguimientos/correr";
 import { agregarRegla, borrarRegla, cambiarEstadoRegla } from "../acciones";
 import { Marco, SinBase, type Avisos } from "../marco";
@@ -26,7 +26,7 @@ export default async function Seguimientos({ searchParams }: { searchParams: Avi
   return (
     <Marco nombre={nombre} actual="/panel/seguimientos" titulo="Seguimientos" avisos={searchParams}>
       <p className="nota">
-        Si alguien consultó y dejó de responder, el asistente le vuelve a escribir según estas reglas: de {HORARIO.desde} a {HORARIO.hasta}, hasta {TOPE_POR_CORRIDA} cada 15 minutos, y nunca si una persona del equipo tomó la conversación. Si responde, los pasos vuelven a empezar.
+        Si alguien consultó y dejó de responder, el asistente le vuelve a escribir según estas reglas. Los manda {CORRIDA.texto} (siempre de {HORARIO.desde} a {HORARIO.hasta}), hasta {TOPE_POR_CORRIDA} por vez, y nunca si una persona del equipo tomó la conversación. Si responde, los pasos vuelven a empezar.
         {!cron && " Ojo: falta CRON_SECRET en Vercel, así que por ahora no sale ninguno."}
       </p>
       {reglas.length === 0 ? (
