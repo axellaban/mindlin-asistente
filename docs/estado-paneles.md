@@ -218,6 +218,59 @@ Estado de las variables en la cuenta nueva: las cuatro de Chatwoot (`CHATWOOT_UR
 - Se reprodujo el problema con una lectura de la misma conversación y la misma credencial. `api_access_token` dio `200` contra Chatwoot local y `401` contra la URL pública. `Authorization: Bearer` dio `200` contra la URL pública.
 - El [PR #12](https://github.com/axellaban/mindlin-asistente/pull/12) corrigió el encabezado. Tras publicar `116c585`, se reenvió un mensaje nuevo de la misma conversación de prueba. El webhook generó y mandó una respuesta del Agent Bot. Chatwoot la marcó `delivered` y WAHA confirmó `DEVICE`. El Agent Bot sigue sin asignar a la bandeja.
 
+### Prueba de punta a punta (Easypanel) · 13/11/2026
+
+Tarea 10, hecha con Axel sobre el servidor nuevo. **Resultado: el asistente atiende por WhatsApp de punta a punta.** Todo con datos inventados.
+
+**Conexiones, antes de la prueba (17:00).** Dos cosas en rojo: el CRM y un aviso de Chatwoot.
+
+| Qué | Estado | Detalle |
+| --- | --- | --- |
+| Chatwoot | ⚠️ Revisar | Responde, pero no se pudo confirmar el token del Agent Bot: 404 `{"error":"Resource could not be found"}` |
+| Base de datos | ✅ | Responde, y el asistente está prendido. |
+| Mensajes de WhatsApp | ✅ | El último llegó a las 16:42 (conversación 2). |
+| Respuestas del asistente | ⚠️ Revisar | Todavía no respondió ninguna. |
+| Seguimientos | ⚠️ Revisar | Corren una vez por día, a las 10, pero no hay ninguna regla en uso. |
+| CRM (planilla) | ❌ No anda | Las columnas no son las que espera el asistente. |
+| IA | ✅ | OpenAI (gpt-6.1-sol), 2,6 segundos. |
+
+**Lo que se corrigió para destrabarla**
+
+1. **La planilla del CRM.** En «CRM Contactos», la columna B decía `Proyecto` y las AC y AD estaban vacías. Se comprobó antes en el repo del hub (`lib/crm/modelo.ts`, `COLUMNAS_CONTACTOS`) que espera exactamente `Proyectos` (B), `Hora próximo paso` (AC) y `Tags` (AD), y que lee la planilla **por posición**: `lib/google/pestania.ts` solo reescribe los títulos si la fila está vacía o es un prefijo de los esperados, así que renombrar no lo afecta. Se corrigieron esas tres celdas de la fila 1 y nada más: ninguna fila de datos se tocó. Conexiones pasó a ✅.
+2. **`CHATWOOT_ACCOUNT_ID`.** Se volvió a cargar en `1` (la cuenta del Chatwoot nuevo; la del anterior era la 3) y se republicó. No cambió el aviso de Chatwoot, así que no era eso.
+
+**El aviso de Chatwoot es un falso positivo del chequeo, no un problema de configuración.** `lib/chequeo.ts` prueba el token con un POST a `/api/v1/accounts/<cuenta>/conversations/0/toggle_status` y da por buena la respuesta solo si el 404 menciona «conversation» o «account». Chatwoot 4.19.1 contesta `{"error":"Resource could not be found"}`, que no dice ninguna de las dos, y cae en el aviso genérico. Un token inválido daría 401, que el chequeo sí distingue. La prueba de punta a punta confirma que el token anda. **Para Claude: alcanza con aceptar también ese texto.**
+
+**La prueba, paso por paso**
+
+| Hora | Qué se mandó | Qué pasó |
+| --- | --- | --- |
+| 17:13 | «info de lerma» (conversación 2, en Pendiente) | Contestó en el momento, con la ficha bien usada: ubicación, estado de obra, 1 y 2 ambientes desde USD 88.000 y 105.000, aporte inicial y 24 cuotas por CAC, y repreguntó. Apareció una sola vez: no hubo eco ni se abrió la conversación. |
+| 17:14 | «Soy Juan Prueba, busco 2 ambientes para invertir» | Contestó que lo anotó y preguntó presupuesto. En el CRM quedó el contacto `cmwb5wcob9uz6`, proyecto `lerma-439`, origen WhatsApp, etapa **Seguimiento**. El contacto ya existía de la prueba del 10/11, así que el «Alta por WhatsApp» tiene esa fecha. |
+| 17:15 | «¿Puedo ir a ver el showroom esta semana?» | Movió la etapa a **Visita / reunión** (queda el «Cambio de etapa» en CRM Actividad) y **pasó la conversación al equipo**, con una nota interna correcta: qué pide, qué se informó y qué no se prometió. |
+| 17:16 | «Prefiero hablar con alguien del equipo» | **No contestó**, que es lo esperado: ya la tenía el equipo. |
+| 17:20 | Mensaje desde un número que nunca había escrito | Entró como **conversación 3** y el asistente contestó a las 17:21, sin que nadie tocara nada. Chatwoot la muestra como «gestionada por Asistente Mindlin». |
+
+**Conexiones, después (17:23).** Igual que antes salvo las dos que importaban:
+
+| Qué | Estado | Detalle |
+| --- | --- | --- |
+| Mensajes de WhatsApp | ✅ | El último llegó a las 17:20 (conversación 3). |
+| **Respuestas del asistente** | **✅** | **La última salió el 13/11, 17:21 (conversación 3).** |
+| CRM (planilla) | ✅ | La planilla responde y sus columnas son las que espera el asistente. |
+| IA | ✅ | OpenAI (gpt-6.1-sol), 1,3 segundos. |
+
+**Lo que hay que saber para usarlo**
+
+- El asistente solo atiende conversaciones **pendientes**. Si alguien del equipo escribe desde Chatwoot, se corre a propósito y la conversación queda abierta: para devolvérsela hay que marcarla **pendiente**. Pasó varias veces durante la prueba y parecía que el bot no andaba.
+- Un número nuevo entra siempre como conversación pendiente, así que va derecho al asistente.
+
+**Para Axel**
+
+- La fila de prueba del CRM es el contacto **`cmwb5wcob9uz6`**, hoy en etapa «Visita / reunión». No se borró: decidí vos si se elimina o se pasa a «Descartado».
+- Hay **6 reglas de seguimiento cargadas pero archivadas**: mientras sigan así no sale ningún seguimiento. Se activan en `/panel` → Seguimientos.
+- La pausa global quedó como estaba: «El asistente está respondiendo».
+
 ## Pendientes para retomar (09/11/2026)
 
 - **Hostinger, diferido por Axel:** completar el código de la cuenta dueña y aceptar desde `axellaban@gmail.com` la invitación de Admin al VPS de Mindlin.
