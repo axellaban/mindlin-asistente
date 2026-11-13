@@ -23,7 +23,7 @@ Ejemplo: Nuevo, paso 1, 2 días: «Hola {{nombre}}, ¿pudiste ver lo de {{proyec
 
 - Solo a quien ya escribió, y solo si lo último lo dijimos nosotros.
 - De 9 a 20, hora de Buenos Aires.
-- Como mucho 20 por corrida (cada 15 minutos): WhatsApp por WAHA no es oficial y no conviene mandar de a muchos.
+- Como mucho 20 por corrida (una por día): WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. Si un día quedan más de 20 en condiciones, el resto sale en la corrida siguiente.
 - Si la persona responde, frena: la atiende el bot y, si vuelve a quedar callada, los pasos empiezan de nuevo.
 - **Si una persona del equipo tomó la conversación** (escribió, o el bot se la pasó), no lleva más seguimientos automáticos.
 - Si no hay regla para el paso siguiente, termina.
@@ -38,6 +38,7 @@ Para probar dos mensajes para la misma etapa y paso, se carga uno como `activa` 
 
 ## Cómo corre
 
-- `vercel.json` programa `GET /api/cron/seguimientos` cada 15 minutos. Vercel manda `Authorization: Bearer <CRON_SECRET>`: sin esa variable cargada, la ruta no hace nada. **Los crons cada 15 minutos necesitan el plan Pro de Vercel** (el de Axel lo es).
+- `vercel.json` programa `GET /api/cron/seguimientos` una vez por día, a las 13:00 UTC (las 10 de la mañana en Buenos Aires, dentro de la franja de 9 a 20). Vercel manda `Authorization: Bearer <CRON_SECRET>`: sin esa variable cargada, la ruta no hace nada.
+- **Por qué una vez por día y no cada 15 minutos:** el 13/11 Axel movió el proyecto a la cuenta `mindlindevelopers.ia`, que es plan Hobby, y Hobby solo admite crons diarios. Las reglas se miden en días, así que una corrida diaria las respeta igual; lo que se pierde es puntualidad dentro del día. Si el proyecto vuelve a un equipo con plan Pro, se puede volver a `*/15 * * * *`.
 - La lógica está en `lib/seguimientos/reglas.ts` (puro: horario, qué regla toca, el texto) y `lib/seguimientos/correr.ts` (la corrida). Pruebas en `lib/seguimientos/seguimientos.test.ts` y, contra Postgres, en `lib/datos/postgres.test.ts`.
 - La base (`db/migraciones/202611100003_seguimientos.sql`): cada mensaje actualiza en `conversaciones` cuándo escribió cada uno, el paso y si la tomó una persona; `seguimientos_enviados` guarda cada seguimiento con su regla, su versión y si respondió.

@@ -1,5 +1,5 @@
 /**
- * La corrida de seguimientos (el cron, cada 15 minutos): busca las conversaciones del bot que
+ * La corrida de seguimientos (el cron, una vez por día): busca las conversaciones del bot que
  * quedaron sin respuesta, mira en el CRM en qué etapa está cada persona, elige la regla y manda
  * el mensaje por Chatwoot (así queda a la vista del equipo en la bandeja).
  *
