@@ -12,14 +12,13 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 
 ## Lo próximo, en orden (para atender consultas reales)
 
-Estado en producción el 11/11 (`/api/salud`): configuración completa, responde **OpenAI (`gpt-6.1-sol`)**, audios prendidos y **la API del hub apagada** (falta `HUB_CLAVE`). WAHA está en `WORKING` y una prueba ida y vuelta por WhatsApp anduvo, pero **el Agent Bot sigue sin asignar a la bandeja**: hoy no atiende a nadie.
+Estado en producción el 13/11 (`/api/salud`): configuración completa, responde **OpenAI (`gpt-6.1-sol`)**, audios prendidos y **el hub conectado** (`apiDelHub: true`; se configura desde Comercial → Asistente de WhatsApp). El 13/11 Axel decidió **reinstalar el servidor con Easypanel**: hasta que esté, no hay línea ni bandeja.
 
-1. **Axel:** conectar el hub: `HUB_CLAVE` acá, y `ASISTENTE_URL` y `ASISTENTE_CLAVE` (la misma clave) en el proyecto del hub. Volver a publicar los dos. Desde ahí se configura todo en el hub: Comercial → Asistente de WhatsApp ([`docs/api-hub.md`](docs/api-hub.md)). Se confirma con `/api/salud` → `apiDelHub: true`.
+1. **Panel con Axel:** reinstalar el servidor con Easypanel (tarea 9, [`docs/easypanel.md`](docs/easypanel.md)). Hay que volver a escanear el QR y cargar en Vercel las cuatro variables nuevas de Chatwoot.
 2. **Axel:** decidir con qué IA responde (ver «Decisiones abiertas»). Se cambia con `ASISTENTE_PROVEEDOR` (`anthropic` u `openai`) en Vercel y volviendo a publicar ([`docs/asistente.md`](docs/asistente.md)).
 3. **Mindlin:** revisar los borradores que se cargaron desde Kommo ([`docs/kommo.md`](docs/kommo.md)): la ficha de Lerma 439 y las cinco apagadas, el modo («presenta y pasa» o conversar), los seguimientos archivados y las etapas automáticas. Probarlo desde el hub (pestaña Probar) o en `/panel/probar` antes de abrir la línea.
-4. **Panel:** asignar el Agent Bot a la bandeja «WhatsApp Lerma 439» y probar de punta a punta con datos inventados (tarea 6): respuesta, paso a una persona, devolverla al bot, la fila en el CRM y el cambio de etapa.
-5. **Claude con Axel:** con el hub conectado, probar las respuestas con la IA de verdad y las etapas con la planilla real; ajustar el tono con el material de Mindlin.
-6. **Panel:** actualizar el instalador en el servidor (tarea 8).
+4. **Panel:** probar de punta a punta con datos inventados: respuesta, paso a una persona, devolverla al bot, la fila en el CRM y el cambio de etapa. Con Easypanel, `servidor.sh bot` ya deja el Agent Bot asignado a la bandeja: mientras no se prueba, el asistente queda pausado desde el hub.
+5. **Claude con Axel:** probar las respuestas con la IA de verdad y las etapas con la planilla real; ajustar el tono con el material de Mindlin.
 
 ## Decisiones abiertas
 
@@ -33,7 +32,7 @@ Estado en producción el 11/11 (`/api/salud`): configuración completa, responde
 - [ ] Horario del equipo comercial: el asistente supone de lunes a viernes de 9 a 20 (fuera de eso, si pasa la conversación avisa que le escriben apenas vuelvan). ¿Es así? Se cambia en `HORARIO_EQUIPO` (`lib/agente/contexto.ts`). — Mindlin
 - [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
 
-Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11); el asistente mueve a los leads de etapa y se configura desde el hub, que arma Claude (Axel, 11/11); lotes y correos quedan afuera por ahora (Axel, 11/11); audios: se transcriben con OpenAI, clave cargada (11/11).
+Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11), con Easypanel (Axel, 13/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11); el asistente mueve a los leads de etapa y se configura desde el hub, que arma Claude (Axel, 11/11); lotes y correos quedan afuera por ahora (Axel, 11/11); audios: se transcriben con OpenAI, clave cargada (11/11).
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
@@ -98,7 +97,8 @@ Decididas: Vercel en la cuenta de Axel (07/11); servidor Hostinger KVM 1 con 4 G
 - [x] Instalador para 4 GB: swap si falta y menos hilos en Chatwoot. — Claude, 10/11
 - [x] Panel con clave (`/panel`, `docs/panel.md`). — Claude, 10/11
 - [x] `PANEL_CLAVE` en Vercel. — Axel, 10/11
-- [ ] Pasar el instalador nuevo al servidor y correr `actualizar` (tarea 8). — Panel
+- [x] Easypanel: el Compose para pegar ([`infra/easypanel/`](infra/easypanel/)), `servidor.sh` en modo Easypanel (`generar`, `easypanel`; `conectar` y `bot` con `Authorization: Bearer`, que hace falta detrás de un proxy), la guía [`docs/easypanel.md`](docs/easypanel.md) y la limpieza de las conversaciones de prueba del Chatwoot anterior. Probado en Docker local. — Claude, 13/11
+- [ ] Reinstalar el servidor con Easypanel (tarea 9, reemplaza a la tarea 8). — Panel con Axel
 - [x] La línea de prueba con el QR (tarea 5): escaneado desde Chatwoot, WAHA en `WORKING`. — Axel y Panel, 10/11
 - [ ] Hostinger: delegar el acceso Admin a la cuenta de Axel y rotar las claves iniciales del servidor. — Axel
 

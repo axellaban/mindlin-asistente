@@ -1,0 +1,137 @@
+# WhatsApp (WAHA) + la bandeja del equipo (Chatwoot) para Easypanel.
+# Se pega tal cual en Easypanel: proyecto «mindlin» → servicio Compose «asistente» → Fuente: Inline.
+# Las claves van en la pestaña Entorno (ver variables.env.example), nunca en este archivo.
+# Los dominios (HTTPS) los pone Easypanel: chatwoot-rails puerto 3000 y waha puerto 3000.
+# Las mismas versiones y ajustes que infra/servidor.sh, que ya se probaron juntos.
+
+x-registro: &registro
+  logging:
+    driver: json-file
+    options: { max-size: "50m", max-file: "5" }
+
+x-chatwoot: &chatwoot
+  <<: *registro
+  image: chatwoot/chatwoot:v4.19.1
+  restart: always
+  environment: &chatwoot-entorno
+    FRONTEND_URL: https://${DOMINIO_CHAT}
+    SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+    DEFAULT_LOCALE: es
+    ENABLE_ACCOUNT_SIGNUP: "false"
+    RAILS_ENV: production
+    NODE_ENV: production
+    INSTALLATION_ENV: docker
+    # Con 4 GB de RAM (Hostinger KVM 1): menos hilos. Con 8 GB o más, 5 y 10.
+    RAILS_MAX_THREADS: ${RAILS_MAX_THREADS:-3}
+    SIDEKIQ_CONCURRENCY: ${SIDEKIQ_CONCURRENCY:-5}
+    WEB_CONCURRENCY: "0"
+    MALLOC_ARENA_MAX: "2"
+    RAILS_LOG_TO_STDOUT: "true"
+    LOG_LEVEL: info
+    POSTGRES_HOST: postgres
+    POSTGRES_USERNAME: postgres
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    POSTGRES_DATABASE: chatwoot
+    REDIS_URL: redis://redis:6379
+    REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ACTIVE_STORAGE_SERVICE: local
+    ENABLE_PUSH_RELAY_SERVER: "true"
+    MAILER_SENDER_EMAIL: Mindlin Developers <no-responder@${DOMINIO_CHAT}>
+    # Chatwoot (desde 4.13) no manda webhooks a direcciones internas. WAHA está en la red interna
+    # (http://waha:3000): sin esto, lo que se escribe en Chatwoot no llega a WhatsApp.
+    SAFE_FETCH_ALLOW_PRIVATE_NETWORK: "true"
+    # Recomendado por WAHA para su integración con Chatwoot
+    RACK_TIMEOUT_SERVICE_TIMEOUT: "60"
+    CONVERSATION_MESSAGE_PER_MINUTE_LIMIT: "3000"
+    RACK_ATTACK_LIMIT: "30000"
+  volumes:
+    - chatwoot_archivos:/app/storage
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_started }
+
+services:
+  chatwoot-rails:
+    <<: *chatwoot
+    entrypoint: docker/entrypoints/rails.sh
+    # Prepara o actualiza la base de Chatwoot en cada arranque (no hace nada si ya está al día).
+    command: ["sh", "-c", "bundle exec rails db:chatwoot_prepare && exec bundle exec rails s -p 3000 -b 0.0.0.0"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 300s
+      retries: 10
+
+  chatwoot-sidekiq:
+    <<: *chatwoot
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    depends_on:
+      chatwoot-rails: { condition: service_healthy }
+
+  postgres:
+    <<: *registro
+    image: pgvector/pgvector:pg16
+    restart: always
+    environment:
+      POSTGRES_DB: chatwoot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 30
+
+  redis:
+    <<: *registro
+    image: redis:7-alpine
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    volumes:
+      - redis_datos:/data
+
+  waha:
+    <<: *registro
+    image: devlikeapro/waha:gows-2026.10.1
+    restart: always
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY}
+      WAHA_API_KEY_PLAIN: ${WAHA_API_KEY}
+      WAHA_DASHBOARD_ENABLED: "True"
+      WAHA_DASHBOARD_USERNAME: admin
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      WHATSAPP_SWAGGER_ENABLED: "True"
+      WHATSAPP_SWAGGER_USERNAME: admin
+      WHATSAPP_SWAGGER_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      WAHA_BASE_URL: http://waha:3000
+      WAHA_PUBLIC_URL: https://${DOMINIO_WAHA}
+      WHATSAPP_DEFAULT_ENGINE: GOWS
+      WAHA_APPS_ENABLED: "True"
+      WAHA_APPS_ON: chatwoot
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      WHATSAPP_SESSIONS_POSTGRESQL_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=disable
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+      WAHA_MEDIA_STORAGE: LOCAL
+      WHATSAPP_FILES_LIFETIME: "1800"
+      WHATSAPP_FILES_FOLDER: /app/.media
+      WAHA_LOG_FORMAT: JSON
+      WAHA_LOG_LEVEL: info
+      WAHA_PRINT_QR: "False"
+      TZ: America/Argentina/Buenos_Aires
+    volumes:
+      - waha_sesiones:/app/.sessions
+      - waha_archivos:/app/.media
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
+volumes:
+  chatwoot_archivos:
+  postgres_datos:
+  redis_datos:
+  waha_sesiones:
+  waha_archivos:
