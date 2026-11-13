@@ -1,5 +1,7 @@
 # Servidor: WAHA + Chatwoot
 
+> **Desde el 13/11 el servidor del piloto usa Easypanel:** los contenedores los levanta Easypanel con [`easypanel/docker-compose.yml`](easypanel/docker-compose.yml) (mismas versiones y ajustes que acá) y `servidor.sh` queda en modo Easypanel para `conectar`, `bot`, `verificar`, `respaldo` y `claves`. Guía: [`docs/easypanel.md`](../docs/easypanel.md). Lo de abajo sirve para instalar sin Easypanel.
+
 `servidor.sh` instala y opera todo en un VPS con Ubuntu (22.04 o 24.04), con 4 GB de RAM y 30 GB libres como mínimo. El paso a paso para hacerlo está en [`IA_DE_PANELES.md`](../IA_DE_PANELES.md), tareas 4 a 6.
 
 ## El servidor del piloto

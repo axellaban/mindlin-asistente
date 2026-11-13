@@ -14,6 +14,13 @@
 #   bash servidor.sh actualizar   Baja las versiones fijadas en este archivo y reinicia.
 #   bash servidor.sh estado       Muestra los contenedores.
 #
+# Con Easypanel (docs/easypanel.md) los contenedores los levanta y actualiza Easypanel con
+# infra/easypanel/docker-compose.yml. Ahí este script se usa así:
+#
+#   bash servidor.sh generar      Claves nuevas para pegar en Easypanel (pestaña Entorno).
+#   bash servidor.sh easypanel    Lo prepara una vez: swap, respaldo nocturno y verificación.
+#   Después, igual que arriba: verificar, conectar, bot, claves y respaldo.
+#
 # Las claves se generan solas y quedan en /opt/mindlin-asistente/.env (solo root puede leerlo).
 # Nunca hace falta copiarlas a ningún chat.
 
@@ -36,12 +43,34 @@ clave() { openssl rand -hex "${1:-24}"; }
 
 compose() { docker compose --project-directory "$DIR" -f "$DIR/docker-compose.yml" "$@"; }
 
+# Con Easypanel (MODO=easypanel en .env) los contenedores los maneja Easypanel: el script habla con
+# Chatwoot y WAHA por sus dominios y entra a los contenedores solo para leer la clave de WAHA y respaldar.
+easypanel() { [ "${MODO:-}" = easypanel ]; }
+url_chatwoot() { if easypanel; then echo "https://$DOMINIO_CHAT"; else echo "http://127.0.0.1:$PUERTO_CHATWOOT"; fi; }
+url_waha() { if easypanel; then echo "https://$DOMINIO_WAHA"; else echo "http://127.0.0.1:$PUERTO_WAHA"; fi; }
+# El contenedor que está corriendo un servicio del Compose (en Easypanel, el de nuestro proyecto).
+contenedor() {
+  docker ps -q --filter "label=com.docker.compose.service=$1" \
+    ${PROYECTO_COMPOSE:+--filter "label=com.docker.compose.project=$PROYECTO_COMPOSE"} | head -1
+}
+# Una variable del entorno de un contenedor (la carga Easypanel; así no hace falta copiarla).
+entorno_de() {
+  local c
+  c=$(contenedor "$1")
+  [ -n "$c" ] || return 0
+  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$c" | sed -n "s/^$2=//p" | head -1
+}
+
 cargar_env() {
   [ -f "$DIR/.env" ] || morir "todavía no está instalado. Corré primero: bash servidor.sh instalar"
   set -a
   # shellcheck disable=SC1091
   . "$DIR/.env"
   set +a
+  if easypanel; then
+    WAHA_API_KEY=$(entorno_de waha WAHA_API_KEY)
+    [ -n "$WAHA_API_KEY" ] || morir "no encuentro WAHA corriendo. Revisá el servicio en Easypanel."
+  fi
 }
 
 # JSON con python3 (viene con Ubuntu): campo de un objeto, por ruta "a.b.0.c".
@@ -322,6 +351,9 @@ EOF
 
 instalar() {
   [ "$(id -u)" = 0 ] || morir "hay que correrlo como root (sudo bash servidor.sh instalar)."
+  if [ -f "$DIR/.env" ] && grep -q '^MODO=easypanel' "$DIR/.env"; then
+    morir "este servidor usa Easypanel: lo levanta Easypanel, no este comando (ver docs/easypanel.md)."
+  fi
   mkdir -p "$DIR"
   # Una copia del script queda junto a la instalación (para el respaldo nocturno y los próximos comandos).
   [ "$(realpath "$0")" = "$(realpath "$DIR/servidor.sh" 2>/dev/null || true)" ] || cp "$0" "$DIR/servidor.sh"
@@ -357,8 +389,8 @@ programar_respaldo() {
 esperar_servicios() {
   info "Esperando que arranquen Chatwoot y WAHA"
   for _ in $(seq 1 90); do
-    if curl -sf "http://127.0.0.1:$PUERTO_CHATWOOT/api" >/dev/null 2>&1 &&
-      curl -sf -H "X-Api-Key: $WAHA_API_KEY" "http://127.0.0.1:$PUERTO_WAHA/api/version" >/dev/null 2>&1; then
+    if curl -sf "$(url_chatwoot)/api" >/dev/null 2>&1 &&
+      curl -sf -H "X-Api-Key: $WAHA_API_KEY" "$(url_waha)/api/version" >/dev/null 2>&1; then
       return 0
     fi
     sleep 2
@@ -372,14 +404,18 @@ verificar() {
   cargar_env
   local fallas=0
   info "Contenedores"
-  for s in caddy chatwoot-rails chatwoot-sidekiq postgres redis waha; do
-    if [ -n "$(compose ps --status running -q "$s" 2>/dev/null)" ]; then ok "$s"; else mal "$s no está corriendo"; fallas=$((fallas + 1)); fi
+  local servicios="caddy chatwoot-rails chatwoot-sidekiq postgres redis waha" corre
+  # Con Easypanel, el HTTPS lo da Easypanel (no hay caddy).
+  easypanel && servicios="chatwoot-rails chatwoot-sidekiq postgres redis waha"
+  for s in $servicios; do
+    if easypanel; then corre=$(contenedor "$s"); else corre=$(compose ps --status running -q "$s" 2>/dev/null); fi
+    if [ -n "$corre" ]; then ok "$s"; else mal "$s no está corriendo"; fallas=$((fallas + 1)); fi
   done
 
   info "Servicios"
   local v
-  if v=$(curl -sf "http://127.0.0.1:$PUERTO_CHATWOOT/api" | json version); then ok "Chatwoot $v"; else mal "Chatwoot no responde"; fallas=$((fallas + 1)); fi
-  if v=$(curl -sf -H "X-Api-Key: $WAHA_API_KEY" "http://127.0.0.1:$PUERTO_WAHA/api/version" | json version); then ok "WAHA $v"; else mal "WAHA no responde"; fallas=$((fallas + 1)); fi
+  if v=$(curl -sf "$(url_chatwoot)/api" | json version); then ok "Chatwoot $v"; else mal "Chatwoot no responde"; fallas=$((fallas + 1)); fi
+  if v=$(curl -sf -H "X-Api-Key: $WAHA_API_KEY" "$(url_waha)/api/version" | json version); then ok "WAHA $v"; else mal "WAHA no responde${DOMINIO_WAHA:+ en https://$DOMINIO_WAHA}"; fallas=$((fallas + 1)); fi
 
   info "HTTPS"
   local codigo
@@ -395,7 +431,7 @@ verificar() {
 
   info "Líneas de WhatsApp"
   local sesiones
-  sesiones=$(curl -sf -H "X-Api-Key: $WAHA_API_KEY" "http://127.0.0.1:$PUERTO_WAHA/api/sessions?all=true" || echo '[]')
+  sesiones=$(curl -sf -H "X-Api-Key: $WAHA_API_KEY" "$(url_waha)/api/sessions?all=true" || echo '[]')
   echo "$sesiones" | python3 -c '
 import json, sys
 s = json.load(sys.stdin)
@@ -408,7 +444,7 @@ for x in s:
 
   info "Recursos"
   free -m | awk '/^Mem:/ {printf "  RAM: %s MB usados de %s MB\n", $3, $2}'
-  free -m | awk '/^Swap:/ {if ($2 > 0) printf "  Swap: %s MB usados de %s MB\n", $3, $2; else print "  Swap: no hay (con 4 GB de RAM conviene: bash servidor.sh instalar lo crea)"}'
+  free -m | awk '/^Swap:/ {if ($2 > 0) printf "  Swap: %s MB usados de %s MB\n", $3, $2; else print "  Swap: no hay (con 4 GB de RAM conviene: bash servidor.sh instalar o easypanel lo crea)"}'
   df -h / | awk 'NR==2 {printf "  Disco: %s usados de %s (%s libre)\n", $3, $2, $4}'
 
   echo
@@ -420,15 +456,17 @@ for x in s:
 
 chatwoot_api() {
   # chatwoot_api MÉTODO RUTA [JSON]
+  # Con «Authorization: Bearer»: detrás de un proxy (Easypanel, Caddy) Chatwoot no ve el
+  # encabezado api_access_token y responde 401 (el mismo problema que arregló el PR #12).
   local metodo="$1" ruta="$2" cuerpo="${3:-}"
-  curl -sS --fail-with-body -X "$metodo" "http://127.0.0.1:$PUERTO_CHATWOOT$ruta" \
-    -H "api_access_token: $CHATWOOT_TOKEN" -H 'Content-Type: application/json' \
+  curl -sS --fail-with-body -X "$metodo" "$(url_chatwoot)$ruta" \
+    -H "Authorization: Bearer $CHATWOOT_TOKEN" -H 'Content-Type: application/json' \
     ${cuerpo:+--data "$cuerpo"}
 }
 
 waha_api() {
   local metodo="$1" ruta="$2" cuerpo="${3:-}"
-  curl -sS --fail-with-body -X "$metodo" "http://127.0.0.1:$PUERTO_WAHA$ruta" \
+  curl -sS --fail-with-body -X "$metodo" "$(url_waha)$ruta" \
     -H "X-Api-Key: $WAHA_API_KEY" -H 'Content-Type: application/json' \
     ${cuerpo:+--data "$cuerpo"}
 }
@@ -549,6 +587,12 @@ EOF
 
 claves() {
   cargar_env
+  if easypanel; then
+    echo "Panel de WAHA: https://$DOMINIO_WAHA/dashboard"
+    echo "  Usuario: admin. La clave es WAHA_DASHBOARD_PASSWORD, en Easypanel → servicio → Entorno."
+    [ -f "$DIR/asistente.env" ] && { echo; echo "Variables del asistente para Vercel:"; cat "$DIR/asistente.env"; }
+    return 0
+  fi
   echo "Panel de WAHA (solo hace falta para revisar algo a mano):"
   echo "  Desde tu compu: ssh -L $PUERTO_WAHA:127.0.0.1:$PUERTO_WAHA root@<IP del servidor>"
   echo "  y abrí http://localhost:$PUERTO_WAHA/dashboard"
@@ -564,7 +608,14 @@ respaldo() {
   mkdir -p "$DIR/respaldos"
   local archivo
   archivo="$DIR/respaldos/bases-$(date +%Y%m%d-%H%M).sql.gz"
-  compose exec -T postgres pg_dumpall -U postgres | gzip >"$archivo"
+  if easypanel; then
+    local pg
+    pg=$(contenedor postgres)
+    [ -n "$pg" ] || morir "no encuentro Postgres corriendo. Revisá el servicio en Easypanel."
+    docker exec "$pg" pg_dumpall -U postgres | gzip >"$archivo"
+  else
+    compose exec -T postgres pg_dumpall -U postgres | gzip >"$archivo"
+  fi
   chmod 600 "$archivo"
   # Se quedan los últimos 14.
   ls -1t "$DIR"/respaldos/bases-*.sql.gz | tail -n +15 | xargs -r rm -f
@@ -572,8 +623,9 @@ respaldo() {
 }
 
 actualizar() {
-  respaldo
   cargar_env
+  easypanel && morir "con Easypanel, las versiones se cambian en el Compose del servicio y se publica con «Implementar»."
+  respaldo
   preparar_swap
   escribir_env
   escribir_compose
@@ -583,14 +635,67 @@ actualizar() {
   esperar_servicios && verificar
 }
 
+# ---------- Easypanel ----------
+
+generar() {
+  # Claves nuevas para la pestaña Entorno de Easypanel. Se pegan ahí y en ningún otro lado.
+  echo "POSTGRES_PASSWORD=$(clave)"
+  echo "REDIS_PASSWORD=$(clave)"
+  echo "SECRET_KEY_BASE=$(clave 64)"
+  echo "WAHA_API_KEY=$(clave)"
+  echo "WAHA_DASHBOARD_PASSWORD=$(clave 16)"
+}
+
+preparar_easypanel() {
+  [ "$(id -u)" = 0 ] || morir "hay que correrlo como root."
+  command -v docker >/dev/null || morir "no hay Docker: ¿está instalado Easypanel?"
+  mkdir -p "$DIR"
+  [ "$(realpath "$0")" = "$(realpath "$DIR/servidor.sh" 2>/dev/null || true)" ] || cp "$0" "$DIR/servidor.sh"
+  preparar_swap
+  local rails
+  rails=$(docker ps -q --filter label=com.docker.compose.service=chatwoot-rails | head -1)
+  [ -n "$rails" ] || morir "no encuentro Chatwoot corriendo. Primero implementá el servicio en Easypanel."
+  [ "$(docker ps -q --filter label=com.docker.compose.service=chatwoot-rails | wc -l)" = 1 ] ||
+    morir "hay más de un Chatwoot en este servidor: no sé cuál es el del asistente."
+  PROYECTO_COMPOSE=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$rails")
+  DOMINIO_CHAT=$(entorno_de chatwoot-rails FRONTEND_URL)
+  DOMINIO_CHAT=${DOMINIO_CHAT#https://}
+  DOMINIO_WAHA=$(entorno_de waha WAHA_PUBLIC_URL)
+  DOMINIO_WAHA=${DOMINIO_WAHA#https://}
+  [ -n "$DOMINIO_CHAT" ] && [ -n "$DOMINIO_WAHA" ] || morir "faltan DOMINIO_CHAT o DOMINIO_WAHA en el Entorno de Easypanel."
+  umask 077
+  cat >"$DIR/.env" <<EOF
+# Generado por servidor.sh easypanel. Sin claves: la de WAHA se lee del contenedor cada vez.
+MODO=easypanel
+PROYECTO_COMPOSE=$PROYECTO_COMPOSE
+DOMINIO_CHAT=$DOMINIO_CHAT
+DOMINIO_WAHA=$DOMINIO_WAHA
+EOF
+  umask 022
+  ok "Proyecto de Easypanel: $PROYECTO_COMPOSE · Chatwoot en $DOMINIO_CHAT · WAHA en $DOMINIO_WAHA"
+  programar_respaldo
+  MODO=easypanel
+  cargar_env
+  verificar || true
+  cat <<EOF
+
+Siguiente paso:
+  1. Abrí https://$DOMINIO_CHAT y creá la cuenta de administrador (nombre, empresa, mail y contraseña).
+  2. En Chatwoot: tu perfil (abajo a la izquierda) → Configuración del perfil → copiá el «Token de acceso».
+  3. Acá: bash $DIR/servidor.sh conectar
+EOF
+}
+
 case "${1:-}" in
   instalar) instalar ;;
+  generar) generar ;;
+  easypanel) preparar_easypanel ;;
   verificar) verificar ;;
   conectar) shift; conectar "$@" ;;
   bot) bot ;;
   claves) claves ;;
   respaldo) respaldo ;;
   actualizar) actualizar ;;
-  estado) cargar_env; compose ps ;;
+  estado) cargar_env; if easypanel; then docker ps --filter "label=com.docker.compose.project=$PROYECTO_COMPOSE"; else compose ps; fi ;;
   *) sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//' ;;
 esac

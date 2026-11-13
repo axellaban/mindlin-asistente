@@ -8,7 +8,7 @@ Este archivo es para la IA que trabaja con **computer use** en la computadora de
 
 ## Qué es el proyecto, en dos líneas
 
-Un asistente de IA que atiende por WhatsApp las consultas de los desarrollos de Mindlin Developers (piloto: Lerma 439). WhatsApp entra por **WAHA**, el equipo ve y responde todo en **Chatwoot** (los dos en un VPS de Hostinger, `https://chat.mindlindevelopers.com`), y el asistente es una app en **Vercel** con su base en **Neon** (Postgres). Detalle en [`docs/arquitectura.md`](docs/arquitectura.md).
+Un asistente de IA que atiende por WhatsApp las consultas de los desarrollos de Mindlin Developers (piloto: Lerma 439). WhatsApp entra por **WAHA**, el equipo ve y responde todo en **Chatwoot** (los dos en un VPS de Hostinger, con Easypanel desde el 13/11, en `https://chat.mindlindevelopers.com`), y el asistente es una app en **Vercel** con su base en **Neon** (Postgres). Detalle en [`docs/arquitectura.md`](docs/arquitectura.md).
 
 ## Reglas
 
@@ -121,10 +121,13 @@ Hace falta la tarea 2 terminada (la dirección de Vercel) y que Claude haya deja
 ## Si algo falla en el servidor
 
 - `bash /opt/mindlin-asistente/servidor.sh verificar` dice qué anda y qué no.
-- `cd /opt/mindlin-asistente && docker compose logs --tail 100 chatwoot-rails` muestra los últimos mensajes de un servicio. Los servicios son `caddy`, `chatwoot-rails`, `chatwoot-sidekiq`, `postgres`, `redis` y `waha`.
+- Con Easypanel (desde la tarea 9): Easypanel → `mindlin` → `asistente` muestra cada contenedor y sus mensajes. Los servicios son `chatwoot-rails`, `chatwoot-sidekiq`, `postgres`, `redis` y `waha`.
+- Antes de Easypanel: `cd /opt/mindlin-asistente && docker compose logs --tail 100 chatwoot-rails`, y además estaba `caddy`.
 - Copiá el error en `docs/estado-paneles.md`. Antes de copiarlo, revisá que no tenga claves.
 
 ### Tarea 8 · Actualizar el instalador en el servidor (10/11)
+
+> **Ya no hace falta:** la reemplaza la tarea 9 (Easypanel), que instala todo de nuevo con estos mismos ajustes.
 
 El instalador ahora se ajusta solo a un servidor con 4 GB: crea el swap si falta (el del VPS ya está) y baja los hilos de Chatwoot para que entre todo. Hay que pasarlo al servidor y correr `actualizar`:
 
@@ -134,3 +137,14 @@ El instalador ahora se ajusta solo a un servidor con 4 GB: crea el swap si falta
 4. Para confirmar los hilos: `grep -E 'RAILS_MAX_THREADS|SIDEKIQ_CONCURRENCY' /opt/mindlin-asistente/chatwoot.env` tiene que decir 3 y 5.
 
 Si en la instalación se cambiaron las imágenes a mano (por ejemplo, con el digest), `actualizar` vuelve a las versiones fijadas en el script (las mismas: Chatwoot 4.19.1 y WAHA 2026.10.1). Si hay otra diferencia, frená y anotala.
+
+### Tarea 9 · Reinstalar el servidor con Easypanel (13/11)
+
+Axel decidió pasar WAHA y Chatwoot a Easypanel para manejarlos sin consola. Todavía no hay datos reales, así que se reinstala de cero. El paso a paso completo está en [`docs/easypanel.md`](docs/easypanel.md). En resumen:
+
+- un registro DNS nuevo, `waha`;
+- reinstalar el VPS con la plantilla de Easypanel (**borra todo: confirmalo con Axel antes**);
+- en Easypanel, el servicio Compose `asistente` con [`infra/easypanel/docker-compose.yml`](infra/easypanel/docker-compose.yml), sus claves y sus dos dominios;
+- después, `servidor.sh easypanel`, `conectar` y `bot` como antes, el QR con Axel y las cuatro variables nuevas en Vercel.
+
+Anotá en `docs/estado-paneles.md`, sección «Servidor», la salida de `verificar` y lo que haya salido distinto de la guía.
