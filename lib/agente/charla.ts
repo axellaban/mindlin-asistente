@@ -186,8 +186,12 @@ export async function prepararCharla(
         },
         async marcarSenal(senal: Senal) {
           if (!ch.eventos.includes(senal)) ch.eventos.push(senal);
-          // Si pidió que no le escriban, no le salen más seguimientos, mueva o no de etapa.
-          if (senal === "no_le_interesa") await s.almacen.sinSeguimientos(conv);
+          // Si pidió que no le escriban (o no le interesa), no le salen más seguimientos ni flujos, mueva
+          // o no de etapa, aunque vuelva a escribir (lib/baja.ts). El flujo que esté corriendo termina su
+          // tramo: el cron ya no lo retoma.
+          if (senal === "no_le_interesa" && (await s.almacen.pidioBaja(conv, ahora().toISOString()))) {
+            await s.almacen.registrar({ tipo: "pidio_baja", conversacion: conv, detalle: "La IA marcó que no le interesa o que pidió que no le escriban: sin seguimientos ni flujos automáticos." });
+          }
           return "Anotado para el equipo. Seguí la conversación sin mencionarlo.";
         },
       };

@@ -141,10 +141,10 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rowCount === 1;
     },
     async conversacion(id) {
-      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento, linea, bandeja, campania, campania_por from conversaciones where chatwoot_id = $1", [id]);
+      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento, linea, bandeja, campania, campania_por, pidio_baja from conversaciones where chatwoot_id = $1", [id]);
       const r = rows[0];
       return r
-        ? ({ ...r, chatwoot_id: Number(r.chatwoot_id), bandeja: r.bandeja == null ? null : Number(r.bandeja), ultimo_seguimiento: r.ultimo_seguimiento ? new Date(r.ultimo_seguimiento).toISOString() : null } as Conversacion)
+        ? ({ ...r, chatwoot_id: Number(r.chatwoot_id), bandeja: r.bandeja == null ? null : Number(r.bandeja), ultimo_seguimiento: r.ultimo_seguimiento ? new Date(r.ultimo_seguimiento).toISOString() : null, pidio_baja: r.pidio_baja ? new Date(r.pidio_baja).toISOString() : null } as Conversacion)
         : null;
     },
     async guardarConversacion(c) {
@@ -179,10 +179,20 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         [conversacion],
       );
     },
+    async pidioBaja(conversacion, ahora) {
+      const { rowCount } = await db.query(
+        `insert into conversaciones (chatwoot_id, sin_seguimientos, pidio_baja) values ($1, true, $2::timestamptz)
+         on conflict (chatwoot_id) do update set sin_seguimientos = true, pidio_baja = $2::timestamptz, actualizada = now()
+         where conversaciones.pidio_baja is null`,
+        [conversacion, ahora],
+      );
+      return rowCount === 1;
+    },
     async volvioAlBot(conversacion) {
-      const { rowCount } = await db.query("update conversaciones set sin_seguimientos = false, paso_seguimiento = 0, actualizada = now() where chatwoot_id = $1 and sin_seguimientos", [
-        conversacion,
-      ]);
+      const { rowCount } = await db.query(
+        "update conversaciones set sin_seguimientos = false, paso_seguimiento = 0, actualizada = now() where chatwoot_id = $1 and sin_seguimientos and pidio_baja is null",
+        [conversacion],
+      );
       return rowCount === 1;
     },
     async laDevolvioElEquipo(conversacion) {
@@ -201,7 +211,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         `select chatwoot_id, nombre, interesado->>'nombre' as nombre_anotado, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida, linea
          from (
            select *, greatest(ultimo_mensaje_bot, ultimo_seguimiento) as ultima_salida from conversaciones
-           where not sin_seguimientos and ultimo_mensaje_interesado is not null and paso_seguimiento <= $1
+           where not sin_seguimientos and pidio_baja is null and ultimo_mensaje_interesado is not null and paso_seguimiento <= $1
          ) c
          where ultima_salida > ultimo_mensaje_interesado
            and ultima_salida < $3::timestamptz

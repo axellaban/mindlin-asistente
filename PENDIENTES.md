@@ -309,3 +309,12 @@ Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: C
      - **Con Pro:** el cron de `vercel.json` vuelve a `*/15 * * * *`.
      - **Con un servicio externo:** el de `vercel.json` queda una vez por día, como respaldo, y un servicio como cron-job.org llama a `https://mindlin-asistente.vercel.app/api/cron/seguimientos` cada 15 minutos con el encabezado `Authorization: Bearer <CRON_SECRET>`. Así lo hace ya el hub con sus avisos.
      - **En los dos casos:** `CORRIDA` (`lib/seguimientos/reglas.ts`) baja a 15 minutos. Si no, el margen de medio día haría salir las esperas y los seguimientos antes de tiempo. Hay una prueba que controla que `CORRIDA` y `vercel.json` coincidan: con el servicio externo, esa prueba se ajusta.
+
+## Ideas traídas de DeskcommCRM (15/11)
+
+Se evaluó instalar DeskcommCRM (un CRM de código abierto con WhatsApp e IA) y se eligió seguir con lo nuestro y sumar lo que sirve de él (camino C). Lo demás ya lo tenían el hub o el asistente. Dueño: Claude.
+
+1. [x] **«No me escriban más», firme** ([`docs/baja.md`](docs/baja.md)): una sola regla de baja; corta flujos y seguimientos para siempre en esa conversación. Arregla, además, que la señal «no le interesa» se borraba cuando la persona volvía a escribir.
+2. [ ] **Seguimientos espaciados**: unos segundos al azar entre un mensaje automático y el siguiente, para no mandar 20 seguidos desde el mismo número.
+3. [ ] **Hub: «Te escribió y nadie le contestó»**: en el Dashboard y en Chats, los leads que escribieron por WhatsApp, ya no los atiende el asistente y esperan respuesta del equipo.
+4. [ ] **Hub: respuestas rápidas** en el chat del lead.

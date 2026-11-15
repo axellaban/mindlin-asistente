@@ -81,6 +81,8 @@ export interface Conversacion {
   /** De qué campaña viene (lib/campanias.ts): se decide con el primer mensaje y no cambia. */
   campania?: string | null;
   campania_por?: CampaniaPor | null;
+  /** Cuándo pidió que no le escriban más (lib/baja.ts): sin seguimientos ni flujos automáticos. Solo se lee. */
+  pidio_baja?: string | null;
 }
 
 /** «Si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones. */
@@ -126,7 +128,7 @@ export interface SeguimientoEnviado {
   enviado: string;
 }
 
-export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "volvio_al_bot" | "seguimiento" | "crm" | "etapa" | "pausa" | "flujo" | "error";
+export type TipoRegistro = "respuesta" | "paso_a_persona" | "la_tomo_una_persona" | "volvio_al_bot" | "seguimiento" | "crm" | "etapa" | "pausa" | "flujo" | "pidio_baja" | "error";
 
 /** Lo que pasa entre el asistente y el equipo: quién tiene la conversación (Almacen.laDevolvioElEquipo). */
 export const TIPOS_DEL_EQUIPO: TipoRegistro[] = ["paso_a_persona", "la_tomo_una_persona", "volvio_al_bot"];
@@ -172,8 +174,14 @@ export interface Almacen {
   /** La conversación ya no lleva seguimientos automáticos (la tomó una persona). */
   sinSeguimientos(conversacion: number): Promise<void>;
   /**
+   * Pidió que no le escriban más (lib/baja.ts): sin seguimientos ni flujos automáticos, para siempre
+   * en esta conversación. True si es la primera vez (si ya lo había pedido, no cambia nada).
+   */
+  pidioBaja(conversacion: number, ahora: string): Promise<boolean>;
+  /**
    * El equipo le devolvió la conversación al bot (la volvió a poner pendiente): vuelve a llevar
-   * seguimientos. True si estaba en manos del equipo.
+   * seguimientos. True si estaba en manos del equipo. Si la persona pidió la baja, no: sigue sin
+   * seguimientos.
    */
   volvioAlBot(conversacion: number): Promise<boolean>;
   /**

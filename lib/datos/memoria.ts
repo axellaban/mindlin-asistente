@@ -110,9 +110,16 @@ export function almacenEnMemoria(
     async sinSeguimientos(conversacion) {
       seg(conversacion).sin_seguimientos = true;
     },
+    async pidioBaja(conversacion, cuando) {
+      const s = seg(conversacion);
+      if (conv(conversacion).pidio_baja) return false;
+      s.sin_seguimientos = true;
+      conversaciones.set(conversacion, { ...conv(conversacion), pidio_baja: cuando });
+      return true;
+    },
     async volvioAlBot(conversacion) {
       const s = seguimiento.get(conversacion);
-      if (!s?.sin_seguimientos) return false;
+      if (!s?.sin_seguimientos || conv(conversacion).pidio_baja) return false;
       s.sin_seguimientos = false;
       s.paso_seguimiento = 0;
       return true;
@@ -128,7 +135,7 @@ export function almacenEnMemoria(
       const ms = Date.parse(cuando);
       return [...seguimiento.entries()]
         .map(([id, s]) => ({ id, s, salida: mayor(s.ultimo_mensaje_bot, s.ultimo_seguimiento) }))
-        .filter(({ s, salida }) => !s.sin_seguimientos && s.ultimo_mensaje_interesado && s.paso_seguimiento <= MAX_PASOS && salida && salida > s.ultimo_mensaje_interesado)
+        .filter(({ id, s, salida }) => !s.sin_seguimientos && !conv(id).pidio_baja && s.ultimo_mensaje_interesado && s.paso_seguimiento <= MAX_PASOS && salida && salida > s.ultimo_mensaje_interesado)
         .filter(({ salida }) => Date.parse(salida!) < Date.parse(limiteCandidatos(new Date(ms))) && ms - Date.parse(salida!) < 120 * 86_400_000)
         .filter(({ id }) => {
           const l = lineas.find((x) => x.id === conv(id).linea);

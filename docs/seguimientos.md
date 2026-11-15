@@ -26,6 +26,7 @@ Ejemplo: Nuevo, paso 1, 2 días: «Hola {{nombre}}, ¿pudiste ver lo de {{proyec
 - De 9 a 20, hora de Buenos Aires.
 - Como mucho 20 por corrida (una por día): WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. Si un día quedan más de 20 en condiciones, el resto sale en la corrida siguiente.
 - Si la persona responde, frena: la atiende el bot y, si vuelve a quedar callada, los pasos empiezan de nuevo.
+- Si pidió que no le escriban más (o la IA marcó «no le interesa»), no le sale ninguno más, aunque vuelva a escribir: ver [`baja.md`](baja.md).
 - **Si una persona del equipo tomó la conversación** (escribió, o el bot se la pasó), no lleva más seguimientos automáticos.
 - Si no hay regla para el paso siguiente, termina.
 - **No le escribe a quien lleva un flujo** ([`flujos.md`](flujos.md)): el flujo tiene sus propias esperas. Si el flujo terminó en «Que siga la IA», vuelven a valer las reglas.

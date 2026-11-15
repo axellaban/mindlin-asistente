@@ -46,6 +46,7 @@ Reglas de forma (`lib/flujos/modelo.ts`, `validarPasos`):
 - **Si algo falla** (Chatwoot, la IA), la conversación pasa al equipo con una nota y el error queda en el registro.
 - **Si el archivo no sale**, sale el texto solo y queda el error anotado.
 - **Se corta solo** si el equipo toma la conversación (escribe, la abre o la resuelve), si se pausa la línea o el asistente, o si el equipo se la devuelve al asistente. En ese último caso conversa la IA, también si el flujo había terminado con «Terminar».
+- **Se corta también si la persona pide que no le escriban más** (o la IA marca «no le interesa»): no sigue por ningún camino y la IA le contesta una vez, corto. Ver [`baja.md`](baja.md).
 - **Los seguimientos por reglas** no le escriben a quien lleva un flujo: el flujo tiene sus propias esperas. Si el flujo terminó en «Que siga la IA», vuelven a valer las reglas.
 - **El cron:** primero los flujos con esperas vencidas y después los seguimientos, con el mismo tope (20 por corrida) y en el mismo horario (de 9 a 20).
 

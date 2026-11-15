@@ -157,6 +157,10 @@ Pedido de Axel (mejora 2). **Se decide con el primer mensaje y no cambia**: por 
 
 ¿Por qué por texto y no por el dato del anuncio? Meta manda de qué anuncio viene un mensaje («referral») solo por la API oficial de WhatsApp; por WAHA y Chatwoot no llega. Si algún día se pasa a la API oficial, se suma esa vía.
 
+## 14. «No me escriban más» (15/11)
+
+Idea traída de DeskcommCRM: una sola regla de baja para todo. Si la persona lo pide (o la IA marca «no le interesa»), no le sale nada automático más en esa conversación: ni seguimientos ni flujos, aunque vuelva a escribir o el equipo le devuelva la conversación al asistente. La IA le contesta una vez, corto, y el equipo puede seguir escribiéndole a mano. Tiene su propia marca (`conversaciones.pidio_baja`), separada de la de «la tiene el equipo». Detalle en [`baja.md`](baja.md).
+
 ## Lo que se reutiliza de otros proyectos de Axel
 
 Se adapta, no se copia a ciegas:

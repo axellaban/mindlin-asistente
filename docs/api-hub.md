@@ -154,12 +154,12 @@ Para ver las conversaciones en el hub (en el CRM y en Asistente de WhatsApp → 
 
   ```json
   { "chatwoot_id": 501, "linea": "linea-3", "linea_nombre": "Leads entrantes", "nombre": "Ana", "telefono": "549…", "proyecto": "lerma-439", "crm_contacto_id": "c…",
-    "ultimo": "2026-11-16T13:00:10.000Z", "ultimo_texto": "¡Hola Ana! …", "ultimo_rol": "bot", "mensajes": 2,
+    "ultimo": "2026-11-16T13:00:10.000Z", "ultimo_texto": "¡Hola Ana! …", "ultimo_rol": "bot", "mensajes": 2, "campania": null, "pidio_baja": null,
     "atiende": "asistente", "flujo": { "nombre": "Presentación", "estado": "esperando", "resultado": null, "paso": "Paso 2: Esperar respuesta", "vence": "…", "inicio": "…" },
     "enlace": "https://chat…/app/accounts/1/conversations/501" }
   ```
 
-  `ultimo_rol`: `interesado`, `bot` (el asistente) o `persona` (el equipo, desde Chatwoot o el celular de la línea). `atiende`: `equipo` si lo último fue que pasó al equipo o que alguien del equipo escribió; si no, `asistente`. `flujo`: la corrida más nueva (`null` si nunca tuvo); `paso` dice por dónde va (`«Paso 12 › Si no responde › paso 2: Mensaje»`) o «Terminó». Para buscar por nombre o teléfono, el hub filtra esta lista.
+  `ultimo_rol`: `interesado`, `bot` (el asistente) o `persona` (el equipo, desde Chatwoot o el celular de la línea). `atiende`: `equipo` si lo último fue que pasó al equipo o que alguien del equipo escribió; si no, `asistente`. `pidio_baja`: la fecha en que pidió que no le escriban más (`null` si no; [`baja.md`](baja.md)). `flujo`: la corrida más nueva (`null` si nunca tuvo); `paso` dice por dónde va (`«Paso 12 › Si no responde › paso 2: Mensaje»`) o «Terminó». Para buscar por nombre o teléfono, el hub filtra esta lista.
 - **`GET /api/hub/conversacion/{id}`**: una conversación entera: `{ "conversacion": { …lo de arriba, "interesado": { lo anotado }, "paso_seguimiento", "sin_seguimientos", "ultimo_seguimiento" }, "mensajes": [{ "id", "rol", "texto", "fecha" }], "registro": [lo último que hizo el asistente] }`. Hasta los 300 mensajes más nuevos, del más viejo al más nuevo. Los adjuntos vienen como texto: «[foto]», «[archivo]», y los audios transcriptos como «[audio: «…»]».
 - **`POST /api/hub/contacto`** con `{ "id": "<id del CRM>", "telefono": "<como esté en el CRM>" }` (uno de los dos alcanza): las conversaciones de ese contacto (hasta 5: puede haber escrito por más de una línea), cada una con `historial` (sus mensajes, como arriba). Cruza por el ID que anotó el asistente en la conversación o por los últimos 8 números del teléfono, como el CRM del hub (así coincide «+54 9 11 5555-1234» con «011 15 5555-1234»). Es una lectura, pero va por POST para que el teléfono no viaje en la dirección.
 

@@ -80,6 +80,8 @@ export interface ConversacionHub {
   mensajes: number;
   /** De qué campaña viene (lib/campanias.ts). */
   campania: string | null;
+  /** Cuándo pidió que no le escriban más (lib/baja.ts): no le salen seguimientos ni flujos. */
+  pidio_baja: string | null;
   /** Quién la tiene, según lo último que pasó entre el asistente y el equipo (el registro). */
   atiende: "asistente" | "equipo";
   flujo: FlujoDeConversacion | null;
@@ -582,7 +584,7 @@ export function datosPanel(db: Db) {
       const telefono = tel.length >= 8 ? tel.slice(-8) : null;
       if (contacto && !id && !telefono) return [];
       const { rows } = await db.query(
-        `select c.chatwoot_id, c.linea, l.nombre as linea_nombre, c.campania, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
+        `select c.chatwoot_id, c.linea, l.nombre as linea_nombre, c.campania, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id, c.pidio_baja,
                 m.fecha as ultimo, m.texto as ultimo_texto, m.rol as ultimo_rol,
                 (select count(*) from mensajes x where x.conversacion = c.chatwoot_id) as cantidad,
                 e.tipo as equipo,
@@ -615,6 +617,7 @@ export function datosPanel(db: Db) {
         ultimo_rol: r.ultimo_rol ?? null,
         mensajes: Number(r.cantidad ?? 0),
         campania: r.campania ?? null,
+        pidio_baja: iso(r.pidio_baja),
         atiende: r.equipo === "paso_a_persona" || r.equipo === "la_tomo_una_persona" ? "equipo" : "asistente",
         flujo: r.flujo_nombre
           ? {
@@ -841,7 +844,7 @@ export function datosPanel(db: Db) {
            and ($2::text is null or exists (select 1 from conversaciones c where c.chatwoot_id = m.conversacion and c.linea = $2))`,
         [dias, linea],
       );
-      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, etapa: 0, pausa: 0, flujo: 0, error: 0, conversaciones: 0 };
+      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, etapa: 0, pausa: 0, flujo: 0, pidio_baja: 0, error: 0, conversaciones: 0 };
       for (const r of rows) base[r.tipo as keyof typeof base] = r.n;
       return base;
     },
