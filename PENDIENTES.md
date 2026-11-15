@@ -138,7 +138,7 @@ Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial compl
 - [ ] Sugerencia: en el celular, las cuatro tarjetas de las líneas y la cabecera ocupan la primera pantalla y hay que bajar para llegar a las solapas. Se podría mostrar las líneas en una fila que se desliza. — Mindlin decide, después Claude
 - [x] Subir archivos por la API del hub, en local: una foto entra; un tipo que no se permite y uno de más de 2,5 MB se rechazan con un mensaje claro. — Claude, 15/11
 - [ ] «Probar» con la IA de verdad no se pudo ver en local (sin clave de IA), ni cómo llega un archivo a WhatsApp: los cubre la tarea 12. — Panel con Axel
-- [ ] Menor: el tipo de un archivo subido es el que declara el navegador; no se mira el contenido. Solo pueden subir quienes tienen Comercial en el hub, así que el riesgo es bajo. Se puede sumar el control de las primeras letras del archivo. — Claude, si se decide
+- [x] Menor: el tipo de un archivo subido era el que declaraba el navegador. Desde el 15/11 también se mira el contenido (las primeras letras del archivo): un programa renombrado como foto no entra (`coincideElContenido`, `lib/panel/validar.ts`). — Claude, 15/11
 
 **1. Bugs, arreglos, base de datos y arquitectura**
 

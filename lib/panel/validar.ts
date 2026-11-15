@@ -201,6 +201,39 @@ export const TIPOS_ARCHIVO = ["image/jpeg", "image/png", "image/webp", "audio/og
 /** 2,5 MB: entra en un pedido a Vercel (4,5 MB) aun pasado a base64. Un folleto más pesado va como link en el texto. */
 export const MAX_ARCHIVO_BYTES = 2_621_440;
 
+const empieza = (d: Uint8Array, firma: number[], desde = 0) => firma.every((b, i) => d[desde + i] === b);
+const ascii = (t: string) => [...t].map((c) => c.charCodeAt(0));
+
+/**
+ * ¿El contenido es lo que dice el tipo? Se miran las primeras letras del archivo (su «firma»), así
+ * un .exe renombrado a .jpg no entra aunque el navegador diga «image/jpeg». Puro.
+ */
+export function coincideElContenido(tipo: string, d: Uint8Array): boolean {
+  switch (tipo) {
+    case "image/jpeg":
+      return empieza(d, [0xff, 0xd8, 0xff]);
+    case "image/png":
+      return empieza(d, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    case "image/webp":
+      return empieza(d, ascii("RIFF")) && empieza(d, ascii("WEBP"), 8);
+    case "audio/ogg":
+      return empieza(d, ascii("OggS"));
+    case "audio/mpeg":
+      // Con etiqueta ID3 o directo un cuadro de MP3 (11 bits en 1).
+      return empieza(d, ascii("ID3")) || (d[0] === 0xff && (d[1] & 0xe0) === 0xe0);
+    case "audio/mp4":
+    case "video/mp4":
+      return empieza(d, ascii("ftyp"), 4);
+    case "application/pdf": {
+      // Algunos programas dejan unos bytes antes de «%PDF-»: se busca en el primer KB.
+      const inicio = Buffer.from(d.subarray(0, 1024)).toString("latin1");
+      return inicio.includes("%PDF-");
+    }
+    default:
+      return false;
+  }
+}
+
 export function validarArchivo(x: { nombre?: unknown; tipo?: unknown; datos?: unknown }): Resultado<{ nombre: string; tipo: string; datos: Uint8Array }> {
   const nombre = typeof x.nombre === "string" ? x.nombre.trim().replace(/[\\/]/g, "-").slice(0, 200) : "";
   if (!nombre) return { ok: false, error: "Falta el nombre del archivo." };
@@ -210,5 +243,6 @@ export function validarArchivo(x: { nombre?: unknown; tipo?: unknown; datos?: un
   const datos = new Uint8Array(Buffer.from(x.datos, "base64"));
   if (!datos.byteLength) return { ok: false, error: "El archivo está vacío." };
   if (datos.byteLength > MAX_ARCHIVO_BYTES) return { ok: false, error: "El archivo pesa más de 2,5 MB. Para un folleto pesado, pegá el link en el texto del mensaje." };
+  if (!coincideElContenido(tipo, datos)) return { ok: false, error: "El archivo no es lo que dice ser (por ejemplo, un .jpg que en realidad no es una foto). Exportalo de nuevo desde el programa donde lo hiciste y volvé a subirlo." };
   return { ok: true, valor: { nombre, tipo, datos } };
 }

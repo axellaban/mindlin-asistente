@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { claveCorrecta, crearToken, DURACION_SESION_MS, leerToken } from "./sesion";
 import { queFalta } from "./listo";
-import { idDesdeNombre, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "./validar";
+import { coincideElContenido, idDesdeNombre, validarArchivo, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "./validar";
 
 const form = (campos: Record<string, string>) => {
   const f = new FormData();
@@ -82,6 +82,35 @@ describe("validaciones del panel", () => {
     expect(validarRegla(form({ ...base, dias_sin_respuesta: "0" }), []).ok).toBe(false);
     expect(validarRegla(form({ ...base, proyecto: "no-existe" }), []).ok).toBe(false);
     expect(validarRegla(form({ ...base, mensaje: "Hola {{apellido}}" }), [])).toEqual({ ok: false, error: "Solo se pueden usar {{nombre}} y {{proyecto}} (no {{apellido}})." });
+  });
+});
+
+describe("archivos de los flujos: el contenido tiene que ser lo que dice el tipo", () => {
+  const bytes = (...b: (number | string)[]) => new Uint8Array(b.flatMap((x) => (typeof x === "string" ? [...x].map((c) => c.charCodeAt(0)) : [x])));
+  const base64 = (d: Uint8Array) => Buffer.from(d).toString("base64");
+
+  it("reconoce la firma de cada tipo permitido", () => {
+    expect(coincideElContenido("image/jpeg", bytes(0xff, 0xd8, 0xff, 0xe0, 0, 0))).toBe(true);
+    expect(coincideElContenido("image/png", bytes(0x89, "PNG", 0x0d, 0x0a, 0x1a, 0x0a, 0))).toBe(true);
+    expect(coincideElContenido("image/webp", bytes("RIFF", 0, 0, 0, 0, "WEBPVP8 "))).toBe(true);
+    expect(coincideElContenido("audio/ogg", bytes("OggS", 0))).toBe(true);
+    expect(coincideElContenido("audio/mpeg", bytes("ID3", 4, 0))).toBe(true);
+    expect(coincideElContenido("audio/mpeg", bytes(0xff, 0xfb, 0x90, 0x64))).toBe(true);
+    expect(coincideElContenido("audio/mp4", bytes(0, 0, 0, 0x20, "ftypM4A "))).toBe(true);
+    expect(coincideElContenido("video/mp4", bytes(0, 0, 0, 0x18, "ftypmp42"))).toBe(true);
+    expect(coincideElContenido("application/pdf", bytes("%PDF-1.7\n"))).toBe(true);
+    // Unos bytes antes de «%PDF-», como dejan algunos programas.
+    expect(coincideElContenido("application/pdf", bytes(0xef, 0xbb, 0xbf, "%PDF-1.4"))).toBe(true);
+  });
+
+  it("un archivo con otro contenido no entra, aunque el navegador diga que es una foto", () => {
+    const programa = bytes("MZ", 0x90, 0, 3, 0);
+    expect(coincideElContenido("image/jpeg", programa)).toBe(false);
+    expect(coincideElContenido("application/pdf", bytes("<html><body>hola</body></html>"))).toBe(false);
+    expect(coincideElContenido("image/png", bytes(0xff, 0xd8, 0xff))).toBe(false);
+    const r = validarArchivo({ nombre: "foto.jpg", tipo: "image/jpeg", datos: base64(programa) });
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/no es lo que dice ser/) });
+    expect(validarArchivo({ nombre: "foto.jpg", tipo: "image/jpeg", datos: base64(bytes(0xff, 0xd8, 0xff, 0xe0)) })).toMatchObject({ ok: true, valor: { nombre: "foto.jpg", tipo: "image/jpeg" } });
   });
 });
 
