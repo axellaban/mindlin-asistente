@@ -31,25 +31,37 @@ Son las mismas versiones y los mismos ajustes que ya se probaron: Chatwoot 4.19.
 
 Las reglas de [`IA_DE_PANELES.md`](../IA_DE_PANELES.md) siguen valiendo. Sobre todo, **ninguna clave va a un chat, a GitHub ni a una captura**: se copian directo de un lugar al otro.
 
+Se hizo así el 13/11 (tarea 9). Lo que salió distinto ya está corregido en estos pasos; el detalle está en [`estado-paneles.md`](estado-paneles.md), «Reinstalación con Easypanel».
+
+**La terminal:** los comandos de `servidor.sh` van en la terminal del VPS, como root: hPanel → VPS → **Terminal del navegador**, o SSH. No en la consola de un servicio de Easypanel, que corre adentro de un contenedor.
+
 1. **DNS (DonWeb, donde está `mindlindevelopers.com`):** agregar un registro **A** `waha` que apunte a `187.53.99.210`, la misma IP que `chat`. Si Axel quiere el panel con dominio propio, también `panel`.
 2. **Hostinger, reinstalar con Easypanel.** Hay que frenar y confirmar con Axel antes: **borra todo el servidor**.
-   - Ir a hPanel → VPS `srv2145105` → **Sistema operativo** → cambiar a la plantilla de aplicación **Easypanel** (Ubuntu 24.04).
+   - Ir a hPanel → VPS `srv2145105` → **Sistema operativo** → pestaña **Panel de control** (no está en «Aplicaciones») → **Ubuntu 24.04 with Easypanel**.
    - Poner una contraseña de root nueva y guardarla en el gestor de contraseñas de Axel.
-   - Esperar a que termine.
-3. **Firewall de Hostinger:** si está activo, tiene que dejar pasar los puertos 22, 80, 443 y 3000 (el de Easypanel).
+   - Esperar a que termine (el 13/11 tardó unos 3 minutos).
+3. **Firewall de Hostinger:** si tiene reglas, tiene que dejar pasar los puertos 22, 80, 443 y 3000 (el de Easypanel). Sin ninguna regla no bloquea nada.
 4. **Easypanel:** abrir `http://187.53.99.210:3000` y crear el usuario administrador, con el mail de Axel y una contraseña del gestor. Si en el paso 1 se creó `panel`, cargarlo en Easypanel → Ajustes → dominio del panel.
 5. **El servicio:** crear el proyecto `mindlin`.
    - Agregar un servicio **Compose** llamado `asistente`.
    - En Fuente: **Inline**, y pegar entero [`infra/easypanel/docker-compose.yml`](../infra/easypanel/docker-compose.yml) (en GitHub, botón **Raw**).
    - Guardar, todavía sin implementar.
-6. **Las claves:** pasar `infra/servidor.sh` al servidor como `/root/servidor.sh`, igual que en la tarea 4 de `IA_DE_PANELES.md`. Después:
+6. **Las claves:** pasar `infra/servidor.sh` al servidor. Con el repo público alcanza con:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/axellaban/mindlin-asistente/main/infra/servidor.sh -o /root/servidor.sh
+   ```
+
+   Si el repo es privado, ese `curl` falla. En GitHub, abrir [`infra/servidor.sh`](../infra/servidor.sh) → **Copy raw file**, y en la terminal `cat > /root/servidor.sh`, pegar y `Ctrl+D`. Después:
    - Correr `bash /root/servidor.sh generar` en la terminal del servidor.
    - En Easypanel → `asistente` → **Entorno**, pegar esas cinco líneas y debajo el resto de [`infra/easypanel/variables.env.example`](../infra/easypanel/variables.env.example): dominios e hilos.
    - Prender **Crear archivo .env** y guardar.
-7. **Implementar.** La primera vez tarda entre 5 y 10 minutos: baja unos 2 GB y prepara la base de Chatwoot.
+7. **Implementar.** Puede tardar entre 2 y 10 minutos: baja unos 2 GB y prepara la base de Chatwoot (el 13/11 tardó 2).
 8. **Dominios** (Easypanel → `asistente` → Dominios), los dos con HTTPS. Easypanel saca el certificado solo.
    - `chat.mindlindevelopers.com` → servicio `chatwoot-rails`, puerto `3000`.
    - `waha.mindlindevelopers.com` → servicio `waha`, puerto `3000`.
+   - **Después de cargar los dominios, tocar Implementar otra vez.** El 13/11, los dominios que se crearon después de la primera implementación no los tomó el proxy: `chat…` decía «Service is not reachable» con Chatwoot sano por dentro, y se arregló volviendo a implementar.
+   - Easypanel crea solo un dominio de más, `…easypanel.host → mindlin_asistente:80`, que no apunta a ningún servicio. Se puede dejar.
 9. **Preparar el servidor:** correr `bash /root/servidor.sh easypanel`. Crea el swap, programa el respaldo nocturno y verifica que anden los 5 contenedores, Chatwoot, WAHA y el HTTPS. Copiar la salida (no tiene claves) en `docs/estado-paneles.md`, sección «Servidor».
 10. **Chatwoot:** hacer el alta igual que en la tarea 5, pasos 1 y 2: cuenta «Mindlin Developers» y copiar el Token de acceso del perfil.
 11. **La línea:** correr `bash /opt/mindlin-asistente/servidor.sh conectar default "WhatsApp Lerma 439"` y pegar el token cuando lo pida.
@@ -57,12 +69,13 @@ Las reglas de [`IA_DE_PANELES.md`](../IA_DE_PANELES.md) siguen valiendo. Sobre t
     - Después, mandar un mensaje desde otro teléfono: tiene que aparecer en Chatwoot.
 12. **El asistente.** Este paso asigna el Agent Bot a la bandeja, así que el asistente empieza a contestar en la línea. Si todavía no tiene que contestar, primero hay que pausarlo desde el hub: Comercial → Asistente de WhatsApp → **Pausar el asistente**.
     - Correr `bash /opt/mindlin-asistente/servidor.sh bot`, con la bandeja que muestra y `https://mindlin-asistente.vercel.app`.
-    - Muestra cuatro variables. Reemplazar las cuatro en Vercel → `mindlin-asistente` → Settings → Environment Variables (Production, como Secret) y volver a publicar.
-13. **Comprobar:** `https://mindlin-asistente.vercel.app/api/salud` tiene que decir `configuracionCompleta: true`. Anotar el resultado en `docs/estado-paneles.md`.
+    - Muestra cuatro variables. Reemplazar las cuatro en Vercel (equipo `mindlin-developers-ia`) → `mindlin-asistente` → Settings → Environment Variables (Production, como Secret).
+    - **Volver a publicar** (Deployments → el último → **Redeploy**) y esperar que quede **Ready**. Sin eso, Vercel sigue con el token del Chatwoot anterior: los mensajes entran a la bandeja, el asistente no contesta y Chatwoot anota «Conversation was marked open by system due to an error with the agent bot». Pasó el 13/11.
+13. **Comprobar:** `https://mindlin-asistente.vercel.app/api/salud` tiene que decir `configuracionCompleta: true`, pero eso solo mira que las variables existan. Lo que confirma que andan es **Conexiones**: en el hub, Resumen → «Probar las conexiones» (o `/panel/chequeo`). Chatwoot tiene que quedar en verde. Después, un WhatsApp de prueba desde un número que nunca escribió: tiene que contestar el asistente (como en la tarea 10). Anotar el resultado en `docs/estado-paneles.md`.
 
 ## Para manejarlo sin consola (Axel)
 
-- **¿Anda todo?** Easypanel → `mindlin` → `asistente`: los cinco contenedores en verde. Los mensajes de cada uno están en la pestaña de registros.
+- **¿Anda todo?** Easypanel → `mindlin` → `asistente`: los cinco contenedores en verde. Los mensajes de cada uno están en la pestaña de registros. El panel de Easypanel está en `http://187.53.99.210:3000` (sin dominio propio).
 - **Reiniciar:** botón **Implementar**, que vuelve a levantar todo. No borra nada: los datos están en volúmenes.
 - **La línea de WhatsApp:** `https://waha.mindlindevelopers.com/dashboard`. El usuario es `admin` y la clave es `WAHA_DASHBOARD_PASSWORD`, en Entorno. Ahí se ve si está conectada.
 - **Actualizar versiones:** Claude cambia `infra/easypanel/docker-compose.yml` en el repo. Se pega el nuevo en Fuente y se toca **Implementar**. Al arrancar, Chatwoot actualiza su base solo.
@@ -82,4 +95,4 @@ En reposo, los cinco contenedores usan unos 1,25 GB de RAM; Easypanel suma lo su
 
 En esa prueba apareció el mismo problema del PR #12: detrás de un proxy, Chatwoot no ve el encabezado `api_access_token` y contesta 401. Por eso `servidor.sh` ahora le habla con `Authorization: Bearer`.
 
-Falta probar en el servidor: la pantalla de Easypanel, sus certificados y el QR con WhatsApp de verdad (desde la prueba local no se llega a WhatsApp).
+En el servidor se hizo el 13/11 (tarea 9) con Easypanel v2.38.0: los certificados, el QR con WhatsApp de verdad y `verificar` con todo en orden (1,9 GB de RAM usada de 3,9 GB, sin swap en uso). Ese mismo día anduvo la prueba de punta a punta por WhatsApp (tarea 10).

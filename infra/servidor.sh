@@ -534,7 +534,7 @@ print(json.dumps({
   cat <<EOF
 
 Ahora, con el celular del chip:
-  1. En Chatwoot, abrí la conversación «WhatsApp Integration» de la bandeja «$nombre».
+  1. En Chatwoot, abrí la conversación «Integración de WhatsApp» de la bandeja «$nombre».
      Ahí aparece el QR. Si no aparece, escribí: start
   2. En el celular: WhatsApp → Dispositivos vinculados → Vincular un dispositivo → escaneá el QR.
   3. Mandá un mensaje desde otro teléfono a ese número: tiene que aparecer en Chatwoot.

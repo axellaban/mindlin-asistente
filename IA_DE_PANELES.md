@@ -4,7 +4,7 @@ Este archivo es para la IA que trabaja con **computer use** en la computadora de
 
 ## Para pegarle a la IA (Axel)
 
-> Sos la IA de paneles del proyecto «Asistente comercial de Mindlin». Entrá a https://github.com/axellaban/mindlin-asistente/blob/main/IA_DE_PANELES.md (con mi sesión de GitHub) y seguí ese archivo: hacé las tareas en orden, respetá las reglas y anotá lo que averigües en `docs/estado-paneles.md`. Si algo pide pagar, borrar, cambiar algo que ya funciona o un código de verificación, frená y preguntame.
+> Sos la IA de paneles del proyecto «Asistente comercial de Mindlin». Entrá a https://github.com/axellaban/mindlin-asistente/blob/main/IA_DE_PANELES.md (con mi sesión de GitHub) y seguí ese archivo: hacé las tareas que figuran como pendientes al principio de «Las tareas», en ese orden, respetá las reglas y anotá lo que averigües en `docs/estado-paneles.md`. Si algo pide pagar, borrar, cambiar algo que ya funciona o un código de verificación, frená y preguntame.
 
 ## Qué es el proyecto, en dos líneas
 
@@ -27,9 +27,25 @@ Todo lo que averigües va en [`docs/estado-paneles.md`](docs/estado-paneles.md),
 
 Si GitHub se complica, pasale el texto a Axel y que lo cargue él.
 
+Si una sección de `docs/estado-paneles.md` quedó vieja, marcala como resuelta, con la fecha, la próxima vez que anotes algo. Por ejemplo, «Pendiente para cerrar la tarea 9» ya se resolvió el 13/11: se volvió a publicar en Vercel y la prueba de punta a punta anduvo.
+
 ## Las tareas
 
-Las tareas 1, 2 y 3 se pueden hacer ya y en cualquier orden. La 4 depende de la 1. Las 5 y 6 dependen de la 4.
+**Pendientes (al 15/11), en este orden:**
+
+1. **Tarea 12** · QA en producción de las líneas y los flujos. Se puede hacer ya.
+2. **Tarea 11** · Sumar la línea 4. Necesita el chip o número de esa línea: no arranques sin él.
+3. **Tarea 7** · El equipo en Chatwoot. Espera a que Axel decida el correo de Chatwoot.
+
+**Hechas:** 1, 2, 3, 9 y 10. **Reemplazadas por la 9 (Easypanel):** 4, 5, 6 y 8. Eran de la instalación vieja sobre Ubuntu y quedan como referencia: no hay que volver a hacerlas. La guía de hoy para el servidor es [`docs/easypanel.md`](docs/easypanel.md).
+
+**Dónde se corre `servidor.sh`:** en la terminal del VPS, como root. Se entra desde hPanel de Hostinger → VPS → **Terminal del navegador**, o por SSH. No sirve la consola de un servicio de Easypanel: esa corre adentro de un contenedor y no ve el resto. El script está en `/opt/mindlin-asistente/servidor.sh`. Si en `main` cambió, se baja de nuevo con:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/axellaban/mindlin-asistente/main/infra/servidor.sh -o /opt/mindlin-asistente/servidor.sh
+```
+
+Si el repo vuelve a ser privado, ese `curl` falla. En ese caso, en GitHub abrí [`infra/servidor.sh`](infra/servidor.sh) → **Copy raw file**, y en la terminal `cat > /opt/mindlin-asistente/servidor.sh`, pegá y `Ctrl+D`.
 
 ### Tarea 1 · Revisar DonWeb (solo mirar)
 
@@ -47,22 +63,17 @@ Queremos saber si el servidor de Mindlin sirve para correr WAHA y Chatwoot. Entr
 
 **Qué hace falta:** un VPS con 4 GB de RAM o más, 2 vCPU, 30 GB libres, Ubuntu 22.04 o 24.04 y acceso root. Si es solo hosting compartido, no sirve: hay que contratar un Cloud Server, pero eso lo decide Axel.
 
-### Tarea 2 · Vercel y la base (hecha el 07/11)
+### Tarea 2 · Vercel y la base (hecha)
 
 Ya está todo: el proyecto en Vercel (`https://mindlin-asistente.vercel.app`) y la base **Neon** conectada. Supabase no se usa: el plan gratis estaba lleno. Desde el 13/11 el proyecto está en el equipo `mindlin-developers-ia` (cuenta `mindlindevelopers.ia`, plan Hobby).
 
 - **Las tablas se crean solas en cada publicación** (`scripts/migrar.mjs`). No hay que pegar nada a mano.
-- **Lo que queda de esta tarea** (actualizado el 10/11). Cada variable, en **Settings → Environment Variables**, para Production y Preview, como **Secret**:
-  1. ~~`ANTHROPIC_API_KEY`~~: **cargada por Axel el 10/11.** El asistente responde con Claude.
-  2. ~~`PANEL_CLAVE`~~: **cargada por Axel el 10/11.** Es la clave del panel del equipo (`/panel`); la comparte él con el equipo, no por este chat.
-  3. `CRON_SECRET`: una clave al azar para los seguimientos. Se puede generar en la terminal con `openssl rand -hex 24` y pegarla directo en Vercel. Nadie más la necesita.
-  4. `HUB_CLAVE`: otra clave al azar (`openssl rand -hex 24`). La **misma** va en el proyecto del hub como `ASISTENTE_CLAVE`, junto con `ASISTENTE_URL` (la dirección de este proyecto, por ejemplo `https://mindlin-asistente.vercel.app`). Con eso se configura el asistente desde el hub: HQ → Comercial → Asistente de WhatsApp. Sin ella, esa API está apagada.
-  5. Volver a publicar: **Deployments** → los tres puntos del último → **Redeploy**.
-  6. En el registro de esa publicación (**Build Logs**), buscar la línea `migrar: … (10 migraciones).` y anotarla.
-  7. En **Settings → Cron Jobs**, confirmar que aparece `/api/cron/seguimientos` **una vez por día** (`0 13 * * *`, las 10 de Buenos Aires). Es lo que admite el plan Hobby desde el 13/11; si el proyecto vuelve a un plan Pro, Claude lo vuelve a cada 15 minutos.
-  8. Abrir `/api/salud` y anotar la lista `faltan` y lo que dice `ia` (tiene que decir `"proveedor": "anthropic"`; `"audios": false` es lo esperado hasta que se cargue `OPENAI_API_KEY`).
-  9. Abrir `/panel`, entrar con tu nombre («IA de paneles») y la clave, y anotar si se ve el resumen y que diga «El asistente está respondiendo». **No cambies las fichas, el tono ni la pausa:** eso lo maneja Mindlin.
-  9. **Más adelante (Axel decide cuándo):** `OPENAI_API_KEY`, solo para transcribir los audios. Mientras no esté, el bot pide que lo escriban.
+- **Variables cargadas** (Settings → Environment Variables, como Secret): `ANTHROPIC_API_KEY` y `PANEL_CLAVE` (Axel, 10/11); `CRON_SECRET` (Panel, 10/11); `OPENAI_API_KEY` (10/11: hoy responde con OpenAI y transcribe los audios); `HUB_CLAVE`, la misma que tiene el hub como `ASISTENTE_CLAVE` (el hub está conectado). Las cuatro de Chatwoot se volvieron a cargar el 13/11, con el servidor nuevo.
+- **Para revisar después de una publicación:**
+  1. En el registro de la publicación (**Build Logs**), la línea `migrar: …`. Dice cuántas migraciones hay y cuál se aplicó (al 15/11 son 11; la última es `202611150011_lineas_y_flujos.sql`).
+  2. En **Settings → Cron Jobs**, `/api/cron/seguimientos` **una vez por día** (`0 13 * * *`, las 10 de Buenos Aires). Es lo que admite el plan Hobby; si el proyecto vuelve a un plan Pro, Claude lo vuelve a cada 15 minutos.
+  3. `/api/salud`: la lista `faltan` tiene que estar vacía, y `ia` dice qué IA responde (`"proveedor": "openai"` o `"anthropic"`, según lo que se elija). Ojo: solo mira que las variables existan. Para saber si de verdad andan, usá **Conexiones** (`/panel/chequeo`, o en el hub: Resumen → «Probar las conexiones»).
+  4. **No cambies las fichas, el tono ni la pausa:** eso lo maneja Mindlin.
 
 ### Tarea 3 · Cuenta de Google para el CRM
 
@@ -80,7 +91,9 @@ El asistente escribe los interesados en el CRM del hub, que es una planilla de G
 6. En Vercel, cargá `CRM_SHEET_ID`: lo que está entre `/d/` y `/edit` en la dirección de la planilla.
 7. Anotá en «Google» solo que está hecho y el mail de la cuenta de servicio, que no es secreto.
 
-### Tarea 4 · Instalar el servidor
+### Tarea 4 · Instalar el servidor (reemplazada por la 9)
+
+> **No hace falta:** era la instalación vieja sobre Ubuntu. Desde el 13/11 el servidor se instala con Easypanel (tarea 9, [`docs/easypanel.md`](docs/easypanel.md)). En modo Easypanel, `servidor.sh instalar` no corre.
 
 Antes de empezar, Axel tiene que confirmar que el servidor sirve (tarea 1) y elegir el subdominio, por ejemplo `chat.<dominio de Mindlin>`.
 
@@ -96,7 +109,9 @@ Antes de empezar, Axel tiene que confirmar que el servidor sirve (tarea 1) y ele
 3. En el servidor: `bash /root/servidor.sh instalar`. Pide el dominio (`chat.…`) y un mail para el certificado HTTPS. Tarda unos 10 minutos.
 4. Al final muestra una verificación. Copiá **toda la salida de `bash /opt/mindlin-asistente/servidor.sh verificar`** (no tiene claves) en la sección «Servidor». Si dice que HTTPS no responde, casi siempre es que el DNS todavía no se propagó: esperá 15 minutos y verificá de nuevo.
 
-### Tarea 5 · Chatwoot y la línea de WhatsApp
+### Tarea 5 · Chatwoot y la línea de WhatsApp (reemplazada por la 9)
+
+> **Ya se hizo de nuevo en la tarea 9.** Los pasos 1 y 2 (alta de Chatwoot y token del perfil) siguen sirviendo: [`docs/easypanel.md`](docs/easypanel.md) los usa. Para sumar otra línea, la tarea 11.
 
 1. Abrí `https://chat.<dominio>`: aparece la configuración inicial. Completá nombre, empresa (Mindlin Developers), el mail de Axel y una contraseña. La contraseña tiene que tener **mayúscula, minúscula, número y símbolo**; guardala en el gestor de contraseñas de Axel. Destildá la suscripción a novedades y tocá **Finalizar configuración**.
 2. En Chatwoot: tu perfil (abajo a la izquierda) → **Configuración del perfil** → copiá el **Token de acceso**.
@@ -104,7 +119,9 @@ Antes de empezar, Axel tiene que confirmar que el servidor sirve (tarea 1) y ele
 4. **Con Axel y el celular del chip:** en Chatwoot, abrí la conversación «Integración de WhatsApp» de esa bandeja. Ahí aparece el QR; si no aparece, escribí `start` y mandalo. Axel lo escanea desde WhatsApp → **Dispositivos vinculados → Vincular un dispositivo**.
 5. Probá mandar un mensaje desde otro teléfono al número del chip: tiene que aparecer en Chatwoot. Anotá el resultado en la sección «Chatwoot».
 
-### Tarea 6 · Conectar el asistente
+### Tarea 6 · Conectar el asistente (reemplazada por la 9)
+
+> **Ya se hizo de nuevo en la tarea 9.** No vuelvas a correr `servidor.sh bot`: crea otro Agent Bot con otro token, y el asistente deja de contestar hasta cargar las cuatro variables nuevas en Vercel y volver a publicar.
 
 Hace falta la tarea 2 terminada (la dirección de Vercel) y que Claude haya dejado el webhook. Fijate en `PENDIENTES.md` que «Webhook del Agent Bot» esté marcado como hecho.
 
@@ -122,10 +139,10 @@ Hace falta la tarea 2 terminada (la dirección de Vercel) y que Claude haya deja
 
 - `bash /opt/mindlin-asistente/servidor.sh verificar` dice qué anda y qué no.
 - Con Easypanel (desde la tarea 9): Easypanel → `mindlin` → `asistente` muestra cada contenedor y sus mensajes. Los servicios son `chatwoot-rails`, `chatwoot-sidekiq`, `postgres`, `redis` y `waha`.
-- Antes de Easypanel: `cd /opt/mindlin-asistente && docker compose logs --tail 100 chatwoot-rails`, y además estaba `caddy`.
+- Antes de Easypanel (ya no aplica): `cd /opt/mindlin-asistente && docker compose logs --tail 100 chatwoot-rails`, y además estaba `caddy`.
 - Copiá el error en `docs/estado-paneles.md`. Antes de copiarlo, revisá que no tenga claves.
 
-### Tarea 8 · Actualizar el instalador en el servidor (10/11)
+### Tarea 8 · Actualizar el instalador en el servidor (reemplazada por la 9)
 
 > **Ya no hace falta:** la reemplaza la tarea 9 (Easypanel), que instala todo de nuevo con estos mismos ajustes.
 
@@ -177,7 +194,13 @@ Anotá todo en `docs/estado-paneles.md`, sección «Chatwoot», como «Prueba de
 
 Desde el 15/11 el asistente maneja varias líneas ([`docs/lineas.md`](docs/lineas.md)). La 3 es la que ya anda (bandeja 1). La 4 es otra línea de leads entrantes. Hace falta el **chip o número nuevo**: pedíselo a Axel. No arranques sin él.
 
-1. **WAHA y Chatwoot.** En la consola del servidor (Easypanel), `bash servidor.sh conectar linea4 "WhatsApp Leads 2"`. Crea la sesión, la bandeja y la conexión WAHA → Chatwoot. Axel escanea el QR con el teléfono de la línea 4. Anotá el **número de la bandeja nueva** (en Chatwoot: Configuración → Bandejas; la dirección termina en `/inboxes/<número>`).
+1. **WAHA y Chatwoot.** En la terminal del VPS (hPanel → VPS → **Terminal del navegador**, como root; no en la consola de un servicio de Easypanel), corré:
+
+   ```bash
+   bash /opt/mindlin-asistente/servidor.sh conectar linea4 "WhatsApp Leads 2"
+   ```
+
+   Pide el token de acceso de tu perfil de Chatwoot (no se ve mientras lo pegás). Crea la sesión, la bandeja y la conexión WAHA → Chatwoot. El QR aparece en la conversación «Integración de WhatsApp» de la bandeja nueva; si no aparece, escribí `start` y mandalo. Axel lo escanea con el teléfono de la línea 4. Anotá el **número de la bandeja nueva** (en Chatwoot: Configuración → Bandejas; la dirección termina en `/inboxes/<número>`).
 2. **El Agent Bot.** **No corras `servidor.sh bot`**: crea un bot nuevo con otro token y la línea 3 dejaría de andar. En Chatwoot, en la bandeja nueva → Configuración → **Bot**, elegí el que ya existe, «Asistente Mindlin», y guardá.
 3. **El hub.** HQ → Comercial → Asistente de WhatsApp → elegí «Leads entrantes 2» → **Conexión**. Cargá el número de bandeja y el teléfono de la línea, y guardá.
 4. **Probar.** En el Resumen, «Probar las conexiones»: «Líneas» tiene que decir que atiende en las dos bandejas. Mandale un WhatsApp de prueba a la línea 4 desde un número que nunca le escribió: tiene que contestar el asistente. En Chatwoot, la conversación queda en la bandeja nueva.
