@@ -4,42 +4,25 @@
  * 1. No contestar dos veces el mismo mensaje (Chatwoot puede reintentar el aviso).
  *    Si trae audios, transcribirlos (con OpenAI) y guardar el texto en el historial.
  * 2. Esperar unos segundos: la gente manda varios mensajes seguidos. Si llegó otro, contesta ese.
- * 3. Armar el contexto: tono, ficha del proyecto, lo que dice el CRM y el historial.
- * 4. Claude responde (y puede registrar al interesado, elegir el proyecto o pasar a una persona).
- * 5. Mandar la respuesta por Chatwoot; si pasa a una persona, nota interna y conversación abierta.
+ * 3. Armar la conversación (lib/agente/charla.ts): la línea, sus proyectos, el tono, lo que dice
+ *    el CRM y el historial.
+ * 4. Si la línea tiene un flujo para esta persona (lib/flujos/servicio.ts), lo sigue el flujo.
+ * 5. Si no, responde la IA (y puede registrar al interesado, elegir el proyecto o pasar a una persona).
+ * 6. Mandar la respuesta por Chatwoot; si pasa a una persona, nota interna y conversación abierta.
  *
  * Si algo falla, la conversación pasa a una persona con una nota que explica qué pasó: ningún
  * interesado queda sin respuesta.
  */
 
-import type { Chatwoot } from "../chatwoot/api";
 import type { Accion } from "../chatwoot/evento";
-import type { ContactoCRM, CRM } from "../crm/planilla";
-import type { Almacen, Proyecto } from "../datos/tipos";
-import { responder, type Herramientas, type Modelo, type Resultado } from "./agente";
-import type { Transcriptor } from "./openai";
-import { sumarAnotado } from "./anotado";
-import { ficha, instrucciones, situacion } from "./contexto";
-import { moverEtapa } from "../etapas/mover";
-import { etapaDeAlta, type Evento, type ReglasEtapa, type Senal } from "../etapas/reglas";
+import type { Evento } from "../etapas/reglas";
+import { conFlujo } from "../flujos/servicio";
+import type { Linea } from "../lineas";
+import { LARGO_HISTORIAL, pasarAPersona, prepararCharla, type Servicios } from "./charla";
 import { motivoParaFrenar } from "./limites";
-import { paraWhatsApp } from "./whatsapp";
 
-export interface Servicios {
-  almacen: Almacen;
-  chatwoot: Chatwoot;
-  modelo: Modelo;
-  crm: CRM | null;
-  /** Sin él (falta OPENAI_API_KEY), los audios quedan como [audio] y el bot pide que lo escriban. */
-  transcribir?: Transcriptor | null;
-  ahora?: () => Date;
-  dormir?: (ms: number) => Promise<void>;
-  /** Cuánto esperar por si la persona sigue escribiendo. */
-  esperaMs?: number;
-}
+export { LARGO_HISTORIAL, type Servicios } from "./charla";
 
-/** Mensajes del historial que se le pasan a Claude. */
-export const LARGO_HISTORIAL = 40;
 export const ESPERA_MS = 6000;
 
 type Responder = Extract<Accion, { tipo: "responder" }>;
@@ -47,7 +30,8 @@ type Responder = Extract<Accion, { tipo: "responder" }>;
 const dormirReal = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const detalle = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export async function atender(s: Servicios, a: Responder): Promise<string> {
+/** `linea`: la de la bandeja del aviso (el webhook ya revisó que sea de leads y no esté pausada). */
+export async function atender(s: Servicios, a: Responder, linea: Linea | null = null): Promise<string> {
   const ahora = s.ahora ?? (() => new Date());
   const conv = a.conversacion;
   if (a.mensaje != null && !(await s.almacen.reclamarMensaje(a.mensaje, conv))) return "ya se había atendido";
@@ -83,122 +67,34 @@ export async function atender(s: Servicios, a: Responder): Promise<string> {
     const devuelta = await s.almacen.volvioAlBot(conv);
     if (devuelta) {
       await s.almacen.registrar({ tipo: "volvio_al_bot", conversacion: conv, detalle: "El equipo le devolvió la conversación al asistente: vuelve a responder y a llevar seguimientos." });
+      // Lo decidió el equipo: desde acá conversa la IA, aunque hubiera un flujo a medias.
+      await s.almacen.cancelarCorridas(conv).catch(() => {});
     }
 
-    const [guardada, proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([
-      s.almacen.conversacion(conv),
-      s.almacen.proyectosActivos(),
-      s.almacen.tono(),
-      s.almacen.ejemplos(),
-      // Sin las reglas de etapas, el asistente atiende igual: solo no mueve a nadie.
-      s.almacen.reglasEtapa().catch((): ReglasEtapa => ({})),
-    ]);
-    // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
-    const telefono = a.contacto.telefono || guardada?.telefono || null;
-    const nombre = a.contacto.nombre || guardada?.nombre || null;
-    if (!guardada || guardada.telefono !== telefono || guardada.nombre !== nombre) await s.almacen.guardarConversacion({ chatwoot_id: conv, telefono, nombre });
-    let proyectoId = guardada?.proyecto ?? (proyectos.length === 1 ? proyectos[0].id : null);
-    const proyecto = (id: string | null): Proyecto | null => proyectos.find((p) => p.id === id) ?? null;
+    const ch = await prepararCharla(s, { conv, linea, historial, contacto: a.contacto, bandeja: a.bandeja, eventoPara: (g) => eventoDelMensaje(historial, g?.ultimo_seguimiento) });
 
-    // El contacto del CRM: por el ID que ya quedó anotado o por teléfono.
-    const buscarEnCRM = () => s.crm!.buscar({ id: guardada?.crm_contacto_id, telefono });
-    let contactoCRM: ContactoCRM | null | undefined = undefined;
-    if (s.crm) {
-      try {
-        contactoCRM = await buscarEnCRM();
-        if (contactoCRM && contactoCRM.id !== guardada?.crm_contacto_id) await s.almacen.guardarConversacion({ chatwoot_id: conv, crm_contacto_id: contactoCRM.id });
-      } catch (e) {
-        await s.almacen.registrar({ tipo: "error", conversacion: conv, detalle: `CRM (buscar): ${detalle(e)}` });
-      }
+    // Un flujo (como los bots de Kommo) para esta persona, si la línea tiene uno.
+    let pasoPorFlujo = false;
+    if (!devuelta) {
+      const f = await conFlujo(s, ch);
+      if ("hecho" in f) return f.hecho;
+      pasoPorFlujo = f.ia;
     }
-    let anotado = guardada?.interesado ?? {};
-
-    // Lo que pasó con este mensaje, para mover al lead de etapa en el CRM (lib/etapas/reglas.ts).
-    const eventos: Evento[] = [eventoDelMensaje(historial, guardada?.ultimo_seguimiento)];
-    const mover = async (mas: Evento[] = []) => {
-      const movido = await moverEtapa({ crm: s.crm, almacen: s.almacen, conversacion: conv, contacto: contactoCRM, eventos: [...eventos, ...mas], reglas: reglasEtapa, ahora: ahora().toISOString() });
-      if (movido) contactoCRM = movido;
-    };
 
     // Modo «presenta y pasa» (como los bots de Kommo): el asistente ya le escribió y la persona
-    // respondió → sigue el equipo. Si el equipo se la devolvió a propósito, responde.
-    if (tono.pasar_al_responder && !devuelta && historial.some((m) => m.rol === "bot")) {
-      await mover(["paso_al_equipo"]);
-      await pasarAPersona(s, conv, { motivo: "La persona respondió después de la presentación (modo «presenta y pasa»).", resumen: guardada?.interesado?.resumen ?? "" }, contactoCRM ?? null, ahora);
+    // respondió → sigue el equipo. Si el equipo se la devolvió a propósito, o la conversación ya
+    // pasó por un flujo (que decidió que siga la IA), responde.
+    const presentaYPasa = linea ? linea.pasar_al_responder : ch.tono.pasar_al_responder === true;
+    if (presentaYPasa && !devuelta && !pasoPorFlujo && historial.some((m) => m.rol === "bot")) {
+      await ch.mover(["paso_al_equipo"]);
+      await ch.pasarAlEquipo({ motivo: "La persona respondió después de la presentación (modo «presenta y pasa»).", resumen: ch.anotado.resumen ?? "" });
       return "pasó al equipo: respondió después de la presentación";
     }
 
-    const herramientas: Herramientas = {
-      async registrarInteresado(d) {
-        // Primero en la base del asistente: así lo tiene a mano en los próximos mensajes.
-        const suma = sumarAnotado(anotado, d);
-        const nuevo = suma.cambios.length > 0;
-        anotado = suma.anotado;
-        await s.almacen.guardarConversacion({ chatwoot_id: conv, interesado: anotado });
-        if (!s.crm) return "Anotado. (El CRM no está conectado todavía: seguí la conversación igual.)";
-        const cuando = ahora().toISOString();
-        // Si al principio no se pudo consultar el CRM, se vuelve a buscar: nunca se crea un repetido.
-        if (contactoCRM === undefined) contactoCRM = await buscarEnCRM();
-        if (contactoCRM && !nuevo) return "Eso ya estaba anotado: no hace falta registrarlo de nuevo. Seguí la conversación.";
-        if (!contactoCRM) {
-          contactoCRM = await s.crm.crearContacto(
-            {
-              nombre: anotado.nombre || nombre || "",
-              telefono: telefono ?? "",
-              proyecto: proyectoId,
-              para: anotado.para ?? "",
-              ambientes: anotado.ambientes ?? "",
-              presupuestoUsd: anotado.presupuesto_usd ?? "",
-              formaDePago: anotado.forma_de_pago ?? "",
-              plazo: anotado.plazo ?? "",
-              notas: [d.resumen, anotado.zona && `Es de: ${anotado.zona}.`, anotado.busca_desde && `Busca hace: ${anotado.busca_desde}.`].filter(Boolean).join(" "),
-            },
-            cuando,
-            // Ya le está hablando el asistente: entra con la etapa del «primer contacto», no como «Nuevo».
-            etapaDeAlta(reglasEtapa),
-          );
-          await s.almacen.guardarConversacion({ chatwoot_id: conv, crm_contacto_id: contactoCRM.id });
-          await s.crm.anotarActividad({ contacto: contactoCRM, detalle: `Alta por WhatsApp. ${d.resumen}`.trim(), ahora: cuando });
-          await s.almacen.registrar({ tipo: "crm", conversacion: conv, detalle: `Contacto nuevo ${contactoCRM.id}`, datos: d });
-          return "Listo: quedó en el CRM como contacto nuevo.";
-        }
-        // Solo lo que cambió: lo que ya estaba anotado no se repite en la actividad.
-        await s.crm.anotarActividad({ contacto: contactoCRM, detalle: [d.resumen?.trim(), `(${suma.cambios.join(", ")})`].filter(Boolean).join(" "), ahora: cuando });
-        await s.almacen.registrar({ tipo: "crm", conversacion: conv, detalle: `Actividad en ${contactoCRM.id}`, datos: d });
-        return "Listo: quedó anotado en el CRM (el contacto ya existía).";
-      },
-      async elegirProyecto(id) {
-        const p = proyecto(id);
-        if (!p) throw new Error(`No hay un proyecto activo con id ${id}.`);
-        proyectoId = p.id;
-        await s.almacen.guardarConversacion({ chatwoot_id: conv, proyecto: p.id });
-        return `Quedó elegido. Ficha:\n\n${ficha(p)}`;
-      },
-      async marcarSenal(senal: Senal) {
-        if (!eventos.includes(senal)) eventos.push(senal);
-        // Si pidió que no le escriban, no le salen más seguimientos, mueva o no de etapa.
-        if (senal === "no_le_interesa") await s.almacen.sinSeguimientos(conv);
-        return "Anotado para el equipo. Seguí la conversación sin mencionarlo.";
-      },
-    };
-
-    const resultado: Resultado = await responder({
-      modelo: s.modelo,
-      instrucciones: instrucciones({ tono, proyectos, proyecto: proyecto(proyectoId), ejemplos }),
-      situacion: situacion({ ahora: ahora(), nombre: nombre ?? "", telefono: telefono ?? "", crm: contactoCRM, anotado, horario: tono.horario_equipo }),
-      historial,
-      proyectos: proyectos.map((p) => p.id),
-      herramientas,
-    });
-
-    const texto = paraWhatsApp(resultado.texto);
-    if (texto) await s.chatwoot.enviar(conv, texto);
-    await s.almacen.registrar({ tipo: "respuesta", conversacion: conv, detalle: texto.slice(0, 500), datos: { fin: resultado.fin } });
-
-    const pasar = resultado.pasarAPersona ?? (texto ? null : { motivo: "El asistente no supo qué responder.", resumen: "" });
-    await mover(pasar ? ["paso_al_equipo"] : []);
+    const { pasar } = await ch.turnoIA();
+    await ch.mover(pasar ? ["paso_al_equipo"] : []);
     if (pasar) {
-      await pasarAPersona(s, conv, pasar, contactoCRM ?? null, ahora);
+      await ch.pasarAlEquipo(pasar);
       return `respondió y pasó a una persona: ${pasar.motivo}`;
     }
     return "respondió";
@@ -260,32 +156,28 @@ export function conTranscripciones(texto: string, transcripciones: string[]): st
   });
 }
 
-async function pasarAPersona(s: Servicios, conv: number, p: { motivo: string; resumen: string }, contacto: ContactoCRM | null, ahora: () => Date) {
-  const nota = [`🙋 El asistente pasó esta conversación al equipo: ${p.motivo}`, p.resumen && `Resumen: ${p.resumen}`, contacto?.responsable && `Responsable en el CRM: ${contacto.responsable}`]
-    .filter(Boolean)
-    .join("\n");
-  await s.chatwoot.notaInterna(conv, nota);
-  await s.chatwoot.pasarAPersona(conv);
-  await s.almacen.sinSeguimientos(conv).catch(() => {});
-  await s.almacen.registrar({ tipo: "paso_a_persona", conversacion: conv, detalle: p.motivo, datos: p });
-  if (s.crm && contacto) {
-    await s.crm.anotarActividad({ contacto, detalle: `Pasó al equipo: ${p.motivo}. ${p.resumen}`.trim(), ahora: ahora().toISOString() }).catch(() => {});
-  }
-}
-
-/** El asistente está pausado: la conversación pasa al equipo con una nota, sin que responda la IA. */
-export async function pasarPorPausa(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
-  await s.chatwoot.notaInterna(conversacion, "⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.");
+/**
+ * El asistente no atiende acá (está pausado, la línea está pausada o no es de leads): la
+ * conversación pasa al equipo con una nota, sin que responda la IA.
+ */
+export async function pasarPorPausa(
+  s: Pick<Servicios, "almacen" | "chatwoot">,
+  conversacion: number,
+  { nota = "⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.", motivo = "El asistente está pausado." }: { nota?: string; motivo?: string } = {},
+): Promise<string> {
+  await s.chatwoot.notaInterna(conversacion, nota);
   await s.chatwoot.pasarAPersona(conversacion);
   await s.almacen.sinSeguimientos(conversacion);
-  await s.almacen.registrar({ tipo: "paso_a_persona", conversacion, detalle: "El asistente está pausado." });
-  return "pasó al equipo: el asistente está pausado";
+  await s.almacen.cancelarCorridas(conversacion).catch(() => {});
+  await s.almacen.registrar({ tipo: "paso_a_persona", conversacion, detalle: motivo });
+  return `pasó al equipo: ${motivo.replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())}`;
 }
 
 /** Una persona escribió en una conversación que atendía el bot: pasa a abierta y queda anotado. */
 export async function laTomoUnaPersona(s: Pick<Servicios, "almacen" | "chatwoot">, conversacion: number): Promise<string> {
   await s.chatwoot.pasarAPersona(conversacion);
   await s.almacen.sinSeguimientos(conversacion);
+  await s.almacen.cancelarCorridas(conversacion).catch(() => {});
   await s.almacen.registrar({ tipo: "la_tomo_una_persona", conversacion, detalle: "Una persona del equipo escribió: el asistente deja de responder." });
   return "pasó a abierta";
 }

@@ -4,9 +4,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { datos, exigirSesion } from "@/lib/panel/servidor";
 import { claveCorrecta, COOKIE_SESION, crearToken, DURACION_SESION_MS, limpiarNombre } from "@/lib/panel/sesion";
-import { ESTADOS_REGLA, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "@/lib/panel/validar";
+import { ESTADOS_REGLA, validarEjemplo, validarLinea, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "@/lib/panel/validar";
 import type { ReglaSeguimiento } from "@/lib/datos/tipos";
-import { estadoDesdeNavegador, MAX_LARGO_PRUEBA, probar, type RespuestaPrueba } from "@/lib/agente/prueba";
+import { MAX_LARGO_PRUEBA, probarConAlmacen, type RespuestaPrueba } from "@/lib/agente/prueba";
 import { conexionesDesdeEnv } from "@/lib/servicios";
 
 /** Vuelve a la página con un aviso arriba (?ok=… o ?error=…). */
@@ -69,6 +69,25 @@ export async function guardarProyecto(f: FormData) {
   volver(`/panel/proyectos/${r.valor.id}`, { ok: "Ficha guardada. El asistente la usa desde el próximo mensaje." });
 }
 
+export async function guardarLinea(f: FormData) {
+  const por = await exigirSesion();
+  const id = String(f.get("id") ?? "");
+  const d = base("/panel/lineas");
+  if (!(await d.linea(id))) return volver("/panel/lineas", { error: "Esa línea no existe." });
+  // Los proyectos llegan como casillas («proyecto_lerma-439»).
+  const proyectos = (await d.proyectos()).map((p) => p.id);
+  const elegidos = proyectos.filter((p) => f.get(`proyecto_${p}`) === "on");
+  const r = validarLinea({ get: (k: string) => (k === "proyectos" ? elegidos.join(",") : f.get(k)) }, proyectos);
+  if (!r.ok) return volver("/panel/lineas", { error: r.error });
+  try {
+    await d.guardarLinea(id, r.valor, por);
+  } catch (e) {
+    if ((e as { code?: string }).code === "23505") return volver("/panel/lineas", { error: `La bandeja ${r.valor.bandeja} ya es de otra línea.` });
+    throw e;
+  }
+  volver("/panel/lineas", { ok: `Línea «${r.valor.nombre}» guardada. El asistente lo usa desde el próximo mensaje.` });
+}
+
 export async function guardarTono(f: FormData) {
   const por = await exigirSesion();
   const r = validarTono(f);
@@ -110,6 +129,7 @@ export async function agregarRegla(f: FormData) {
   const r = validarRegla(
     f,
     (await d.proyectos()).map((p) => p.id),
+    (await d.lineas()).map((l) => l.id),
   );
   if (!r.ok) return volver("/panel/seguimientos", { error: r.error });
   await d.agregarRegla(r.valor);
@@ -154,8 +174,7 @@ export async function probarMensaje(estado: unknown, texto: string): Promise<{ o
   if (!almacen) return { ok: false, error: "Falta la base de datos (DATABASE_URL) en Vercel." };
   if (!modelo) return { ok: false, error: "Falta la clave de la IA (ANTHROPIC_API_KEY) en Vercel." };
   try {
-    const [proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos(), almacen.reglasEtapa().catch(() => ({}))]);
-    return { ok: true, respuesta: await probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado: estadoDesdeNavegador(estado), texto: t }) };
+    return { ok: true, respuesta: await probarConAlmacen(almacen, modelo, estado, t) };
   } catch (e) {
     return { ok: false, error: `La IA no pudo responder: ${(e instanceof Error ? e.message : String(e)).slice(0, 300)}` };
   }

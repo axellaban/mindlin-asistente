@@ -185,6 +185,93 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("GET", "no-existe")).status).toBe(404);
     expect((await hub("DELETE", "config")).status).toBe(405);
     expect((await hub("GET", "proyectos/lerma-439/extra")).status).toBe(404);
+
+    // Con una línea: va en el estado y se revisa que exista. «Simular que no respondió» sin flujo: 400.
+    const linea = await manejarHub(pedido("POST", "probar", { texto: "Hola", linea: "linea-4" }), conIA);
+    expect(linea.status).toBe(200);
+    expect(pedidos.at(-1)).toEqual({ estado: { mensajes: [], proyecto: null, anotado: {}, pasada: false, linea: "linea-4", flujo: null }, texto: "Hola" });
+    expect((await manejarHub(pedido("POST", "probar", { texto: "Hola", linea: "linea-9" }), conIA)).status).toBe(404);
+    const sinEspera: DependenciasHub = { ...deps, probar: async () => Promise.reject(new Error("No hay un flujo esperando respuesta.")) };
+    expect(await manejarHub(pedido("POST", "probar", { vencer: true, linea: "linea-3" }), sinEspera)).toEqual({ status: 400, json: { error: "No hay un flujo esperando respuesta." } });
+  });
+
+  it("líneas: se leen las cuatro, se cambian de a una y dos no pueden tener la misma bandeja", async () => {
+    const config = (await hub("GET", "config")).json as { lineas: { id: string; bandeja: number | null }[]; opciones: { tipos_linea: unknown[]; tipos_de_paso: { tipo: string }[]; plantillas_flujo: unknown[] } };
+    expect(config.lineas.map((l) => [l.id, l.bandeja])).toEqual([
+      ["linea-1", null],
+      ["linea-2", null],
+      ["linea-3", 1],
+      ["linea-4", null],
+    ]);
+    expect(config.opciones.tipos_linea).toHaveLength(3);
+    expect(config.opciones.tipos_de_paso.map((t) => t.tipo)).toEqual(["mensaje", "pausa", "ia", "esperar", "etapa", "equipo", "seguir_ia", "fin"]);
+    expect(config.opciones.plantillas_flujo.length).toBeGreaterThan(2);
+
+    const r = await hub("PUT", "lineas/linea-4", { bandeja: 2, telefono: "+54 9 11 0000-0000", proyectos: ["lerma-439"], instrucciones: "Vienen de la campaña de Meta.", pasar_al_responder: true }, { usuario: "Tadeo" });
+    expect(r.status).toBe(200);
+    expect(r.json.linea).toMatchObject({ id: "linea-4", nombre: "Leads entrantes 2", bandeja: 2, proyectos: ["lerma-439"], pasar_al_responder: true, actualizado_por: "Tadeo" });
+    // Lo que no viene queda como estaba.
+    expect((await hub("PUT", "lineas/linea-4", { pausada: true })).json.linea).toMatchObject({ bandeja: 2, pausada: true, instrucciones: "Vienen de la campaña de Meta." });
+    const almacen = crearAlmacen(pool);
+    expect((await almacen.lineas()).find((l) => l.id === "linea-4")).toMatchObject({ bandeja: 2, pausada: true, pasar_al_responder: true });
+
+    expect(await hub("PUT", "lineas/linea-1", { bandeja: 2 })).toEqual({ status: 409, json: { error: "La bandeja 2 ya es de la línea «Leads entrantes 2». Cada línea tiene su propia bandeja en Chatwoot." } });
+    expect((await hub("PUT", "lineas/linea-4", { proyectos: ["no-existe"] })).status).toBe(400);
+    expect((await hub("PUT", "lineas/linea-4", { bandeja: "dos" })).status).toBe(400);
+    expect((await hub("PUT", "lineas/linea-9", {})).status).toBe(404);
+    await hub("PUT", "lineas/linea-4", { pausada: false, bandeja: null });
+    // Una regla de seguimiento para una sola línea.
+    const regla = await hub("POST", "reglas", { etapa: "Nuevo", paso: 1, dias_sin_respuesta: 2, mensaje: "Hola {{nombre}}", linea: "linea-4" });
+    expect((regla.json.reglas as { id: number; linea: string | null }[]).find((x) => x.id === regla.json.id)?.linea).toBe("linea-4");
+    expect((await hub("POST", "reglas", { etapa: "Nuevo", paso: 1, dias_sin_respuesta: 2, mensaje: "Hola", linea: "linea-9" })).status).toBe(400);
+  });
+
+  it("flujos: alta, cambio, uno activo por línea y proyecto, y archivos que no se borran si se usan", async () => {
+    const subida = await hub("POST", "archivos", { nombre: "audio de Mati.ogg", tipo: "audio/ogg", datos: Buffer.from("OggS fake").toString("base64") }, { usuario: "Mati" });
+    expect(subida.status).toBe(201);
+    const archivo = (subida.json.archivo as { id: number; tamano: number; creado_por: string; en_uso: number[] });
+    expect(archivo).toMatchObject({ tamano: 9, creado_por: "Mati", en_uso: [] });
+    expect((await hub("POST", "archivos", { nombre: "x.exe", tipo: "application/x-msdownload", datos: "AAAA" })).status).toBe(400);
+    expect((await hub("GET", `archivos/${archivo.id}`)).json.archivo).toMatchObject({ nombre: "audio de Mati.ogg", datos: Buffer.from("OggS fake").toString("base64") });
+
+    const pasos = [
+      { tipo: "mensaje", texto: "¡Hola {{nombre}}!", archivo: null },
+      { tipo: "mensaje", texto: "", archivo: archivo.id },
+      { tipo: "esperar", horas: 24, si_responde: [{ tipo: "equipo", nota: "" }], si_no: [{ tipo: "fin" }] },
+    ];
+    const alta = await hub("POST", "flujos", { linea: "linea-3", nombre: "Presentación", pasos, activo: true }, { usuario: "Tadeo" });
+    expect(alta.status).toBe(201);
+    const primero = alta.json.id as number;
+    expect((alta.json.flujos as { id: number; activo: boolean; corridas: number }[]).find((f) => f.id === primero)).toMatchObject({ activo: true, corridas: 0 });
+    expect(await crearAlmacen(pool).flujosActivos("linea-3")).toMatchObject([{ id: primero, nombre: "Presentación" }]);
+
+    // Un segundo general para la misma línea: al activarlo se apaga el primero.
+    const segundo = (await hub("POST", "flujos", { linea: "linea-3", nombre: "Versión 2", pasos: [{ tipo: "seguir_ia" }] })).json.id as number;
+    const activos = async () => (await crearAlmacen(pool).flujosActivos("linea-3")).map((f) => f.id);
+    expect(await activos()).toEqual([primero]);
+    await hub("PATCH", `flujos/${segundo}`, { activo: true });
+    expect(await activos()).toEqual([segundo]);
+    // Uno del proyecto convive con el general.
+    await hub("PUT", `flujos/${primero}`, { proyecto: "lerma-439" });
+    await hub("PATCH", `flujos/${primero}`, { activo: true });
+    expect((await activos()).sort()).toEqual([primero, segundo].sort());
+
+    // Revisa los pasos como el asistente; lo que no viene queda.
+    expect(await hub("PUT", `flujos/${primero}`, { pasos: [{ tipo: "fin" }, { tipo: "mensaje", texto: "x" }] })).toMatchObject({ status: 400, json: { error: expect.stringContaining("tiene que ser el último") } });
+    expect((await hub("PUT", `flujos/${primero}`, { nombre: "Presentación Lerma" })).json.flujos).toContainEqual(expect.objectContaining({ id: primero, nombre: "Presentación Lerma", pasos }));
+    expect((await hub("POST", "flujos", { linea: "linea-1", nombre: "x", pasos: [{ tipo: "fin" }] })).status).toBe(400);
+    expect((await hub("POST", "flujos", { linea: "linea-3", nombre: "x", pasos: [{ tipo: "mensaje", texto: "", archivo: 9999 }] })).status).toBe(400);
+
+    // El archivo está en uso: no se borra.
+    expect((await hub("GET", "archivos")).json.archivos).toContainEqual(expect.objectContaining({ id: archivo.id, en_uso: [primero] }));
+    expect((await hub("DELETE", `archivos/${archivo.id}`)).status).toBe(409);
+    await hub("DELETE", `flujos/${primero}`);
+    expect((await hub("DELETE", `archivos/${archivo.id}`)).status).toBe(200);
+    expect((await hub("GET", `flujos/${primero}`)).status).toBe(404);
+
+    // El resumen de una línea.
+    expect((await hub("GET", "resumen/linea-3")).status).toBe(200);
+    expect((await hub("GET", "resumen/linea-9")).status).toBe(404);
   });
 });
 

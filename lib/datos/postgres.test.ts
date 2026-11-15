@@ -85,7 +85,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await a.guardarConversacion({ chatwoot_id: 19, telefono: "5491155550000", nombre: "Ana" });
     await a.guardarConversacion({ chatwoot_id: 19, proyecto: "lerma-439" });
     await a.guardarConversacion({ chatwoot_id: 19, crm_contacto_id: "c1" });
-    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null });
+    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null, linea: null, bandeja: null });
     // Lo que anotó el asistente (jsonb) va y vuelve igual, y no borra lo demás.
     await a.guardarConversacion({ chatwoot_id: 19, interesado: { nombre: "Ana Prueba", presupuesto_usd: "90000" } });
     expect(await a.conversacion(19)).toMatchObject({ proyecto: "lerma-439", interesado: { nombre: "Ana Prueba", presupuesto_usd: "90000" } });
@@ -129,7 +129,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await msg(421, 42, "persona", "2026-11-07T13:01:00.000Z");
 
     expect(await a.candidatosSeguimiento(ahora)).toEqual([
-      { chatwoot_id: 40, nombre: "Ana", nombre_anotado: null, telefono: "5491155550000", proyecto: "lerma-439", crm_contacto_id: null, paso_seguimiento: 0, ultima_salida: "2026-11-07T13:01:00.000Z" },
+      { chatwoot_id: 40, nombre: "Ana", nombre_anotado: null, telefono: "5491155550000", proyecto: "lerma-439", crm_contacto_id: null, paso_seguimiento: 0, ultima_salida: "2026-11-07T13:01:00.000Z", linea: null },
     ]);
 
     const { rows } = await pool.query(
@@ -137,7 +137,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     );
     await pool.query("update reglas_seguimiento set estado = 'archivada' where id = $1", [rows[1].id]);
     const reglas = await a.reglasVigentes();
-    expect(reglas).toEqual([{ id: Number(rows[0].id), etapa: "Nuevo", paso: 1, dias_sin_respuesta: 2, version: 1, estado: "activa", proyecto: null, mensaje: "Hola {{nombre}}" }]);
+    expect(reglas).toEqual([{ id: Number(rows[0].id), etapa: "Nuevo", paso: 1, dias_sin_respuesta: 2, version: 1, estado: "activa", proyecto: null, mensaje: "Hola {{nombre}}", linea: null }]);
 
     const regla = reglas[0].id;
     expect(await a.reclamarSeguimiento({ conversacion: 40, pasoAnterior: 0, regla, ahora })).toBe(true);
@@ -166,4 +166,86 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     expect(await a.volvioAlBot(40)).toBe(false);
     expect((await a.candidatosSeguimiento("2026-11-20T14:00:00.000Z"))[0]).toMatchObject({ chatwoot_id: 40, paso_seguimiento: 0 });
   });
+
+  it("líneas y flujos: las cuatro líneas de fábrica, las corridas con su reclamo y lo que retoma el cron", async () => {
+    const a = crearAlmacen(pool);
+    const lineas = await a.lineas();
+    expect(lineas.map((l) => [l.id, l.tipo, l.bandeja, l.por_defecto])).toEqual([
+      ["linea-1", "outreach_frio", null, false],
+      ["linea-2", "equipo", null, false],
+      ["linea-3", "entrada", 1, true],
+      ["linea-4", "entrada", null, false],
+    ]);
+    // Una bandeja no puede ser de dos líneas.
+    await expect(pool.query("update lineas set bandeja = 1 where id = 'linea-4'")).rejects.toMatchObject({ code: "23505" });
+
+    const pasos = [{ tipo: "mensaje", texto: "Hola", archivo: null }, { tipo: "esperar", horas: 24, si_responde: [{ tipo: "seguir_ia" }], si_no: [{ tipo: "fin" }] }];
+    const { rows } = await pool.query("insert into flujos (linea, nombre, activo, pasos) values ('linea-3', 'Presentación', true, $1) returning id", [JSON.stringify(pasos)]);
+    const flujo = Number(rows[0].id);
+    expect(await a.flujosActivos("linea-3")).toEqual([{ id: flujo, nombre: "Presentación", proyecto: null, pasos }]);
+    expect(await a.flujosActivos("linea-4")).toEqual([]);
+    // Uno solo activo por línea y proyecto.
+    await expect(pool.query("insert into flujos (linea, nombre, activo) values ('linea-3', 'Otro', true)")).rejects.toMatchObject({ code: "23505" });
+
+    const inicio = "2026-11-16T13:00:00.000Z";
+    const c = await a.iniciarCorrida({ conversacion: 60, linea: "linea-3", flujo, nombre: "Presentación", pasos: pasos as never, ahora: inicio });
+    expect(c).toMatchObject({ conversacion: 60, posicion: "0", estado: "en_curso", inicio });
+    // Otro aviso a la vez no arranca otra.
+    expect(await a.iniciarCorrida({ conversacion: 60, linea: "linea-3", flujo, nombre: "Presentación", pasos: pasos as never, ahora: inicio })).toBeNull();
+    // Mientras corre, nadie más la toma.
+    expect(await a.reclamarCorrida(c!.id, { estado: "en_curso", posicion: "0" }, inicio)).toBe(false);
+    await a.guardarCorrida(c!.id, { posicion: "1" }, inicio);
+    await a.guardarCorrida(c!.id, { estado: "esperando", posicion: "1", espera_desde: inicio, vence: "2026-11-17T13:00:00.000Z" }, inicio);
+    expect(await a.corridaViva(60)).toMatchObject({ estado: "esperando", posicion: "1", vence: "2026-11-17T13:00:00.000Z" });
+
+    // El cron la ve recién cuando vence (con el margen de media corrida: 12 horas antes).
+    expect(await a.corridasParaRetomar("2026-11-16T23:00:00.000Z")).toEqual([]);
+    expect((await a.corridasParaRetomar("2026-11-17T01:00:00.000Z")).map((x) => x.id)).toEqual([c!.id]);
+    // Con la línea pausada, no.
+    await pool.query("update lineas set pausada = true where id = 'linea-3'");
+    expect(await a.corridasParaRetomar("2026-11-17T13:00:00.000Z")).toEqual([]);
+    await pool.query("update lineas set pausada = false where id = 'linea-3'");
+
+    // El reclamo es de uno solo: si ya la tomó el webhook, el cron no.
+    expect(await a.reclamarCorrida(c!.id, { estado: "esperando", posicion: "1" }, "2026-11-17T13:00:00.000Z")).toBe(true);
+    expect(await a.reclamarCorrida(c!.id, { estado: "esperando", posicion: "1" }, "2026-11-17T13:00:00.000Z")).toBe(false);
+    await a.guardarCorrida(c!.id, { respondio: "2026-11-17T13:00:00.000Z" }, "2026-11-17T13:00:00.000Z");
+    await a.guardarCorrida(c!.id, { respondio: "2026-11-17T13:00:30.000Z" }, "2026-11-17T13:00:30.000Z");
+    // Abandonada a la mitad (pasó el tiempo de ocupada): el cron la retoma.
+    expect((await a.corridasParaRetomar("2026-11-17T13:07:00.000Z")).map((x) => x.estado)).toEqual(["en_curso"]);
+    await a.cancelarCorridas(60);
+    expect(await a.corridaViva(60)).toBeNull();
+    expect(await a.ultimaCorrida(60)).toMatchObject({ estado: "terminado", resultado: "cancelado" });
+    const { rows: respondio } = await pool.query("select respondio from flujo_corridas where id = $1", [c!.id]);
+    expect(new Date(respondio[0].respondio).toISOString()).toBe("2026-11-17T13:00:00.000Z");
+    // Ahora sí puede arrancar otra.
+    expect(await a.iniciarCorrida({ conversacion: 60, linea: "linea-3", flujo, nombre: "Presentación", pasos: pasos as never, ahora: inicio })).not.toBeNull();
+  });
+
+  it("la conversación guarda su línea y su bandeja, y los seguimientos por reglas no le escriben a quien lleva un flujo", async () => {
+    const a = crearAlmacen(pool);
+    await a.guardarConversacion({ chatwoot_id: 61, telefono: "5491100000001", nombre: "Beto", linea: "linea-4", bandeja: 2 });
+    expect(await a.conversacion(61)).toMatchObject({ linea: "linea-4", bandeja: 2 });
+    await a.guardarMensaje({ id: 6101, conversacion: 61, rol: "interesado", texto: "Hola", fecha: "2026-11-07T13:00:00.000Z" });
+    await a.guardarMensaje({ id: 6102, conversacion: 61, rol: "bot", texto: "Hola Beto", fecha: "2026-11-07T13:01:00.000Z" });
+    const candidatas = async () => (await a.candidatosSeguimiento("2026-11-10T14:00:00.000Z")).filter((c) => c.chatwoot_id === 61);
+    expect(await candidatas()).toMatchObject([{ chatwoot_id: 61, linea: "linea-4" }]);
+    await pool.query("update lineas set pausada = true where id = 'linea-4'");
+    expect(await candidatas()).toEqual([]);
+    await pool.query("update lineas set pausada = false where id = 'linea-4'");
+    await a.iniciarCorrida({ conversacion: 61, linea: "linea-4", flujo: null as never, nombre: "x", pasos: [{ tipo: "fin" }], ahora: "2026-11-07T13:00:00.000Z" });
+    expect(await candidatas()).toEqual([]);
+    // Si el flujo le pasó la charla a la IA, vuelven los seguimientos por reglas.
+    await pool.query("update flujo_corridas set estado = 'terminado', resultado = 'ia' where conversacion = 61");
+    expect(await candidatas()).toHaveLength(1);
+  });
+
+  it("los archivos de los flujos van y vuelven igual", async () => {
+    const a = crearAlmacen(pool);
+    const { rows } = await pool.query("insert into archivos (nombre, tipo, tamano, datos) values ('audio.ogg', 'audio/ogg', 3, $1) returning id", [Buffer.from([1, 2, 3])]);
+    expect(await a.archivo(Number(rows[0].id))).toEqual({ id: Number(rows[0].id), nombre: "audio.ogg", tipo: "audio/ogg", datos: new Uint8Array([1, 2, 3]) });
+    expect(await a.archivo(999)).toBeNull();
+    await a.registrar({ tipo: "flujo", conversacion: 61, detalle: "Arrancó el flujo «x»." });
+  });
 });
+

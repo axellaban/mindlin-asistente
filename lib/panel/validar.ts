@@ -8,6 +8,8 @@ import { esEvento, ETAPAS_DESTINO, type Evento } from "../etapas/reglas";
 import type { Proyecto, ReglaSeguimiento, Tono } from "../datos/tipos";
 import { MAX_PASOS } from "../seguimientos/reglas";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
+import type { Linea } from "../lineas";
+import { LIMITES, validarPasos, type Paso } from "../flujos/modelo";
 
 export type Resultado<T> = { ok: true; valor: T } | { ok: false; error: string };
 
@@ -127,7 +129,7 @@ export function validarReglaEtapa(evento: string, etapa: unknown): Resultado<{ e
   return { ok: true, valor: { evento, etapa: e } };
 }
 
-export function validarRegla(f: Formulario, proyectos: string[]): Resultado<ReglaNueva> {
+export function validarRegla(f: Formulario, proyectos: string[], lineas: string[] = []): Resultado<ReglaNueva> {
   const etapa = texto(f, "etapa");
   if (!(ETAPAS_SEGUIMIENTO as readonly string[]).includes(etapa)) return { ok: false, error: "Elegí una etapa del CRM." };
   const paso = Number(texto(f, "paso"));
@@ -142,5 +144,68 @@ export function validarRegla(f: Formulario, proyectos: string[]): Resultado<Regl
   if (otras?.length) return { ok: false, error: `Solo se pueden usar {{nombre}} y {{proyecto}} (no ${otras[0]}).` };
   const estado = texto(f, "estado") || "activa";
   if (!(ESTADOS_REGLA as readonly string[]).includes(estado)) return { ok: false, error: "Estado inválido." };
-  return { ok: true, valor: { etapa, paso, dias_sin_respuesta: dias, proyecto, mensaje, estado: estado as ReglaNueva["estado"] } };
+  const linea = texto(f, "linea") || null;
+  if (linea && !lineas.includes(linea)) return { ok: false, error: "Esa línea no existe." };
+  return { ok: true, valor: { etapa, paso, dias_sin_respuesta: dias, proyecto, mensaje, estado: estado as ReglaNueva["estado"], linea } };
+}
+
+/** Lo que se cambia de una línea desde el hub o el panel (el tipo y el orden, no). */
+export type LineaEditable = Pick<Linea, "nombre" | "descripcion" | "telefono" | "bandeja" | "pausada" | "pasar_al_responder" | "instrucciones" | "proyectos">;
+
+export function validarLinea(f: Formulario, proyectos: string[]): Resultado<LineaEditable> {
+  const nombre = texto(f, "nombre");
+  if (!nombre || nombre.length > 80) return { ok: false, error: "El nombre de la línea va de 1 a 80 letras." };
+  const descripcion = texto(f, "descripcion");
+  if (descripcion.length > 1000) return { ok: false, error: "La descripción es muy larga (hasta 1000 letras)." };
+  const telefono = texto(f, "telefono");
+  if (telefono.length > 40 || /[^\d\s+()-]/.test(telefono)) return { ok: false, error: "El teléfono va con números (por ejemplo, +54 9 11 5555-0000)." };
+  const crudo = texto(f, "bandeja");
+  const bandeja = crudo ? Number(crudo) : null;
+  if (bandeja !== null && (!Number.isInteger(bandeja) || bandeja <= 0)) return { ok: false, error: "La bandeja es el número de la bandeja (inbox) en Chatwoot: un número entero, como 1 o 2." };
+  const instrucciones = texto(f, "instrucciones");
+  if (instrucciones.length > MAX_CAMPO_FICHA) return { ok: false, error: `Las instrucciones de la línea pueden tener hasta ${MAX_CAMPO_FICHA} letras.` };
+  const elegidos = [
+    ...new Set(
+      texto(f, "proyectos")
+        .split(/[,\s]+/)
+        .filter(Boolean),
+    ),
+  ];
+  const noExiste = elegidos.find((p) => !proyectos.includes(p));
+  if (noExiste) return { ok: false, error: `El proyecto «${noExiste}» no existe.` };
+  return { ok: true, valor: { nombre, descripcion, telefono, bandeja, pausada: f.get("pausada") === "on", pasar_al_responder: f.get("pasar_al_responder") === "on", instrucciones, proyectos: elegidos } };
+}
+
+export interface FlujoValidado {
+  nombre: string;
+  proyecto: string | null;
+  pasos: Paso[];
+}
+
+/** Un flujo que mandan el hub o el panel. Los pasos se revisan en lib/flujos/modelo.ts. */
+export function validarFlujo(x: { nombre?: unknown; proyecto?: unknown; pasos?: unknown }, { proyectos, archivos }: { proyectos: string[]; archivos?: Set<number> }): Resultado<FlujoValidado> {
+  const nombre = typeof x.nombre === "string" ? x.nombre.trim() : "";
+  if (!nombre || nombre.length > LIMITES.nombre) return { ok: false, error: `El nombre del flujo va de 1 a ${LIMITES.nombre} letras.` };
+  const proyecto = typeof x.proyecto === "string" && x.proyecto.trim() ? x.proyecto.trim() : null;
+  if (proyecto && !proyectos.includes(proyecto)) return { ok: false, error: "Ese proyecto no existe." };
+  const pasos = validarPasos(x.pasos, { archivos });
+  if (!pasos.ok) return pasos;
+  return { ok: true, valor: { nombre, proyecto, pasos: pasos.valor } };
+}
+
+/** Los archivos que se pueden mandar por WhatsApp desde un flujo. */
+export const TIPOS_ARCHIVO = ["image/jpeg", "image/png", "image/webp", "audio/ogg", "audio/mpeg", "audio/mp4", "application/pdf", "video/mp4"] as const;
+/** 2,5 MB: entra en un pedido a Vercel (4,5 MB) aun pasado a base64. Un folleto más pesado va como link en el texto. */
+export const MAX_ARCHIVO_BYTES = 2_621_440;
+
+export function validarArchivo(x: { nombre?: unknown; tipo?: unknown; datos?: unknown }): Resultado<{ nombre: string; tipo: string; datos: Uint8Array }> {
+  const nombre = typeof x.nombre === "string" ? x.nombre.trim().replace(/[\\/]/g, "-").slice(0, 200) : "";
+  if (!nombre) return { ok: false, error: "Falta el nombre del archivo." };
+  const tipo = typeof x.tipo === "string" ? x.tipo.toLowerCase().split(";")[0].trim() : "";
+  if (!(TIPOS_ARCHIVO as readonly string[]).includes(tipo)) return { ok: false, error: "Se pueden subir fotos (JPG, PNG, WEBP), audios (OGG, MP3, M4A), PDF o videos MP4." };
+  if (typeof x.datos !== "string" || !/^[A-Za-z0-9+/=\s]+$/.test(x.datos)) return { ok: false, error: "El archivo no llegó bien: volvé a subirlo." };
+  const datos = new Uint8Array(Buffer.from(x.datos, "base64"));
+  if (!datos.byteLength) return { ok: false, error: "El archivo está vacío." };
+  if (datos.byteLength > MAX_ARCHIVO_BYTES) return { ok: false, error: "El archivo pesa más de 2,5 MB. Para un folleto pesado, pegá el link en el texto del mensaje." };
+  return { ok: true, valor: { nombre, tipo, datos } };
 }

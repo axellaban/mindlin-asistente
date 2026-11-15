@@ -20,6 +20,10 @@ function chatwootFalso() {
       hechos.push(`enviar ${c}: ${t}`);
       return 500;
     },
+    async enviarArchivo(c, t, a) {
+      hechos.push(`archivo ${c}: ${a.nombre} ${t}`.trim());
+      return 600;
+    },
     async notaInterna(c, t) {
       hechos.push(`nota ${c}: ${t}`);
     },

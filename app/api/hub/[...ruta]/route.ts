@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { estadoDesdeNavegador, MAX_LARGO_PRUEBA, probar } from "@/lib/agente/prueba";
+import { probarConAlmacen } from "@/lib/agente/prueba";
 import { describirIA } from "@/lib/agente/proveedor";
 import { estadoConfig } from "@/lib/config";
 import { manejarHub } from "@/lib/hub/api";
@@ -7,7 +7,8 @@ import { chequear, datos } from "@/lib/panel/servidor";
 import { conexionesDesdeEnv } from "@/lib/servicios";
 
 export const dynamic = "force-dynamic";
-// «Probar» es un pedido a la IA (con herramientas puede llevar más de una vuelta).
+// «Probar» es un pedido a la IA (con herramientas puede llevar más de una vuelta, y un flujo, varias).
+// Los archivos de los flujos (hasta 2,5 MB) llegan en base64.
 export const maxDuration = 300;
 
 /** La API para el hub de Mindlin. El contrato está en docs/api-hub.md; la lógica, en lib/hub/api.ts. */
@@ -29,13 +30,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       datos: datos(),
       faltan: estadoConfig(process.env).faltan,
       ia: describirIA(process.env),
-      probar:
-        almacen && modelo
-          ? async (estado, texto) => {
-              const [proyectos, tono, ejemplos, reglasEtapa] = await Promise.all([almacen.proyectosActivos(), almacen.tono(), almacen.ejemplos(), almacen.reglasEtapa().catch(() => ({}))]);
-              return probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado: estadoDesdeNavegador(estado), texto: texto.slice(0, MAX_LARGO_PRUEBA) });
-            }
-          : null,
+      probar: almacen && modelo ? (estado, texto, o) => probarConAlmacen(almacen, modelo, estado, texto, o) : null,
       chequear: () => chequear(),
     },
   );

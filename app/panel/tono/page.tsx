@@ -44,12 +44,8 @@ export default async function Tono({ searchParams }: { searchParams: Avisos }) {
           Objeciones, perfiles y señales <small>Cómo responder «me parece caro», cómo hablarle a un inversor o a quien compra para vivir, señales de compra y qué no decir.</small>
         </label>
         <textarea id="objeciones" name="objeciones" className="alto" maxLength={MAX_CAMPO_FICHA} defaultValue={t.objeciones} />
-        <label className="casilla">
-          <input type="checkbox" name="pasar_al_responder" defaultChecked={t.pasar_al_responder === true} /> Modo «presenta y pasa»: el asistente presenta el proyecto y, cuando la persona
-          responde, la conversación pasa al equipo
-        </label>
         <p className="nota">
-          Así trabajaban los bots de Kommo. Apagado, el asistente sigue la charla (responde dudas, anota lo que busca) y pasa la conversación solo cuando corresponde, según el texto de arriba.
+          El modo de atención («Conversa» o «presenta y pasa») y los flujos son de cada línea: están en <a href="/panel/lineas">Líneas</a>. Esto de acá vale para todas.
         </p>
         <fieldset className="horario">
           <legend>Horario del equipo comercial</legend>

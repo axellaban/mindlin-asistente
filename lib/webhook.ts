@@ -8,6 +8,7 @@ import { type Accion, accionPara, mensajeParaHistorial } from "./chatwoot/evento
 import { firmaValida } from "./chatwoot/firma";
 import type { Conexiones } from "./servicios";
 import { atender, laTomoUnaPersona, pasarPorPausa, type Servicios } from "./agente/servicio";
+import { lineaDeBandeja, notaLineaSinAsistente } from "./lineas";
 
 export interface Salida {
   status: number;
@@ -61,6 +62,8 @@ export async function manejarWebhook(
         }
       } else {
         await almacen.sinSeguimientos(accion.conversacion);
+        // La tomó o la cerró el equipo: si había un flujo andando, se corta.
+        await almacen.cancelarCorridas(accion.conversacion).catch(() => {});
       }
     } catch (e) {
       return { status: 500, json: { error: `No se pudo anotar el cambio de estado: ${e instanceof Error ? e.message : String(e)}` } };
@@ -86,15 +89,46 @@ export async function manejarWebhook(
     };
   }
 
+  // La línea, por la bandeja del aviso. Si no se puede saber (falla la base), se atiende como antes.
+  const lineas = await almacen.lineas().catch(() => []);
+  const linea = lineas.length ? lineaDeBandeja(lineas, accion.bandeja) : null;
+  // Una bandeja que no es de ninguna línea, o una línea que no es de leads (outreach, la del equipo):
+  // el asistente de ventas no contesta ahí.
+  if (lineas.length && (!linea || linea.tipo !== "entrada")) {
+    const motivo = linea ? `la línea «${linea.nombre}» no la atiende el asistente de ventas` : `la bandeja ${accion.bandeja} no es de ninguna línea`;
+    return {
+      status: 200,
+      json: { accion: "pasar_a_persona", motivo },
+      tarea: () => pasarPorPausa({ almacen, chatwoot }, accion.conversacion, { nota: notaLineaSinAsistente(linea, accion.bandeja), motivo: `${motivo.charAt(0).toUpperCase()}${motivo.slice(1)}.` }),
+    };
+  }
+
   // Pausado desde el panel: atiende el equipo. Si no se puede saber, el asistente sigue (no deja a nadie sin respuesta).
   if (await almacen.pausado().catch(() => false)) {
     return { status: 200, json: { accion: "pasar_a_persona", motivo: "el asistente está pausado" }, tarea: () => pasarPorPausa({ almacen, chatwoot }, accion.conversacion) };
   }
+  if (linea?.pausada) {
+    const motivo = `la línea «${linea.nombre}» está pausada`;
+    return {
+      status: 200,
+      json: { accion: "pasar_a_persona", motivo },
+      tarea: () => pasarPorPausa({ almacen, chatwoot }, accion.conversacion, { nota: notaLineaSinAsistente(linea, accion.bandeja), motivo: `La línea «${linea.nombre}» está pausada.` }),
+    };
+  }
 
-  return { status: 200, json: { accion: accion.tipo }, tarea: () => atender({ ...opciones, almacen, chatwoot, modelo, crm, transcribir }, accion) };
+  return { status: 200, json: { accion: accion.tipo, ...(linea ? { linea: linea.id } : {}) }, tarea: () => atender({ ...opciones, almacen, chatwoot, modelo, crm, transcribir }, accion, linea) };
 }
+
+/** El texto sin las etiquetas de los adjuntos («[foto]», «[audio]»…): el eco de un archivo puede llegar con otra. */
+const sinAdjuntos = (t: string) => t.replace(/\[(foto|audio|archivo|video|ubicación|contacto)\]/g, "").replace(/\s+/g, " ").trim();
 
 async function esEcoDelBot(almacen: NonNullable<Conexiones["almacen"]>, conversacion: number, texto: string, ahoraMs: number): Promise<boolean> {
   const recientes = await almacen.historial(conversacion, 10);
-  return recientes.some((m) => m.rol === "bot" && m.texto.trim() === texto.trim() && ahoraMs - Date.parse(m.fecha) < MARGEN_ECO_MS);
+  return recientes.some((m) => {
+    if (m.rol !== "bot" || ahoraMs - Date.parse(m.fecha) >= MARGEN_ECO_MS) return false;
+    if (m.texto.trim() === texto.trim()) return true;
+    // Un archivo que mandó un flujo: coincide el texto, aunque la etiqueta del adjunto sea otra.
+    const a = sinAdjuntos(m.texto);
+    return a !== m.texto.trim() && a === sinAdjuntos(texto) && (a !== "" || /\[[a-zó]+\]/.test(texto));
+  });
 }

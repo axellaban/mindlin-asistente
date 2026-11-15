@@ -9,8 +9,8 @@
  *   token que no sirve da 401, y uno que sirve llega a buscarla y da 404. Ese 404 («Resource could
  *   not be found» en Chatwoot 4.19.1) es el mismo si la cuenta no existe, así que la cuenta se
  *   confirma de verdad con las respuestas: si estuviera mal, el error aparece en «Respuestas del asistente».
- * - Base: lee la pausa, las reglas y lo último que pasó (el último mensaje que llegó, la última
- *   respuesta y el último error).
+ * - Base: lee la pausa, las reglas, las líneas (cuáles están conectadas a una bandeja y con qué
+ *   flujo) y lo último que pasó (el último mensaje que llegó, la última respuesta y el último error).
  * - CRM: lee los títulos de las dos pestañas y los compara con las columnas que espera el asistente.
  * - IA: un pedido mínimo (cuesta una fracción de centavo).
  *
@@ -42,7 +42,7 @@ export interface Chequeo {
 
 export interface DependenciasChequeo {
   chatwoot: ConfigChatwoot | null;
-  datos: Pick<DatosPanel, "estado" | "reglas" | "ultimaActividad"> | null;
+  datos: (Pick<DatosPanel, "estado" | "reglas" | "ultimaActividad"> & Partial<Pick<DatosPanel, "lineas" | "flujos">>) | null;
   hoja: Hoja | null;
   modelo: Modelo | null;
   ia: { proveedor: string | null; modelo: string | null };
@@ -142,6 +142,8 @@ async function probarBase({ datos, cron }: DependenciasChequeo): Promise<PruebaC
       pruebas.push({ que: "Respuestas del asistente", estado: "aviso", detalle: "Todavía no respondió ninguna. Si ya llegaron mensajes, fijate que la conversación esté «Pendiente» en Chatwoot: si está abierta, la atiende el equipo." });
     }
 
+    if (datos.lineas) pruebas.push(...(await conTiempo(probarLineas(datos as Required<Pick<DatosPanel, "lineas">> & Partial<Pick<DatosPanel, "flujos">>))));
+
     const enUso = reglas.filter((r) => r.estado !== "archivada").length;
     if (!cron) pruebas.push({ que: "Seguimientos", estado: "aviso", detalle: "Falta CRON_SECRET en Vercel: no sale ninguno." });
     else if (!enUso) pruebas.push({ que: "Seguimientos", estado: "aviso", detalle: `Corren ${CORRIDA.texto}, pero no hay ninguna regla en uso: no sale ninguno.` });
@@ -150,6 +152,25 @@ async function probarBase({ datos, cron }: DependenciasChequeo): Promise<PruebaC
   } catch (e) {
     return [{ que: "Base de datos", estado: "falla", detalle: `No responde: ${detalleDe(e)}` }];
   }
+}
+
+/** Las líneas de leads: cuáles reciben mensajes (tienen bandeja), cuáles están pausadas y qué flujo usan. */
+async function probarLineas(datos: Pick<DatosPanel, "lineas"> & Partial<Pick<DatosPanel, "flujos">>): Promise<PruebaConexion[]> {
+  const que = "Líneas";
+  const [lineas, flujos] = await Promise.all([datos.lineas(), datos.flujos ? datos.flujos() : Promise.resolve([])]);
+  const deLeads = lineas.filter((l) => l.tipo === "entrada");
+  const atienden = deLeads.filter((l) => l.bandeja && !l.pausada);
+  const describir = (l: (typeof lineas)[number]) => {
+    const activos = flujos.filter((f) => f.linea === l.id && f.activo);
+    return `«${l.nombre}» (bandeja ${l.bandeja}${activos.length ? `, ${activos.length === 1 ? `con el flujo «${activos[0].nombre}»` : `con ${activos.length} flujos`}` : ", sin flujo: atiende la IA"})`;
+  };
+  const partes = [
+    atienden.length ? `Atiende en ${atienden.map(describir).join(" y ")}.` : "Ninguna línea de leads tiene una bandeja de Chatwoot asignada y prendida: el asistente no atiende en ninguna.",
+    ...deLeads.filter((l) => !l.bandeja).map((l) => `«${l.nombre}» todavía no está conectada (le falta la bandeja).`),
+    ...lineas.filter((l) => l.pausada).map((l) => `«${l.nombre}» está pausada.`),
+  ];
+  const estado = !atienden.length ? "falla" : lineas.some((l) => l.pausada) ? "aviso" : "ok";
+  return [{ que, estado, detalle: partes.join(" ") }];
 }
 
 async function probarCRM({ hoja }: DependenciasChequeo): Promise<PruebaConexion[]> {

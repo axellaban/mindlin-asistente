@@ -6,7 +6,7 @@
 
 import type { ContactoCRM, CRM } from "../crm/planilla";
 import type { Almacen } from "../datos/tipos";
-import { MOTIVO_DE_DESCARTE, resolverEtapa, tituloEvento, type Evento, type ReglasEtapa } from "./reglas";
+import { MOTIVO_DE_DESCARTE, puedeMover, resolverEtapa, tituloEvento, type Evento, type ReglasEtapa } from "./reglas";
 
 export async function moverEtapa({
   crm,
@@ -45,6 +45,48 @@ export async function moverEtapa({
     });
     if (!movido) return null;
     await almacen.registrar({ tipo: "etapa", conversacion, detalle: `${contacto.etapa} → ${movido.etapa}: ${tituloEvento(por).toLowerCase()}.`, datos: { contacto: contacto.id, evento: por, etapa: movido.etapa } });
+    return movido;
+  } catch (e) {
+    await almacen.registrar({ tipo: "error", conversacion, detalle: `CRM (mover de etapa): ${e instanceof Error ? e.message : String(e)}` }).catch(() => {});
+    return null;
+  }
+}
+
+/**
+ * Mueve al lead a una etapa puntual, porque lo dice un paso de un flujo («Mover de etapa»). Con los
+ * mismos cuidados que las etapas automáticas (puedeMover): no toca Reserva ni Vendido y no
+ * retrocede. Si el CRM falla, queda anotado y el flujo sigue.
+ */
+export async function moverAEtapa({
+  crm,
+  almacen,
+  conversacion,
+  contacto,
+  etapa,
+  por,
+  ahora,
+}: {
+  crm: CRM | null;
+  almacen: Almacen;
+  conversacion: number | null;
+  contacto: ContactoCRM | null | undefined;
+  etapa: string;
+  /** Por qué, para la actividad del CRM («flujo «Lerma 439»»). */
+  por: string;
+  ahora: string;
+}): Promise<ContactoCRM | null> {
+  if (!crm || !contacto) return null;
+  if (!puedeMover(contacto.etapa, etapa)) return null;
+  try {
+    const movido = await crm.cambiarEtapa({
+      id: contacto.id,
+      permitido: (actual) => puedeMover(actual, etapa),
+      por,
+      motivoDeDescarte: etapa === "Descartado" ? "Otro" : undefined,
+      ahora,
+    });
+    if (!movido) return null;
+    await almacen.registrar({ tipo: "etapa", conversacion, detalle: `${contacto.etapa} → ${movido.etapa}: ${por}.`, datos: { contacto: contacto.id, etapa: movido.etapa, por } });
     return movido;
   } catch (e) {
     await almacen.registrar({ tipo: "error", conversacion, detalle: `CRM (mover de etapa): ${e instanceof Error ? e.message : String(e)}` }).catch(() => {});

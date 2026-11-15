@@ -21,11 +21,17 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - **Hub:** conectado. Todo se configura desde HQ → Comercial → Asistente de WhatsApp, y «Probar las conexiones» dice qué pieza no anda.
 - **Lo que más confunde:** el asistente solo atiende conversaciones **pendientes**. Si alguien del equipo escribe desde Chatwoot, se corre a propósito y la conversación queda abierta; para devolvérsela, se la marca «Pendiente».
 
-1. **Axel:** las decisiones que destraban el piloto: activar los seguimientos (hoy hay 6 reglas cargadas y todas archivadas: no sale ninguno), qué hacer con el contacto de prueba del CRM y con qué IA responde. Ver «Decisiones abiertas».
-2. **Mindlin:** revisar los borradores que se cargaron desde Kommo ([`docs/kommo.md`](docs/kommo.md)): la ficha de Lerma 439 y las cinco apagadas, el modo («presenta y pasa» o conversar), el horario del equipo, los seguimientos y las etapas automáticas. Probarlo desde el hub (pestaña Probar).
-3. **Axel y Panel:** el equipo en Chatwoot y la app del celular (tarea 7), que depende del correo de Chatwoot.
-4. **Todos:** pruebas internas con el equipo y, después, consultas reales en la línea de Lerma 439.
-5. **Claude con Axel:** revisar las respuestas de las primeras conversaciones y ajustar el tono con el material de Mindlin.
+**Líneas y flujos (15/11).** El asistente maneja las cuatro líneas que pidió Mindlin ([`docs/lineas.md`](docs/lineas.md)): 1 outreach frío, 2 equipo (facturas y outreach cálido), 3 y 4 leads entrantes. La 3 es la que ya andaba. Cada línea de leads se configura aparte: modo, instrucciones, proyectos, seguimientos y **flujos como los bots de Kommo** ([`docs/flujos.md`](docs/flujos.md)), que se arman en el hub con un editor de pasos.
+
+1. **Panel:** conectar la línea 4 (tarea 11 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)). Hace falta el chip o número de esa línea (Axel).
+2. **Mindlin:** armar en el hub el flujo de cada proyecto a partir de los modelos (los textos de Kommo) y probarlo en Probar. Los flujos arrancan apagados: se prenden de a uno.
+3. **Mindlin (pendiente de recibir):** qué tiene que tener el panel de **outreach frío** (línea 1). Hasta entonces la línea existe, pero el asistente no hace nada ahí.
+4. **Al final:** la línea 2, con lo que hoy hace el bot de Telegram (documento «Bot de Telegram: todo lo que hace», 14/11). Antes hay que decidir sus «Decisiones a tomar» (ver abajo).
+5. **Axel:** las decisiones que destraban el piloto: activar los seguimientos (hoy hay 6 reglas cargadas y todas archivadas: no sale ninguno), qué hacer con el contacto de prueba del CRM y con qué IA responde. Ver «Decisiones abiertas».
+6. **Mindlin:** revisar los borradores que se cargaron desde Kommo ([`docs/kommo.md`](docs/kommo.md)): la ficha de Lerma 439 y las cinco apagadas, el modo de cada línea («presenta y pasa» o conversar), el horario del equipo, los seguimientos y las etapas automáticas. Probarlo desde el hub (pestaña Probar).
+7. **Axel y Panel:** el equipo en Chatwoot y la app del celular (tarea 7), que depende del correo de Chatwoot.
+8. **Todos:** pruebas internas con el equipo y, después, consultas reales en la línea de Lerma 439.
+9. **Claude con Axel:** revisar las respuestas de las primeras conversaciones y ajustar el tono con el material de Mindlin.
 
 ## Decisiones abiertas
 
@@ -33,7 +39,10 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 - [x] ~~Los contactos que da de alta el asistente, ¿entran en «Nuevo» o en «Contacto inicial»?~~ Desde el 11/11 entran en **«Contacto inicial»**, la etapa del evento «El asistente le respondió por primera vez», así no disparan la alarma «nuevo sin contactar en 2 h». Si Mindlin prefiere que entren en «Nuevo», se cambia ese evento a «No mover» en Etapas automáticas. — Claude, 13/11
 - [ ] Seguimientos: quedaron cargados y **archivados** los de Kommo (6 reglas, uno por proyecto, a las 24 h). Falta revisarlos, pasarlos a «Activa» (hub → Seguimientos, o `/panel/seguimientos`) y decidir si se suman más pasos. Sin reglas activas no sale ninguno. — Axel con Mindlin
 - [ ] El contacto de prueba del CRM (`cmwb5wcob9uz6`, «Juan Prueba», hoy en «Visita / reunión»): ¿se borra o se pasa a «Descartado»? Lo crearon las pruebas del 10/11 y del 13/11. — Axel
-- [ ] Modo de atención: ¿«presenta y pasa» (como Kommo: cuando la persona responde, sigue el equipo) o que el asistente siga la conversación (como está hoy)? Se cambia en Tono. — Mindlin
+- [ ] Modo de atención de cada línea de leads: ¿«presenta y pasa» (como Kommo: cuando la persona responde, sigue el equipo), que el asistente siga la conversación (como está hoy) o un flujo? Desde el 15/11 se elige por línea en el hub (la línea → Inteligencia comercial y Flujos). La 3 conservó el modo que tenía el tono. — Mindlin
+- [ ] Para qué es la línea 4 (otra campaña, otra zona, otros proyectos) y qué proyectos atiende. — Mindlin
+- [ ] Línea 2 (bot de Telegram a WhatsApp), antes de empezarla: ¿el mismo número que el asistente comercial o uno aparte? (el documento recomienda uno aparte, que es la línea 2); ¿qué avisos siguen por WhatsApp? (con WAHA no hay plantillas pagas, pero escribirle a alguien que no habló en 24 h tiene riesgo de bloqueo); ¿convivencia con Telegram unas semanas o corte? — Mindlin con Axel
+- [ ] Vercel Pro también destraba los flujos: con Hobby, una espera de «2 horas» sale en la corrida del día siguiente a las 10. — Axel
 - [ ] Etapas automáticas: revisar las de fábrica (Comercial → Asistente de WhatsApp → Etapas automáticas). Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve. — Mindlin
 - [ ] VIA 53 y Torre Cuatro Vientos: los dos documentos de Mindlin tienen datos distintos (precios, entrega, forma de pago, el semipiso). Confirmar cuáles valen antes de activarlos (está en las notas internas de cada ficha). — Mindlin
 - [ ] Con qué IA responde. Acá quedó decidido Claude (10/11), pero en producción responde OpenAI (`gpt-6.1-sol`, cargado por Panel el 10/11 para la prueba de la línea; con ese anduvo la prueba de punta a punta del 13/11). Los dos andan; hay que elegir uno y dejarlo en Vercel. — Axel
@@ -86,6 +95,116 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 - [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. — Axel
 - [x] Probar el CRM con la planilla real (con la línea de prueba): el contacto quedó con proyecto `lerma-439`, origen WhatsApp y su etapa. Antes hubo que poner al día tres títulos de «CRM Contactos» (B decía «Proyecto» y faltaban «Hora próximo paso» y «Tags»); se cambiaron solo esas celdas de la fila 1, después de confirmar que el hub lee la planilla por posición. — Panel y Axel, 13/11
 
+## QA de punta a punta (después del merge de las líneas y los flujos)
+
+Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial completo y el CRM, de principio a fin. Se hace con datos inventados y un teléfono de prueba, en la línea 3 (y en la 4 cuando esté). Lo que se encuentre se anota acá como tarea (con dueño) y se corrige en PRs chicos. Dueños: Claude (código y revisión), Panel con Axel (lo que pasa en Chatwoot, WhatsApp y Vercel) y Mindlin (lo comercial).
+
+**1. Bugs, arreglos, base de datos y arquitectura**
+
+- [ ] La publicación aplicó `202611150011_lineas_y_flujos.sql` (en el log de Vercel, «aplicada»). En la base: las cuatro líneas, la 3 con la bandeja 1, y las conversaciones viejas en la línea 3.
+- [ ] Conexiones (hub → Resumen): todo en verde y «Líneas» dice que atiende en la bandeja 1.
+- [ ] **Webhook:**
+  - responde en la línea 3;
+  - una bandeja sin línea pasa al equipo, con la nota;
+  - una línea pausada y la pausa general pasan al equipo;
+  - si escribe el equipo, el asistente se corre;
+  - «Pendiente» se la devuelve al asistente;
+  - no hay eco: ni con texto ni con un archivo de un flujo.
+- [ ] **Flujos de verdad, por WhatsApp:**
+  - arranca con un número nuevo;
+  - los mensajes salen en orden y con sus pausas;
+  - la foto, el audio y el PDF llegan bien a WhatsApp, con su epígrafe;
+  - si responde, sigue por «Si responde»;
+  - si no responde, el cron del día siguiente a las 10 sigue por el otro camino;
+  - «Terminar» y después escribe: pasa al equipo;
+  - el equipo toma la conversación: el flujo se corta;
+  - una sola corrida por conversación (`flujo_corridas`) y ningún mensaje repetido.
+- [ ] **CRM:**
+  - alta con el origen WhatsApp y la etapa de primer contacto;
+  - los pasos «Mover de etapa» y las señales (visita, compra, no le interesa) se anotan como «Cambio de etapa»;
+  - no toca Reserva ni Vendido;
+  - no crea contactos repetidos (mismo teléfono en dos líneas).
+- [ ] **Seguimientos:** reglas por línea y generales; nunca a quien lleva un flujo; el tope de 20 sumando los flujos.
+- [ ] **Registro y logs:**
+  - errores en el registro del asistente;
+  - en Vercel, que el webhook y el cron terminen bien lejos de los 300 segundos;
+  - el tamaño de la base en Neon;
+  - las funciones por día (plan Hobby).
+- [ ] **Seguridad:**
+  - ninguna clave en el repo ni en los logs;
+  - el permiso del módulo en el hub;
+  - los archivos solo de los tipos permitidos y hasta 2,5 MB;
+  - los datos personales solo para quien tiene Comercial.
+- [ ] **Arquitectura:**
+  - revisar las decisiones de las secciones 11 y 12 de [`docs/arquitectura.md`](docs/arquitectura.md);
+  - los límites del plan Hobby (esperas que se revisan una vez por día);
+  - qué falta para la línea 4.
+
+**2. Flujos comerciales, reglas, marketing y la base de conocimiento de cada proyecto**
+
+- [ ] **Fichas:**
+  - en cada proyecto, presentación, precios, financiación, disponibilidad, tipologías y links al día;
+  - las cinco apagadas, revisadas y prendidas las que correspondan;
+  - las palabras clave, que llevan al proyecto correcto sin confundir (por ejemplo, «53» o «caba»).
+- [ ] **Lo general:** «Sobre la empresa», «Objeciones, perfiles y señales» y 10 a 20 ejemplos reales sin datos personales.
+- [ ] **Flujos por proyecto:**
+  - armados desde los modelos de Kommo, con los textos, el brochure, la foto de obra y el audio;
+  - cuánto espera cada uno y a qué etapa mueve;
+  - cuándo pasa al equipo y cuándo sigue la IA;
+  - probados en Probar antes de prenderlos.
+- [ ] **Reglas:**
+  - el modo de cada línea;
+  - las instrucciones de la línea 4 (de qué campaña vienen);
+  - las 6 reglas de seguimiento archivadas, revisadas y activadas;
+  - las etapas automáticas (por ejemplo, ¿«señal de compra» mueve a Negociación?).
+- [ ] **Conversaciones difíciles en Probar y por WhatsApp:**
+  - un precio que no está en la ficha;
+  - otro proyecto en la misma charla;
+  - un alquiler;
+  - «no me interesa»;
+  - una visita;
+  - un audio;
+  - alguien que escribe sin parar;
+  - preguntas por la empresa y por Borok.
+- [ ] **Marketing:**
+  - de qué campaña viene cada lead (por línea, o por el primer mensaje del anuncio);
+  - cuánto responden a cada flujo y a cada versión de cada seguimiento;
+  - qué queda en el CRM para medir.
+
+**3. UX y UI**
+
+- [ ] **Hub, Asistente de WhatsApp:**
+  - las tarjetas de las líneas, las solapas por línea y la marca «Vale para todas las líneas»;
+  - el editor de flujos: arrastrar en la computadora; en el celular arrastrar no anda en todos los navegadores, así que se usan las flechas;
+  - la vista previa, subir y escuchar archivos, Probar con «Simular que no respondió» y Conexión;
+  - los textos, el teclado, y cómo se ve en el celular.
+- [ ] **Hub, CRM:** la ficha del lead y la bandeja de Chats, con lo que escribe el asistente (actividad y etapas).
+- [ ] **Panel del asistente:** Líneas, Conversaciones, Tono y Seguimientos.
+- [ ] **Chatwoot y WhatsApp:**
+  - cómo le llegan a la persona los mensajes, las pausas y los archivos;
+  - cómo ve el equipo las notas internas y el paso al equipo (la app del celular, tarea 7).
+
+## Conversaciones en el hub (decidido el 15/11, falta hacerlo)
+
+Cómo se hace, en [`docs/arquitectura.md`](docs/arquitectura.md), sección 12: se leen de la base del asistente, solo cuando se abren, y Chatwoot se abre para los adjuntos.
+
+- [ ] API del asistente: listar las conversaciones (por línea, buscando por nombre o teléfono) y leer una (mensajes, lo anotado, el flujo y lo que hizo el asistente), y las de un contacto del CRM. — Claude
+- [ ] Hub, CRM: sumar los mensajes de WhatsApp al Chat de la ficha y a la bandeja de Chats, con «Abrir en Chatwoot». — Claude
+- [ ] Hub, Asistente de WhatsApp: la solapa «Conversaciones» por línea. — Claude
+- [ ] Asignar el Agent Bot a las bandejas de las líneas 1 y 2 cuando estén, para que se guarden sus conversaciones. — Panel
+- [ ] Fase 2, si hace falta: fotos y audios adentro del hub, pedidos a Chatwoot en el momento con un usuario «Hub» (token nuevo en Vercel). — Claude y Panel
+- [ ] Fase 3: responder desde el hub por Chatwoot. — Claude
+
+## Líneas y flujos (15/11)
+
+- [x] Cuatro líneas, cada una atada a su bandeja de Chatwoot. El asistente de ventas solo contesta en las de leads; en las otras, o en una bandeja que no es de ninguna línea, pasa al equipo con una nota. Pausa, modo, instrucciones y proyectos por línea, y seguimientos que pueden valer para una sola línea ([`docs/lineas.md`](docs/lineas.md)). — Claude, 15/11
+- [x] Flujos como los bots de Kommo, con mensajes fijos, pausas, archivos (foto, audio, PDF), «La IA escribe», «Esperar respuesta» con dos caminos, mover de etapa, pasar al equipo, que siga la IA y terminar. Uno general por línea y uno por proyecto, elegido por las palabras clave. Las esperas vencidas las retoma el cron diario. Probar los corre igual que WhatsApp, sin mandar nada ([`docs/flujos.md`](docs/flujos.md)). — Claude, 15/11
+- [x] En el hub: elegir la línea, ver para qué es cada una y, adentro, todas las solapas, más Flujos (editor que se arrastra, con modelos de Kommo) y Conexión. — Claude, 15/11
+- [ ] Conectar la línea 4 (tarea 11). — Panel con Axel
+- [ ] Armar los flujos de cada proyecto y probarlos. — Mindlin
+- [ ] Panel de outreach frío (línea 1): Mindlin pasa qué incorporar. — Mindlin, después Claude
+- [ ] Línea 2: lo del bot de Telegram en WhatsApp (va al final). — Claude, cuando estén las decisiones
+
 ## 4. Seguimientos
 
 - [x] Reglas «si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con la etapa del CRM. Frenan si la persona responde o si el equipo toma la conversación. De 9 a 20 y con tope (`docs/seguimientos.md`). — Claude, 10/11
@@ -127,4 +246,4 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 
 ## Fuera de esta versión
 
-Lo deja la propuesta para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos (el «bot para lotes» de Kommo), email (previsto; incluye los correos de VIA 53 de Kommo), avisos al responsable por el hub y la conexión del hub con Chatwoot.
+Lo deja la propuesta para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos (calificar lotes; el cuestionario del «bot para lotes» de Kommo ya se puede armar como flujo), email (previsto; incluye los correos de VIA 53 de Kommo), avisos al responsable por el hub y la conexión del hub con Chatwoot.

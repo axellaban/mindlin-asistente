@@ -7,13 +7,15 @@
    - verifica la firma;
    - guarda el mensaje en el historial (`mensajes`);
    - decide qué hacer (`lib/chatwoot/evento.ts`);
+   - busca la **línea** por la bandeja del aviso. Si la bandeja no es de ninguna línea, o la línea no es de leads (outreach, la del equipo), o está pausada, la conversación pasa al equipo con una nota ([`lineas.md`](lineas.md));
    - responde enseguida. El resto corre después.
 3. **La atención** (`lib/agente/servicio.ts`):
    - No contesta dos veces el mismo mensaje (`mensajes_respondidos`).
    - Si trae audios, los baja de Chatwoot, los transcribe y guarda el texto en el historial como `[audio: «…»]` (ver «Audios»).
    - Espera 6 segundos por si la persona sigue escribiendo. Si llegó otro mensaje, contesta ese; si ya escribió alguien del equipo, no contesta.
+   - **Si la línea tiene un flujo** para esta persona (es nueva, o está esperando su respuesta), lo sigue el flujo: mensajes fijos, pausas, esperas, cambios de etapa ([`flujos.md`](flujos.md)). Si no, contesta la IA.
    - Arma el contexto (`lib/agente/contexto.ts`):
-     - **Instrucciones estables:** tono, reglas, la ficha del proyecto y los ejemplos. Van en el caché de Anthropic.
+     - **Instrucciones estables:** tono, las instrucciones de la línea, reglas, la ficha del proyecto (solo los proyectos que atiende esa línea) y los ejemplos. Van en el caché de Anthropic.
      - **La situación:** fecha y hora (y si el equipo está trabajando), quién es, qué dice el CRM (etapa, responsable, para qué busca, presupuesto, próximo paso, notas) y **lo que el asistente ya anotó** de esa persona.
    - La IA responde (`lib/agente/agente.ts`), con Claude u OpenAI (ver «Modelo»). Puede usar tres herramientas:
      - `registrar_interesado`: lo guarda en la conversación (`conversaciones.interesado`) y da de alta en el CRM del hub si no existe; si ya existe, suma actividad **solo con lo que cambió** (si no hay nada nuevo, no escribe).
@@ -33,6 +35,7 @@ Todo se maneja con los estados de Chatwoot: **pendiente** la atiende el asistent
 - **Tomar una conversación:** escribir en ella (desde Chatwoot o desde el celular de la línea) o abrirla. Pasa a abierta y el asistente se calla ahí; tampoco le manda seguimientos.
 - **El asistente la pasa solo** cuando hace falta una persona (quiere visitar, reservar, negociar, algo que no está en la ficha, o si falla algo), con una nota interna del motivo y el resumen.
 - **Devolvérsela al asistente:** en Chatwoot, **Marcar como pendiente**. Con el próximo mensaje del interesado vuelve a responder (leyendo lo que escribió el equipo, para seguir su línea) y vuelve a llevar seguimientos. Queda en el registro como «Volvió al asistente».
+- **Pausar una línea:** en el hub (la línea → Conexión) o en el panel (Líneas). Igual que pausar el asistente, pero solo en esa línea.
 - **Pausar el asistente entero:** panel → Resumen → **Pausar el asistente**. Cada conversación nueva pasa al equipo con la nota «El asistente está pausado» y no salen seguimientos. Se reactiva con el mismo botón. Queda quién y cuándo.
 
 ## Modelo

@@ -46,7 +46,7 @@ El equipo necesita responder y ver todas las conversaciones en un solo lugar.
 - **Dónde está (13/11):** en el equipo de Vercel `mindlin-developers-ia` (cuenta `mindlindevelopers.ia`), que es **plan Hobby**. Eso trajo dos cambios: el cron de seguimientos pasó a una vez por día (sección 8) y el repo se hizo público, porque en Hobby con repo privado Vercel solo publica los commits del dueño de la cuenta. Los dos se revierten si el proyecto vuelve a un plan Pro.
 - **Saber si anda de verdad:** «Conexiones» en el panel o «Probar las conexiones» en el hub prueban cada pieza (Chatwoot con el token del bot, la base, la planilla, la IA) sin mandar nada (`lib/chequeo.ts`). `/api/salud` solo dice si las variables existen.
 - Mismo stack y convenciones que el hub, para poder sumarlo como módulo más adelante si lo quieren adentro.
-- Su panel (`/panel`, con clave): conversaciones del bot, fichas de proyecto, tono y ejemplos, reglas de seguimiento. Ver [`panel.md`](panel.md).
+- Su panel (`/panel`, con clave): conversaciones del bot, líneas, fichas de proyecto, tono y ejemplos, reglas de seguimiento. Ver [`panel.md`](panel.md).
 
 ## 5. CRM: el del hub
 
@@ -105,7 +105,7 @@ La propuesta pide empezar por WhatsApp y dejar prevista la incorporación del em
 
 ## 10. El hub: configurar el asistente y, más adelante, Chatwoot
 
-Mindlin construye el hub (pantallas y funciones). **Todo lo comercial del asistente se configura sin tocar código** (fichas, presentación, tono, criterios, modo de atención, horario del equipo, ejemplos, reglas de seguimiento, etapas automáticas, pausa), por dos caminos que usan los mismos datos:
+Mindlin construye el hub (pantallas y funciones). **Todo lo comercial del asistente se configura sin tocar código** (fichas, presentación, tono, criterios, modo de atención, horario del equipo, ejemplos, reglas de seguimiento, etapas automáticas, pausa, líneas y flujos), por dos caminos que usan los mismos datos:
 
 - el panel del asistente (`/panel`), que ya funciona;
 - la API para el hub ([`api-hub.md`](api-hub.md)), con una clave compartida (`HUB_CLAVE`). Las pantallas del hub están en HQ → Comercial → Asistente de WhatsApp (repo `mindlinhub`). El asistente es el dueño de esa configuración (está en su base); el hub la lee y la cambia. Así no hay dos copias que se desfasen.
@@ -115,6 +115,41 @@ Qué hacían los bots de Kommo y cómo quedó cada cosa: [`kommo.md`](kommo.md).
 **Etapas automáticas** (11/11): el asistente mueve al lead de etapa en la planilla del CRM según lo que pasa en la conversación. Es la única celda que cambia de un contacto existente, con cuidados fijos (no toca Reserva ni Vendido, no retrocede). Ver [`integracion-crm.md`](integracion-crm.md).
 
 Si más adelante lo conectan a Chatwoot, el asistente no cambia: sigue atendiendo por Chatwoot, y el hub encuentra ahí las conversaciones y las notas del asistente (ver [`integracion-crm.md`](integracion-crm.md)).
+
+## 11. Varias líneas y flujos (15/11)
+
+Mindlin pidió cuatro líneas de WhatsApp: 1 outreach frío, 2 la del equipo (facturas, lo del bot de Telegram y outreach cálido), 3 y 4 leads entrantes. También pidió que las reglas, la lógica, los caminos y el paso a una persona se configuren como sus bots de Kommo.
+
+- **Una línea es una bandeja de Chatwoot** (una sesión de WAHA). El asistente sabe de qué línea es cada mensaje por la bandeja del aviso (tabla `lineas`). El asistente de ventas solo contesta en las líneas de leads; en las otras, y en una bandeja que no es de ninguna línea, pasa al equipo con una nota. Así, conectar un número antes de configurarlo nunca hace que el bot de ventas le conteste a quien no corresponde. Detalle en [`lineas.md`](lineas.md).
+- **Compartido y por línea.** Lo que sabe Mindlin es uno solo: las fichas, la empresa, las objeciones, los ejemplos, el horario y las etapas, porque el embudo del CRM es uno. Cómo atiende cada línea es suyo: la pausa, el modo, sus instrucciones, qué proyectos atiende, sus flujos y sus seguimientos. Copiar toda la configuración por línea habría obligado a editar la empresa cuatro veces.
+- **Flujos como lista de pasos con caminos, no como un dibujo libre** ([`flujos.md`](flujos.md)). «Esperar respuesta» abre dos caminos (responde / no responde) y cada camino es otra lista. Se descartó un lienzo de nodos y flechas: con una lista no se pueden armar vueltas infinitas, se valida entero antes de guardar y lo entiende alguien que no es técnico. Alcanza para todos los bots del documento de Kommo. El editor del hub deja arrastrar los pasos para reordenarlos.
+- **Cada corrida guarda una copia de los pasos** y por dónde va. Editar un flujo no cambia las conversaciones que ya lo empezaron, y la base deja una sola corrida viva por conversación.
+- **Las esperas largas las retoma el cron** (con Hobby, una vez por día). Las pausas cortas corren en la misma función (hasta 120 segundos por tramo).
+- **El bot de Telegram (línea 2) va al final y el outreach frío (línea 1) espera lo que pase Mindlin.** La línea existe para que el ruteo ya sea el correcto.
+
+## 12. Ver las conversaciones desde el hub (decidido el 15/11, falta hacerlo)
+
+Axel pidió ver en el hub las conversaciones de cada línea con cada persona, sin cargar Vercel.
+
+**Se leen de la base del asistente, solo cuando alguien las abre. Para lo que no está ahí, se abre Chatwoot.**
+
+- **El asistente ya tiene el texto.** Cada aviso de Chatwoot guarda el mensaje en `mensajes`: lo que escribe la persona, el asistente y el equipo (desde Chatwoot o desde el celular de la línea), en el momento. Así hace con todas las bandejas que tienen el Agent Bot. No hay que copiar nada más ni consultar a Chatwoot para leerlo.
+- **Lectura a pedido.** El hub lo pide cuando se abre la pantalla o la conversación: un pedido al asistente y una consulta a la base, de milisegundos. No hay sincronización, cron ni consultas cada tantos segundos. Con Fluid compute, Vercel cobra el tiempo de trabajo, no la espera. Neon se apaga solo cuando nadie consulta.
+- **Dónde se ve:**
+  - En el **CRM**: la ficha del lead → Chat, y la bandeja Comercial → CRM → Chats. Esas pantallas ya existen (`docs/crm.md` del hub, «Chat del lead y bandeja») y esperan «la integración de WhatsApp». El asistente tiene anotado de cada conversación el contacto del CRM (`crm_contacto_id`) y el teléfono: se cruzan por ahí, y los mensajes de WhatsApp se suman a los que ya anota el CRM, marcados con su línea.
+  - En **Asistente de WhatsApp**, una solapa «Conversaciones» por línea, para supervisar al asistente: qué dijo, en qué paso del flujo va y quién la atiende.
+- **Lo que no está en la base:** las fotos, los audios y los archivos en sí (en la base quedan como «[foto]» y los audios transcriptos), las notas internas y lo anterior a que la bandeja tuviera el bot. Para eso, «Abrir en Chatwoot», con un link directo a la conversación.
+- **Si hace falta verlos adentro del hub (fase 2):** pedírselos a Chatwoot en el momento, solo de la conversación abierta. Hace falta el token de un usuario «Hub» de Chatwoot, porque el del Agent Bot no puede leer el historial. Las fotos y los audios se ven directo desde Chatwoot (el VPS), sin pasar por Vercel.
+- **Las cuatro líneas:** para que entren todas, se asigna el Agent Bot a todas las bandejas. En outreach y en la del equipo no contesta (pasa al equipo), pero guarda los mensajes.
+- **Responder desde el hub (fase 3):** mandar por Chatwoot como el equipo, y que el asistente se corra como cuando alguien escribe en Chatwoot. Hasta entonces se responde en Chatwoot.
+
+¿Por qué no consultar a Chatwoot cada vez que se abre una conversación?
+
+- Obliga a guardar en Vercel un token de usuario con acceso a todo Chatwoot.
+- Chatwoot devuelve de a 20 mensajes, así que hacen falta varios pedidos por conversación.
+- Depende de que el servidor esté arriba y es más lento.
+
+Queda como complemento para los adjuntos.
 
 ## Lo que se reutiliza de otros proyectos de Axel
 
@@ -126,4 +161,4 @@ Se adapta, no se copia a ciegas:
 
 ## Fuera del MVP
 
-Lo que la propuesta deja para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos, línea de outreach y email (previsto, ver sección 9).
+Lo que la propuesta deja para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos y email (previsto, ver sección 9). La línea de outreach ya existe (sección 11), pero su panel espera lo que pase Mindlin.

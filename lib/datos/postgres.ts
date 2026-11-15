@@ -1,9 +1,10 @@
 import pg from "pg";
-import { limiteCandidatos, MAX_PASOS } from "../seguimientos/reglas";
+import { limiteCandidatos, MARGEN_MS, MAX_PASOS } from "../seguimientos/reglas";
+import { esTipoLinea, type Linea } from "../lineas";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido } from "../agente/horario";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
-import type { Almacen, CandidatoSeguimiento, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, Tono } from "./tipos";
+import type { Almacen, CandidatoSeguimiento, Conversacion, Corrida, Ejemplo, Proyecto, ReglaSeguimiento, Tono } from "./tipos";
 
 /**
  * La base del asistente: Postgres en Neon, creado desde Vercel (que carga DATABASE_URL solo).
@@ -51,7 +52,49 @@ const mensajeDeFila = (f: FilaMensaje): MensajeHistorial => ({
   fecha: new Date(f.fecha).toISOString(),
 });
 
-const CAMPOS_CONVERSACION = ["proyecto", "crm_contacto_id", "telefono", "nombre", "interesado"] as const;
+const CAMPOS_CONVERSACION = ["proyecto", "crm_contacto_id", "telefono", "nombre", "interesado", "linea", "bandeja"] as const;
+
+const iso = (f: Date | string | null | undefined) => (f ? new Date(f).toISOString() : null);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Fila = Record<string, any>;
+
+/** Una fila de lineas como la usa el asistente. */
+export const lineaDeFila = (r: Fila): Linea => ({
+  id: r.id,
+  orden: Number(r.orden),
+  nombre: r.nombre,
+  tipo: esTipoLinea(r.tipo) ? r.tipo : "entrada",
+  descripcion: r.descripcion ?? "",
+  telefono: r.telefono ?? "",
+  bandeja: r.bandeja == null ? null : Number(r.bandeja),
+  por_defecto: r.por_defecto === true,
+  pausada: r.pausada === true,
+  pasar_al_responder: r.pasar_al_responder === true,
+  instrucciones: r.instrucciones ?? "",
+  proyectos: r.proyectos ?? [],
+});
+
+export const COLUMNAS_LINEA = "id, orden, nombre, tipo, descripcion, telefono, bandeja, por_defecto, pausada, pasar_al_responder, instrucciones, proyectos";
+
+export const corridaDeFila = (r: Fila): Corrida => ({
+  id: Number(r.id),
+  conversacion: Number(r.conversacion),
+  linea: r.linea ?? null,
+  flujo: r.flujo == null ? null : Number(r.flujo),
+  nombre: r.nombre,
+  pasos: r.pasos ?? [],
+  posicion: r.posicion,
+  estado: r.estado,
+  resultado: r.resultado ?? null,
+  espera_desde: iso(r.espera_desde),
+  vence: iso(r.vence),
+  inicio: iso(r.inicio)!,
+});
+
+/** Mientras una corrida está en marcha, nadie más la toma. Más que lo que dura una función de Vercel (300 s). */
+export const OCUPADA_MS = 6 * 60_000;
+export const COLUMNAS_CORRIDA = "id, conversacion, linea, flujo, nombre, pasos, posicion, estado, resultado, espera_desde, vence, inicio";
 
 export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
   return {
@@ -97,9 +140,11 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rowCount === 1;
     },
     async conversacion(id) {
-      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento from conversaciones where chatwoot_id = $1", [id]);
+      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento, linea, bandeja from conversaciones where chatwoot_id = $1", [id]);
       const r = rows[0];
-      return r ? ({ ...r, chatwoot_id: Number(r.chatwoot_id), ultimo_seguimiento: r.ultimo_seguimiento ? new Date(r.ultimo_seguimiento).toISOString() : null } as Conversacion) : null;
+      return r
+        ? ({ ...r, chatwoot_id: Number(r.chatwoot_id), bandeja: r.bandeja == null ? null : Number(r.bandeja), ultimo_seguimiento: r.ultimo_seguimiento ? new Date(r.ultimo_seguimiento).toISOString() : null } as Conversacion)
+        : null;
     },
     async guardarConversacion(c) {
       // Solo se actualizan los campos que vienen: lo demás queda como estaba.
@@ -145,7 +190,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
     },
     async candidatosSeguimiento(ahora) {
       const { rows } = await db.query(
-        `select chatwoot_id, nombre, interesado->>'nombre' as nombre_anotado, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida
+        `select chatwoot_id, nombre, interesado->>'nombre' as nombre_anotado, telefono, proyecto, crm_contacto_id, paso_seguimiento, ultima_salida, linea
          from (
            select *, greatest(ultimo_mensaje_bot, ultimo_seguimiento) as ultima_salida from conversaciones
            where not sin_seguimientos and ultimo_mensaje_interesado is not null and paso_seguimiento <= $1
@@ -153,6 +198,9 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
          where ultima_salida > ultimo_mensaje_interesado
            and ultima_salida < $3::timestamptz
            and ultima_salida > $2::timestamptz - interval '120 days'
+           -- Ni las de una línea pausada (o que no es de leads) ni las que lleva un flujo: el flujo tiene sus propias esperas.
+           and not exists (select 1 from lineas l where l.id = c.linea and (l.pausada or l.tipo <> 'entrada'))
+           and not exists (select 1 from flujo_corridas f where f.conversacion = c.chatwoot_id and (f.estado <> 'terminado' or f.resultado = 'fin'))
          order by ultima_salida
          limit 500`,
         [MAX_PASOS, ahora, limiteCandidatos(new Date(ahora))],
@@ -170,7 +218,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
     },
     async reglasVigentes() {
       const { rows } = await db.query(
-        "select id, etapa, paso, dias_sin_respuesta, version, estado, proyecto, mensaje from reglas_seguimiento where estado <> 'archivada' order by etapa, paso, version, id",
+        "select id, etapa, paso, dias_sin_respuesta, version, estado, proyecto, mensaje, linea from reglas_seguimiento where estado <> 'archivada' order by etapa, paso, version, id",
       );
       return rows.map((r) => ({ ...r, id: Number(r.id) })) as ReglaSeguimiento[];
     },
@@ -187,6 +235,75 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         "insert into seguimientos_enviados (conversacion, regla, etapa, paso, version, texto, mensaje_id, enviado) values ($1, $2, $3, $4, $5, $6, $7, $8)",
         [x.conversacion, x.regla, x.etapa, x.paso, x.version, x.texto.slice(0, 4000), x.mensaje_id, x.enviado],
       );
+    },
+    async lineas() {
+      const { rows } = await db.query(`select ${COLUMNAS_LINEA} from lineas order by orden`);
+      return rows.map(lineaDeFila);
+    },
+    async flujosActivos(linea) {
+      const { rows } = await db.query("select id, nombre, proyecto, pasos from flujos where linea = $1 and activo order by proyecto nulls last, id", [linea]);
+      return rows.map((r) => ({ id: Number(r.id), nombre: r.nombre, proyecto: r.proyecto ?? null, pasos: r.pasos ?? [] }));
+    },
+    async archivo(id) {
+      const { rows } = await db.query("select id, nombre, tipo, datos from archivos where id = $1", [id]);
+      const r = rows[0];
+      return r ? { id: Number(r.id), nombre: r.nombre, tipo: r.tipo, datos: new Uint8Array(r.datos) } : null;
+    },
+    async corridaViva(conversacion) {
+      const { rows } = await db.query(`select ${COLUMNAS_CORRIDA} from flujo_corridas where conversacion = $1 and estado <> 'terminado'`, [conversacion]);
+      return rows[0] ? corridaDeFila(rows[0]) : null;
+    },
+    async ultimaCorrida(conversacion) {
+      const { rows } = await db.query(`select ${COLUMNAS_CORRIDA} from flujo_corridas where conversacion = $1 order by inicio desc, id desc limit 1`, [conversacion]);
+      return rows[0] ? corridaDeFila(rows[0]) : null;
+    },
+    async iniciarCorrida(c) {
+      const { rows } = await db.query(
+        `insert into flujo_corridas (conversacion, linea, flujo, nombre, pasos, posicion, estado, inicio, ocupado_hasta, actualizado)
+         values ($1, $2, $3, $4, $5, '0', 'en_curso', $6, $6::timestamptz + make_interval(secs => $7), now())
+         on conflict (conversacion) where estado <> 'terminado' do nothing
+         returning ${COLUMNAS_CORRIDA}`,
+        [c.conversacion, c.linea, c.flujo, c.nombre, JSON.stringify(c.pasos), c.ahora, OCUPADA_MS / 1000],
+      );
+      return rows[0] ? corridaDeFila(rows[0]) : null;
+    },
+    async reclamarCorrida(id, como, ahora) {
+      const { rowCount } = await db.query(
+        `update flujo_corridas set estado = 'en_curso', ocupado_hasta = $4::timestamptz + make_interval(secs => $5), actualizado = now()
+         where id = $1 and estado = $2 and posicion = $3
+           and ($2 = 'esperando' or ocupado_hasta is null or ocupado_hasta < $4::timestamptz)`,
+        [id, como.estado, como.posicion, ahora, OCUPADA_MS / 1000],
+      );
+      return rowCount === 1;
+    },
+    async guardarCorrida(id, cambios, ahora) {
+      const campos = (["posicion", "estado", "resultado", "espera_desde", "vence", "respondio"] as const).filter((k) => k in cambios);
+      // La primera respuesta queda: las siguientes no la pisan.
+      const sets = campos.map((k, i) => (k === "respondio" ? `respondio = coalesce(respondio, $${i + 3}::timestamptz)` : `${k} = $${i + 3}`));
+      // Mientras corre, sigue ocupada; esperando o terminada, la puede tomar otro.
+      const libre = cambios.estado === "esperando" || cambios.estado === "terminado";
+      sets.push(libre ? "ocupado_hasta = null" : `ocupado_hasta = $2::timestamptz + make_interval(secs => ${OCUPADA_MS / 1000})`);
+      sets.push("actualizado = now()");
+      // $2 (la hora) va siempre, aunque no se use: así los números de los parámetros no cambian.
+      await db.query(`update flujo_corridas set ${sets.join(", ")} where id = $1 and $2::timestamptz is not null`, [id, ahora, ...campos.map((k) => cambios[k] ?? null)]);
+    },
+    async cancelarCorridas(conversacion, resultado = "cancelado") {
+      await db.query("update flujo_corridas set estado = 'terminado', resultado = $2, ocupado_hasta = null, actualizado = now() where conversacion = $1 and estado <> 'terminado'", [
+        conversacion,
+        resultado,
+      ]);
+    },
+    async corridasParaRetomar(ahora) {
+      const { rows } = await db.query(
+        `select ${COLUMNAS_CORRIDA.split(", ").map((c) => `f.${c}`).join(", ")} from flujo_corridas f left join lineas l on l.id = f.linea
+         where (l.id is null or not l.pausada)
+           and ((f.estado = 'esperando' and f.vence <= $1::timestamptz + make_interval(secs => $2))
+             or (f.estado = 'en_curso' and f.ocupado_hasta < $1::timestamptz))
+         order by coalesce(f.vence, f.actualizado)
+         limit 200`,
+        [ahora, MARGEN_MS / 1000],
+      );
+      return rows.map(corridaDeFila);
     },
     async registrar(r) {
       await db.query("insert into registro (tipo, conversacion, detalle, datos) values ($1, $2, $3, $4)", [

@@ -20,6 +20,8 @@ export function configChatwoot(env: Record<string, string | undefined> = process
 export interface Chatwoot {
   /** Manda un mensaje al interesado. Devuelve el id del mensaje en Chatwoot. */
   enviar(conversacion: number, texto: string): Promise<number | null>;
+  /** Manda un archivo (foto, audio, PDF), con el texto como epígrafe. Devuelve el id del mensaje. */
+  enviarArchivo(conversacion: number, texto: string, archivo: { nombre: string; tipo: string; datos: Uint8Array }): Promise<number | null>;
   /** Una nota que solo ve el equipo. */
   notaInterna(conversacion: number, texto: string): Promise<void>;
   /** Pasa la conversación a «abierta»: la atiende una persona y el bot se calla. */
@@ -60,6 +62,23 @@ export function crearChatwoot(cfg: ConfigChatwoot, pedir: typeof fetch = fetch):
     async enviar(conversacion, texto) {
       const r = (await post(`/${conversacion}/messages`, { content: texto, message_type: "outgoing" })) as { id?: number } | null;
       return r?.id ?? null;
+    },
+    async enviarArchivo(conversacion, texto, archivo) {
+      // Chatwoot recibe los adjuntos como formulario (multipart), con el mismo token del bot.
+      const formulario = new FormData();
+      if (texto) formulario.append("content", texto);
+      formulario.append("message_type", "outgoing");
+      formulario.append("attachments[]", new Blob([archivo.datos.slice()], { type: archivo.tipo }), archivo.nombre);
+      const ruta = `/${conversacion}/messages`;
+      const r = await pedir(`${base}${ruta}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cfg.token}` },
+        body: formulario,
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (!r.ok) throw new ErrorChatwoot(`Chatwoot respondió ${r.status} en ${ruta} (archivo): ${(await r.text()).slice(0, 300)}`, r.status);
+      const json = (await r.json().catch(() => null)) as { id?: number } | null;
+      return json?.id ?? null;
     },
     async notaInterna(conversacion, texto) {
       await post(`/${conversacion}/messages`, { content: texto, message_type: "outgoing", private: true });

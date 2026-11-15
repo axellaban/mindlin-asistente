@@ -111,6 +111,10 @@ function preparar({ reglas = [regla()], contactos = [] as string[][], etapas = {
       hechos.push(`enviar ${c}: ${t}`);
       return 900 + c;
     },
+    async enviarArchivo(c, t, a) {
+      hechos.push(`archivo ${c}: ${a.nombre} ${t}`.trim());
+      return 1;
+    },
     async notaInterna() {},
     async pasarAPersona() {},
     async bajarAdjunto() {
@@ -149,7 +153,7 @@ describe("la corrida de seguimientos", () => {
   it("le escribe a quien dejó de responder, por Chatwoot, y lo anota para medir y en el CRM", async () => {
     const p = preparar({ contactos: [filaCRM({ ID: "c1", Nombre: "Ana María Prueba", Teléfono: "+54 9 11 5555-0000", Etapa: "Nuevo" })] });
     await p.charla(7, 3);
-    expect(await p.correr()).toEqual({ estado: "listo", revisadas: 1, enviados: 1, errores: 0, movidos: 0 });
+    expect(await p.correr()).toEqual({ estado: "listo", revisadas: 1, enviados: 1, errores: 0, movidos: 0, flujos: 0 });
     expect(p.hechos).toEqual(["enviar 7: Hola Ana, ¿pudiste ver lo de Lerma 439?"]);
     expect(p.datos.enviados).toMatchObject([{ conversacion: 7, regla: 1, etapa: "Nuevo", paso: 1, version: 1, mensaje_id: 907, respondio: null }]);
     expect(p.datos.registro.map((r) => r.tipo)).toEqual(["seguimiento"]);
@@ -278,6 +282,10 @@ function stubChatwoot(hechos: string[]): Chatwoot {
   return {
     async enviar(c, t) {
       hechos.push(`enviar ${c}: ${t}`);
+      return 1;
+    },
+    async enviarArchivo(c, t, a) {
+      hechos.push(`archivo ${c}: ${a.nombre} ${t}`.trim());
       return 1;
     },
     async notaInterna() {},
