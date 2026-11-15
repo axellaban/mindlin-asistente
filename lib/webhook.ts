@@ -131,7 +131,8 @@ const sinAdjuntos = (t: string) => t.replace(/\[(foto|audio|archivo|video|ubicac
 async function esEcoDelBot(almacen: NonNullable<Conexiones["almacen"]>, conversacion: number, texto: string, ahoraMs: number): Promise<boolean> {
   const recientes = await almacen.historial(conversacion, MENSAJES_PARA_ECO);
   return recientes.some((m) => {
-    if (m.rol !== "bot" || ahoraMs - Date.parse(m.fecha) >= MARGEN_ECO_MS) return false;
+    // El eco puede ser de un mensaje del bot o de uno del equipo (por ejemplo, el que salió desde el hub).
+    if (m.rol === "interesado" || ahoraMs - Date.parse(m.fecha) >= MARGEN_ECO_MS) return false;
     if (m.texto.trim() === texto.trim()) return true;
     // Un archivo que mandó un flujo: coincide el texto, aunque la etiqueta del adjunto sea otra.
     const a = sinAdjuntos(m.texto);

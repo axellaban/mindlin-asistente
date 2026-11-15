@@ -39,6 +39,7 @@ import { TIPOS_LINEA } from "../lineas";
 import { MAX_FRASE, MAX_FRASES, MAX_NOMBRE_CAMPANIA, MIN_FRASE, validarCampania } from "../campanias";
 import { resultadosPor } from "../resultados";
 import type { ContactoCRM } from "../crm/planilla";
+import type { MensajeHistorial } from "../chatwoot/evento";
 import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
 import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
@@ -67,9 +68,14 @@ export interface DependenciasHub {
   chequear?: (() => Promise<Chequeo>) | null;
   /** El link a una conversación en Chatwoot (con CHATWOOT_URL y CHATWOOT_ACCOUNT_ID). Null si falta. */
   enlaceChatwoot?: ((conversacion: number) => string | null) | null;
+  /** Responder desde el hub (lib/agente/servicio.ts, responderDesdeElHub). Null si falta Chatwoot o la base. */
+  responder?: ((conversacion: number, texto: string, por: string) => Promise<MensajeHistorial>) | null;
   /** Los contactos del CRM, para medir qué vende (lib/resultados.ts). Null si el CRM no está conectado. */
   contactosCRM?: (() => Promise<ContactoCRM[]>) | null;
 }
+
+/** El largo máximo de un mensaje que se manda desde el hub (WhatsApp acepta más, pero así se lee). */
+export const MAX_RESPUESTA = 4000;
 
 /** Cuántos días para atrás se mide qué vende cada flujo y cada seguimiento. */
 export const DIAS_RESULTADOS = 90;
@@ -261,6 +267,20 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
             }),
           },
         };
+      }
+
+      case "responder": {
+        // Alguien del equipo responde desde el hub (mejora 6): sale por Chatwoot y el asistente se corre.
+        if (metodo !== "POST") return noSePuede();
+        const n = idDe(id);
+        if (!n) return noSePuede();
+        const texto = typeof cuerpo.texto === "string" ? cuerpo.texto.replace(/\r\n/g, "\n").trim() : "";
+        if (!texto) return error(400, "Escribí el mensaje.");
+        if (texto.length > MAX_RESPUESTA) return error(400, `El mensaje es muy largo (hasta ${MAX_RESPUESTA} letras).`);
+        if (!d.responder) return error(503, "Falta configurar Chatwoot o la base en Vercel: no se puede mandar.");
+        if (!(await datos.conversacion(n))) return error(404, "Esa conversación no existe.");
+        if (!p.usuario?.trim()) return error(400, "Falta quién responde (encabezado X-Hub-Usuario).");
+        return { status: 200, json: { mensaje: await d.responder(n, texto, por) } };
       }
 
       case "corridas": {

@@ -452,6 +452,24 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("PATCH", `corridas/${c!.id}`, { accion: "otra" })).status).toBe(400);
     expect((await hub("POST", "corridas")).status).toBe(405);
   });
+
+  it("responder desde el hub: con texto, a una conversación que existe y diciendo quién; si falta Chatwoot, lo dice", async () => {
+    const a = crearAlmacen(pool);
+    await a.guardarConversacion({ chatwoot_id: 901, nombre: "Ana Prueba", linea: "linea-3" });
+    const enviados: [number, string, string][] = [];
+    deps = { ...deps, responder: async (c, t, por) => (enviados.push([c, t, por]), { id: 1, conversacion: c, rol: "persona" as const, texto: t, fecha: "2026-11-16T13:00:00.000Z" }) };
+    const r = await hub("POST", "responder/901", { texto: "  Hola Ana, soy Mati  " }, { usuario: "Mati" });
+    expect(r).toMatchObject({ status: 200, json: { mensaje: { conversacion: 901, rol: "persona", texto: "Hola Ana, soy Mati" } } });
+    expect(enviados).toEqual([[901, "Hola Ana, soy Mati", "Mati"]]);
+    expect((await hub("POST", "responder/901", { texto: "" }, { usuario: "Mati" })).status).toBe(400);
+    expect((await hub("POST", "responder/901", { texto: "x".repeat(4001) }, { usuario: "Mati" })).status).toBe(400);
+    expect((await hub("POST", "responder/999999", { texto: "Hola" }, { usuario: "Mati" })).status).toBe(404);
+    expect((await hub("POST", "responder/901", { texto: "Hola" })).status).toBe(400);
+    expect((await hub("GET", "responder/901")).status).toBe(405);
+    deps = { ...deps, responder: null };
+    expect((await hub("POST", "responder/901", { texto: "Hola" }, { usuario: "Mati" })).status).toBe(503);
+    expect(enviados).toHaveLength(1);
+  });
 });
 
 const MIGRAR_EN_ESQUEMA = `

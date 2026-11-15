@@ -94,6 +94,14 @@ describe("webhook del Agent Bot", () => {
     expect(a.datos.mensajes.has(24)).toBe(false);
   });
 
+  it("también el eco de un mensaje del equipo (por ejemplo, el que salió desde el hub)", async () => {
+    const a = armar();
+    await a.datos.almacen.guardarMensaje({ id: 300, conversacion: 2, rol: "persona", texto: "Hola Ana, soy Mati", fecha: "2026-11-07T21:04:55.000Z" });
+    const r = await a.llamar(evento({ id: 301, message_type: "outgoing", sender: { type: "user" }, content: "Hola Ana, soy Mati" }));
+    expect(r.json).toEqual({ accion: "ignorar", motivo: "es el eco de un mensaje del bot" });
+    expect(a.datos.mensajes.has(301)).toBe(false);
+  });
+
   it("reconoce el eco aunque un flujo haya mandado muchos mensajes seguidos", async () => {
     const a = armar();
     for (let i = 0; i < 12; i++) {

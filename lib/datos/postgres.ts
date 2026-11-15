@@ -248,6 +248,9 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       const { rows } = await db.query(`select ${COLUMNAS_LINEA} from lineas order by orden`);
       return rows.map(lineaDeFila);
     },
+    async marcarDelEquipo(mensaje) {
+      await db.query("update mensajes set rol = 'persona' where id = $1 and rol = 'bot'", [mensaje]);
+    },
     async campanias() {
       const { rows } = await db.query("select id, nombre, linea, frases, activa from campanias where activa order by id");
       return rows.map((r) => ({ id: Number(r.id), nombre: r.nombre, linea: r.linea ?? null, frases: r.frases ?? [], activa: r.activa === true }));

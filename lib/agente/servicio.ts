@@ -14,7 +14,7 @@
  * interesado queda sin respuesta.
  */
 
-import type { Accion } from "../chatwoot/evento";
+import type { Accion, MensajeHistorial } from "../chatwoot/evento";
 import type { Evento } from "../etapas/reglas";
 import { conFlujo } from "../flujos/servicio";
 import type { Linea } from "../lineas";
@@ -184,3 +184,27 @@ export async function laTomoUnaPersona(s: Pick<Servicios, "almacen" | "chatwoot"
   await s.almacen.registrar({ tipo: "la_tomo_una_persona", conversacion, detalle: "Una persona del equipo escribió: el asistente deja de responder." });
   return "pasó a abierta";
 }
+
+/**
+ * Alguien del equipo responde desde el hub (mejora 6 de Axel): primero el asistente se corre (la
+ * conversación pasa a abierta, sin seguimientos ni flujo, como cuando alguien escribe en Chatwoot)
+ * y después sale el mensaje por Chatwoot. Sale con el token del bot, así que en Chatwoot va con una
+ * nota interna que dice quién lo escribió; en la base queda como del equipo.
+ */
+export async function responderDesdeElHub(s: Pick<Servicios, "almacen" | "chatwoot" | "ahora">, conversacion: number, texto: string, por: string): Promise<MensajeHistorial> {
+  const ahora = s.ahora ?? (() => new Date());
+  await s.chatwoot.pasarAPersona(conversacion);
+  await s.almacen.sinSeguimientos(conversacion);
+  await s.almacen.cancelarCorridas(conversacion).catch(() => {});
+  await s.almacen.registrar({ tipo: "la_tomo_una_persona", conversacion, detalle: `${por} respondió desde el hub: el asistente deja de responder.` });
+  const id = await s.chatwoot.enviar(conversacion, texto);
+  const mensaje: MensajeHistorial = { id: id ?? -Date.now(), conversacion, rol: "persona", texto, fecha: ahora().toISOString() };
+  if (id != null) {
+    await s.almacen.guardarMensaje(mensaje);
+    // Si el aviso de Chatwoot llegó antes, quedó como del bot: es del equipo.
+    await s.almacen.marcarDelEquipo(id);
+  }
+  await s.chatwoot.notaInterna(conversacion, `✍️ Lo escribió ${por} desde el hub.`).catch(() => {});
+  return mensaje;
+}
+

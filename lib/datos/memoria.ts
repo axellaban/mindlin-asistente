@@ -170,6 +170,10 @@ export function almacenEnMemoria(
     async lineas() {
       return lineas.map((l) => ({ ...l }));
     },
+    async marcarDelEquipo(mensaje) {
+      const m = mensajes.get(mensaje);
+      if (m?.rol === "bot") mensajes.set(mensaje, { ...m, rol: "persona" });
+    },
     async campanias() {
       return (inicial.campanias ?? []).filter((c) => c.activa);
     },

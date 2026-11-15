@@ -222,7 +222,7 @@ Cómo se hace, en [`docs/arquitectura.md`](docs/arquitectura.md), sección 12: s
 - [x] Hub, Asistente de WhatsApp: la solapa «Conversaciones» por línea (matimindlin111/mindlinhub#88). — Claude, 15/11
 - [ ] Asignar el Agent Bot a las bandejas de las líneas 1 y 2 cuando estén, para que se guarden sus conversaciones. — Panel
 - [ ] Fase 2, si hace falta: fotos y audios adentro del hub, pedidos a Chatwoot en el momento con un usuario «Hub» (token nuevo en Vercel). — Claude y Panel
-- [ ] Fase 3: responder desde el hub por Chatwoot. — Claude
+- [x] Fase 3: responder desde el hub por Chatwoot (el asistente: `POST /responder`; el hub: el chat del lead). — Claude, 15/11
 
 ## Líneas y flujos (15/11)
 
@@ -285,8 +285,8 @@ Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: C
 2. [x] **Saber de qué campaña viene cada lead.** Hecho el 15/11 ([#27](https://github.com/axellaban/mindlin-asistente/pull/27) y matimindlin111/mindlinhub#89, [`docs/campanias.md`](docs/campanias.md)). Falta que **Mindlin pase sus campañas y el texto del primer mensaje de cada anuncio**, para cargarlas en el hub (la línea → Inteligencia comercial → Campañas). Por la línea y por el primer mensaje del anuncio (el texto que arma Meta, o palabras configurables por campaña). Se guarda en el CRM como origen o etiqueta. Mindlin dice qué campañas tiene.
 3. [x] **Medir qué flujo vende, no solo cuál responde.** Hecho el 15/11 ([#28](https://github.com/axellaban/mindlin-asistente/pull/28) y matimindlin111/mindlinhub#91, [`docs/resultados.md`](docs/resultados.md)). Se mide contra la planilla del CRM: ver el riesgo de la base de datos del hub, en «Conexión con el CRM». Cruzar cada flujo y cada versión de seguimiento con la etapa a la que llegó el lead en el CRM (visita, negociación, reserva) y mostrarlo en el hub, junto a los números de cada flujo y cada regla.
 4. [x] **Avisar al responsable cuando el asistente pasa la conversación al equipo.** Hecho el 15/11 ([#29](https://github.com/axellaban/mindlin-asistente/pull/29) y matimindlin111/mindlinhub#92, [`docs/avisos.md`](docs/avisos.md)). Para prenderlo, **Panel carga `HUB_URL`** en el Vercel del asistente (tarea 13 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)); y **Axel decide** a quién le llegan los avisos de leads sin responsable (`ASISTENTE_AVISAR_SIN_RESPONSABLE` en el hub). Un aviso en el hub (la campanita y el celular, como los demás avisos del hub), con el resumen y el link a la conversación.
-5. [ ] **Ver en qué paso del flujo va cada persona, y sacarla o reiniciarla a mano** (15/11: la API ya está, `GET /corridas`; falta la pantalla del hub) desde el hub (Flujos → quiénes esperan).
-6. [ ] **Responder desde el hub.** Desde la ficha del lead, que el mensaje salga por Chatwoot como el equipo y el asistente se corra, como cuando alguien escribe en Chatwoot.
+5. [x] **Ver en qué paso del flujo va cada persona, y sacarla o reiniciarla a mano** desde el hub (Flujos → «Quiénes van»). Hecho el 15/11 ([#30](https://github.com/axellaban/mindlin-asistente/pull/30) y matimindlin111/mindlinhub#93).
+6. [ ] **Responder desde el hub.** Desde la ficha del lead, que el mensaje salga por Chatwoot como el equipo y el asistente se corra, como cuando alguien escribe en Chatwoot. (15/11: el asistente ya lo hace, `POST /responder`; falta el chat del hub.)
 7. [ ] **Revisar respuestas reales todas las semanas.** En el hub, una lista de las respuestas del asistente para marcar las buenas (pasan a ejemplos) y las malas (con qué corregir en el tono o la ficha). Lo usa Mindlin.
 8. [ ] **Fotos y audios del lead adentro del hub.** Es la fase 2 de las conversaciones: se le piden a Chatwoot en el momento con un usuario «Hub». Hace falta un token nuevo en Vercel (Panel).
 9. [ ] **Una sola IA.** Elegir Claude u OpenAI y dejarla fija en Vercel. Hoy responde OpenAI, por la prueba. — Axel
