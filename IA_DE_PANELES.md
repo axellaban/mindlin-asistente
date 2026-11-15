@@ -36,8 +36,9 @@ Si una sección de `docs/estado-paneles.md` quedó vieja, marcala como resuelta,
 1. **Tarea 12** · QA en producción de las líneas y los flujos. Se puede hacer ya.
 2. **Tarea 13** · Prender los avisos al responsable: una variable en Vercel. Se puede hacer ya.
 3. **Tarea 14** · El usuario «Hub» de Chatwoot, para ver fotos y audios en el hub. Se puede hacer ya, con Axel.
-4. **Tarea 11** · Sumar la línea 4. Necesita el chip o número de esa línea: no arranques sin él.
-5. **Tarea 7** · El equipo en Chatwoot. Espera a que Axel decida el correo de Chatwoot.
+4. **Tarea 15** · Probar en producción todo lo del 15/11 (las mejoras 1 a 8 y lo traído de DeskcommCRM) y revisar que el hub y el asistente usen la misma planilla del CRM. Después de la 13 y la 14.
+5. **Tarea 11** · Sumar la línea 4. Necesita el chip o número de esa línea: no arranques sin él.
+6. **Tarea 7** · El equipo en Chatwoot. Espera a que Axel decida el correo de Chatwoot.
 
 **Hechas:** 1, 2, 3, 9 y 10. **Reemplazadas por la 9 (Easypanel):** 4, 5, 6 y 8. Eran de la instalación vieja sobre Ubuntu y quedan como referencia: no hay que volver a hacerlas. La guía de hoy para el servidor es [`docs/easypanel.md`](docs/easypanel.md).
 
@@ -255,4 +256,150 @@ Desde el 15/11 el hub puede mostrar las fotos y los audios de cada conversación
 6. **Probar:** mandá una foto desde el teléfono de prueba a la línea 3. En el hub, Asistente de WhatsApp → Conversaciones → esa conversación: la foto tiene que verse adentro. Anotá el resultado en `docs/estado-paneles.md`.
 
 Ese usuario no escribe: solo lee. Si alguna vez se borra o cambia su contraseña, hay que volver a cargar el token.
+
+### Tarea 15 · Probar en producción todo lo del 15/11 (15/11)
+
+El 15/11 se publicaron las mejoras 1 a 8 de Axel y cuatro ideas traídas de DeskcommCRM, en los dos repos. Las pruebas automáticas dan bien, pero falta verlas andar de verdad: con WhatsApp, Chatwoot, la planilla y el hub de producción. Hacela después de las tareas 13 y 14 (los puntos 6 y 13 las necesitan).
+
+Antes de empezar:
+
+- **Todo con el teléfono de prueba y datos inventados.** Nada de leads reales.
+- **No cambies fichas, tono, etapas ni reglas de seguimiento.** Lo que crees para probar (una campaña, un flujo, una respuesta rápida), apagalo o borralo al terminar.
+- **Las filas de prueba del CRM no las borres:** anotá cuáles son y avisale a Axel.
+- **Si un paso no se puede hacer** (por ejemplo, porque no hay otro número nuevo), saltealo y anotá por qué.
+
+#### 1. El CRM es la planilla (decidido el 15/11)
+
+El CRM del hub en producción es la planilla de Google, no una base de datos. El asistente escribe en esa misma planilla. Comprobalo **sin anotar ningún ID**:
+
+- **Vercel → proyecto del hub → Settings → Environment Variables:** no tiene que existir `DATABASE_URL`. Si existe, **frená y avisale a Axel**: el hub estaría leyendo el CRM de otro lado y no vería lo que escribe el asistente.
+- **La planilla del hub:** es la de `CRM_CONTACTOS_SHEET_ID` o, si esa no está, la de `CRM_SHEET_ID`.
+- **La del asistente:** Vercel → `mindlin-asistente` → `CRM_SHEET_ID`. Tiene que ser la misma que la del hub. Si no, frená y avisale a Axel.
+
+#### 2. Las publicaciones
+
+- **Vercel → `mindlin-asistente` → Deployments:** la última está Ready y su log dice «aplicada» para las migraciones `202611150012_campanias.sql`, `202611150013_revisiones.sql` y `202611150014_baja.sql`, o que ya estaban.
+- **El hub:** la última publicación está Ready.
+- **`https://mindlin-asistente.vercel.app/api/salud`:** tiene que decir `"avisosAlHub": true` y `"adjuntosEnElHub": true`.
+
+#### 3. Conversaciones en el hub (mejora 1)
+
+1. Escribí a la línea 3 desde el teléfono de prueba y esperá la respuesta.
+2. En el hub, **Comercial → Asistente de WhatsApp → línea 3 → Conversaciones:** tiene que aparecer, con quién la atiende y la línea. «Abrir en Chatwoot» lleva a esa conversación.
+3. En el **CRM** del proyecto (Comercial → CRM), abrí la ficha de ese lead → **Chat:** se ven los mensajes de WhatsApp, marcados con su línea.
+
+#### 4. El lead en la planilla
+
+- El lead que dio de alta el asistente aparece en el **CRM del hub** (Base de datos), en «Contacto inicial».
+- En la planilla tiene que estar en la pestaña «CRM Contactos». Su actividad, en «CRM Actividad».
+
+#### 5. Campañas (mejora 2)
+
+1. En la línea 3 → Inteligencia comercial → **Campañas**, creá «Prueba QA» con la frase «QA campaña prueba».
+2. Desde un número que **nunca** le escribió a la línea, mandá «Hola, QA campaña prueba».
+3. Tiene que pasar todo esto:
+   - en **Conversaciones**, la conversación muestra la campaña;
+   - en el CRM, el lead nuevo tiene la etiqueta «Campaña: Prueba QA»;
+   - en el Resumen de la línea, la cuenta por campaña la suma.
+4. Apagá o borrá la campaña.
+
+#### 6. Avisos al responsable (mejora 4)
+
+Es la prueba de la tarea 13. Si ya la hiciste, anotá el resultado acá también.
+
+#### 7. Qué flujo vende (mejora 3) y Quiénes van (mejora 5)
+
+1. En la línea 3 → **Flujos**, con un flujo de prueba prendido (el de la tarea 12 sirve), escribí desde un número nuevo.
+2. En **«Quiénes van»** tiene que aparecer esa persona, con el paso en que está.
+3. Probá **Sacar** en una y **Reiniciar** en otra. Se reinicia en la corrida de las 10 del día siguiente.
+4. En **Flujos y Seguimientos**, debajo de cada flujo y de cada regla se ve «De … leads en 90 días: … llegaron a visita · … a negociación · … a reserva», aunque sean cero. **No** tiene que aparecer «No se puede medir qué vende cada uno».
+5. Apagá el flujo.
+
+#### 8. Responder desde el hub (mejora 6)
+
+1. En el CRM, ficha del lead de prueba → **Chat**, con WhatsApp elegido, escribí «Prueba desde el hub» y mandalo. Abajo tiene que decir «Sale por WhatsApp (…): el asistente se corre».
+2. Tiene que pasar todo esto:
+   - llega al teléfono de prueba;
+   - en Chatwoot se ve el mensaje y una nota interna «✍️ Lo escribió … desde el hub»;
+   - la conversación queda **abierta** (la tiene el equipo).
+3. Después ponela **Pendiente** en Chatwoot, para devolvérsela al asistente.
+
+#### 9. Revisar respuestas (mejora 7)
+
+1. En **Asistente de WhatsApp → Revisar** tienen que aparecer las respuestas del asistente de estas pruebas.
+2. Marcá una como «mala» con la nota «prueba QA».
+3. Tiene que salir de la lista y aparecer, con la nota, en «Malas de los últimos 30 días».
+4. **No guardes ninguna como ejemplo:** eso cambia el tono.
+
+#### 10. Fotos y audios en el hub (mejora 8)
+
+1. Mandá una foto y un audio corto desde el teléfono de prueba.
+2. Tienen que verse y escucharse adentro del hub, en dos lugares:
+   - en Conversaciones;
+   - en el Chat del lead del CRM.
+
+#### 11. «No me escriban más» (`docs/baja.md`)
+
+1. Desde un número de prueba que esté hablando con el asistente, mandá «No me escriban más».
+2. Tiene que pasar todo esto:
+   - el asistente contesta **una sola vez, corto**, sin ofrecer nada;
+   - en el hub (Conversaciones y Chat del lead) aparece «Pidió que no le escriban»;
+   - en el CRM, la actividad del lead dice «Pidió que no le escriban más por WhatsApp…»;
+   - en el panel del asistente (`/panel`), el registro muestra «Pidió que no le escriban».
+3. Si ese número tenía un flujo esperando, se corta: en «Quiénes van» ya no figura en curso.
+4. Al rato, mandá «Hola de nuevo» desde el mismo número: contesta normal, pero al día siguiente a las 10 **no** le sale ningún seguimiento.
+
+#### 12. Mensajes automáticos espaciados (`docs/seguimientos.md`, «Espaciados»)
+
+1. En **Vercel → `mindlin-asistente` → Logs**, mirá la corrida de las 10 (13:00 UTC). Si mandó algo, la línea «seguimientos:» tiene que incluir `postergados`.
+2. Si en esa corrida salieron dos o más mensajes (por ejemplo, los de los flujos de la tarea 12), en Chatwoot tiene que haber **unos segundos** entre uno y otro, no el mismo segundo.
+3. **No actives reglas de seguimiento para probar esto:** eso lo decide Axel con Mindlin.
+
+#### 13. «Te escribieron y nadie les contestó» (hub, Comercial → CRM)
+
+1. Desde el teléfono de prueba, pedí hablar con una persona («Quiero hablar con alguien del equipo») hasta que el asistente pase la conversación al equipo.
+2. Después mandá «¿Tienen cochera?» y **no respondas**.
+3. Tiene que pasar todo esto:
+   - en el **Dashboard** del CRM de Lerma 439, arriba, aparece la tarjeta «Te escribieron y nadie les contestó» con ese lead y hace cuánto;
+   - tocarlo abre su chat en **Chats**;
+   - en Chats, el lead dice «Espera respuesta · hace …»;
+   - arriba aparece «⏳ 1 espera respuesta», que lo deja solo.
+4. Respondele desde el hub: al volver a entrar, ya no aparece.
+5. Repetí con un «Gracias» como último mensaje: no tiene que aparecer.
+
+#### 14. Respuestas rápidas (hub, chat del lead)
+
+1. En el Chat del lead de prueba, tocá **⚡** → **+ Nueva**.
+2. Cargá:
+   - título «Prueba QA»;
+   - texto «¡Hola {nombre}! Esto es una prueba de {proyecto}.»;
+   - destildá «Para todos los proyectos».
+3. Guardá.
+4. **En la planilla del CRM:** tiene que aparecer la pestaña «CRM Respuestas rápidas» con esa fila.
+5. Usala dos veces:
+   - con ⚡;
+   - escribiendo «/prueba» y Enter.
+6. En el mensaje tiene que quedar el nombre del lead y «Lerma 439». Mandala por WhatsApp: tiene que llegar así al teléfono.
+7. Borrala (🗑 → «Sí, borrarla»). La fila desaparece de la planilla.
+
+#### 15. En el celular
+
+Abrí el hub desde el celular y mirá:
+
+- **Comercial → CRM:** la tarjeta del Dashboard.
+- **Chats:** la lista con «Espera respuesta».
+- **Un chat:** abajo se ven todos los botones (adjuntar, ⚡, la IA y mandar), sin que ninguno quede afuera de la pantalla, y el panel de respuestas rápidas entra entero.
+- **Asistente de WhatsApp:** Conversaciones y Revisar.
+
+Anotá todo lo que se vea mal o confunda, con una captura sin datos de personas.
+
+#### Cómo reportarlo
+
+En `docs/estado-paneles.md`, una sección nueva: «QA del 15/11 (mejoras y DeskcommCRM)».
+
+- Un renglón por punto, con ✅, ❌ o «no se pudo», y qué pasó.
+- Los errores copiados tal cual, sin teléfonos ni claves.
+- Al final, la lista de filas de prueba que quedaron en el CRM, para que Axel decida.
+
+Si algo falla, no lo arregles en los paneles: lo corrige Claude en el código.
 
