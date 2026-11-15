@@ -5,6 +5,7 @@ import { estadoConfig } from "@/lib/config";
 import { enlacesChatwoot, manejarHub } from "@/lib/hub/api";
 import { chequear, datos } from "@/lib/panel/servidor";
 import { conexionesDesdeEnv } from "@/lib/servicios";
+import { responderDesdeElHub } from "@/lib/agente/servicio";
 
 export const dynamic = "force-dynamic";
 // «Probar» es un pedido a la IA (con herramientas puede llevar más de una vuelta, y un flujo, varias).
@@ -22,7 +23,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       return NextResponse.json({ error: "El cuerpo no es JSON." }, { status: 400 });
     }
   }
-  const { almacen, modelo, crm } = conexionesDesdeEnv();
+  const { almacen, modelo, crm, chatwoot } = conexionesDesdeEnv();
   const r = await manejarHub(
     { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: nombreDelEncabezado(req.headers.get("x-hub-usuario")) },
     {
@@ -34,6 +35,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       chequear: () => chequear(),
       enlaceChatwoot: enlacesChatwoot(process.env),
       contactosCRM: crm ? () => crm.contactos() : null,
+      responder: almacen && chatwoot ? (conversacion, texto, por) => responderDesdeElHub({ almacen, chatwoot }, conversacion, texto, por) : null,
     },
   );
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });

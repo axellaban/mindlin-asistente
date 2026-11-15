@@ -141,7 +141,7 @@ Axel pidió ver en el hub las conversaciones de cada línea con cada persona, si
 - **Lo que no está en la base:** las fotos, los audios y los archivos en sí (en la base quedan como «[foto]» y los audios transcriptos), las notas internas y lo anterior a que la bandeja tuviera el bot. Para eso, «Abrir en Chatwoot», con un link directo a la conversación.
 - **Si hace falta verlos adentro del hub (fase 2):** pedírselos a Chatwoot en el momento, solo de la conversación abierta. Hace falta el token de un usuario «Hub» de Chatwoot, porque el del Agent Bot no puede leer el historial. Las fotos y los audios se ven directo desde Chatwoot (el VPS), sin pasar por Vercel.
 - **Las cuatro líneas:** para que entren todas, se asigna el Agent Bot a todas las bandejas. En outreach y en la del equipo no contesta (pasa al equipo), pero guarda los mensajes.
-- **Responder desde el hub (fase 3):** mandar por Chatwoot como el equipo, y que el asistente se corra como cuando alguien escribe en Chatwoot. Hasta entonces se responde en Chatwoot.
+- **Responder desde el hub (fase 3, hecha el 15/11):** el asistente se corre (la conversación pasa a abierta, sin seguimientos ni flujo) y después manda el mensaje por Chatwoot **con el token del Agent Bot**, con una nota interna que dice quién lo escribió. En la base queda como del equipo. Así no hace falta un token de usuario de Chatwoot en Vercel; el costo es que en Chatwoot el mensaje figura del bot (la nota lo aclara). Si más adelante se suma el usuario «Hub» (fase 2), puede mandar con ese. Solo texto: los archivos, desde Chatwoot.
 
 ¿Por qué no consultar a Chatwoot cada vez que se abre una conversación?
 

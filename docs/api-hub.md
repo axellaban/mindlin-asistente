@@ -186,9 +186,19 @@ Las personas que están adentro de un flujo ahora (en curso o esperando la respu
 
 Reiniciar no manda nada en el momento: la corrida vuelve al primer paso y la retoma el cron, en su horario y con su tope. Si esa conversación ya tiene otro flujo en marcha, contesta 409. Cada acción queda en el registro con quién la hizo.
 
+## Responder desde el hub: `POST /api/hub/responder/{conversación}` (desde el 15/11)
+
+Con `{ "texto": "Hola Ana, soy Mati…" }` y el encabezado `X-Hub-Usuario` (quién lo escribe, obligatorio). El asistente:
+
+1. se corre: la conversación pasa a abierta en Chatwoot, sin seguimientos ni flujo, y queda en el registro («Mati respondió desde el hub…»), como cuando alguien escribe en Chatwoot;
+2. manda el mensaje por Chatwoot, con el token del Agent Bot;
+3. deja una nota interna: «✍️ Lo escribió Mati desde el hub».
+
+Devuelve `{ "mensaje": { "id", "conversacion", "rol": "persona", "texto", "fecha" } }`. En la base queda como del equipo. Solo texto, hasta 4000 letras. 404 si la conversación no existe; 503 si falta Chatwoot o la base en Vercel. Para devolvérsela al asistente, como siempre: «Pendiente» en Chatwoot.
+
 ## Lo que la API no hace (todavía)
 
-- No manda mensajes: para responder, Chatwoot (es la fase 3 de las conversaciones en el hub).
+- No manda archivos: fotos, audios y PDF se mandan desde Chatwoot.
 - No cambia datos de los contactos del CRM: eso lo hace el equipo desde el hub. Las etapas las mueve el asistente solo, con las reglas de `etapas` (ver [`integracion-crm.md`](integracion-crm.md)).
 
 ## Las pantallas del hub

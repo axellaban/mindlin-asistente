@@ -201,6 +201,8 @@ export interface Almacen {
   lineas(): Promise<Linea[]>;
   /** Los flujos activos de una línea (uno general y uno por proyecto, como mucho). */
   flujosActivos(linea: string): Promise<FlujoActivo[]>;
+  /** Un mensaje que salió con el token del bot pero lo escribió alguien del equipo (desde el hub): queda como del equipo. */
+  marcarDelEquipo(mensaje: number): Promise<void>;
   /** Las campañas activas, para reconocer de cuál viene cada lead (lib/campanias.ts). */
   campanias(): Promise<Campania[]>;
   archivo(id: number): Promise<Archivo | null>;
