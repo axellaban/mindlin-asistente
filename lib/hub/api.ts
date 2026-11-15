@@ -269,6 +269,30 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
         };
       }
 
+      case "revisar": {
+        // Revisar respuestas reales (mejora 7): las que faltan, las malas recientes y marcar una.
+        const listo = async (extra: Objeto = {}) => {
+          const [pendientes, malas, revisadas] = await Promise.all([datos.paraRevisar(), datos.malas(), datos.revisadas()]);
+          return { status: 200, json: { ...extra, pendientes, malas, revisadas_7_dias: revisadas } };
+        };
+        if (metodo === "GET" && !id) return listo();
+        const n = idDe(id);
+        if (metodo !== "POST" || !n) return noSePuede();
+        const veredicto = cuerpo.veredicto;
+        if (veredicto !== "buena" && veredicto !== "mala") return error(400, "Mandá «veredicto»: «buena» o «mala».");
+        const nota = typeof cuerpo.nota === "string" ? cuerpo.nota.trim() : "";
+        if (nota.length > 2000) return error(400, "La nota va hasta 2000 letras.");
+        if (veredicto === "mala" && !nota) return error(400, "Contá qué está mal y qué corregir (en el tono, en la ficha…).");
+        let ejemplo: { titulo: string; conversacion: string } | null = null;
+        if (veredicto === "buena" && cuerpo.conversacion !== undefined) {
+          const r = validarEjemplo(formulario({ titulo: cuerpo.titulo, conversacion: cuerpo.conversacion }));
+          if (!r.ok) return error(400, r.error);
+          ejemplo = r.valor;
+        }
+        if (!(await datos.revisar(n, { veredicto, nota, ejemplo }, por))) return error(404, "Esa respuesta del asistente no existe.");
+        return listo({ hecho: veredicto === "mala" ? "Anotada como mala, con qué corregir." : ejemplo ? "Buena: quedó como ejemplo, el asistente la usa desde el próximo mensaje." : "Anotada como buena." });
+      }
+
       case "responder": {
         // Alguien del equipo responde desde el hub (mejora 6): sale por Chatwoot y el asistente se corre.
         if (metodo !== "POST") return noSePuede();

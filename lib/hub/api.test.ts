@@ -470,6 +470,41 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("POST", "responder/901", { texto: "Hola" }, { usuario: "Mati" })).status).toBe(503);
     expect(enviados).toHaveLength(1);
   });
+
+  it("revisar respuestas reales: las que faltan (con lo de antes y el borrador sin datos), marcar mala con nota o buena como ejemplo", async () => {
+    const a = crearAlmacen(pool);
+    await a.guardarConversacion({ chatwoot_id: 1001, nombre: "Ana Prueba", linea: "linea-3", proyecto: "lerma-439" });
+    const hace = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+    await a.guardarMensaje({ id: 10001, conversacion: 1001, rol: "interesado", texto: "Hola, soy Ana, quiero info de Lerma", fecha: hace(30) });
+    await a.guardarMensaje({ id: 10002, conversacion: 1001, rol: "bot", texto: "¡Hola Ana! Lerma 439 tiene 1 y 2 ambientes.", fecha: hace(29) });
+    await a.guardarMensaje({ id: 10003, conversacion: 1001, rol: "interesado", texto: "¿Precio del 2 ambientes?", fecha: hace(20) });
+    await a.guardarMensaje({ id: 10004, conversacion: 1001, rol: "bot", texto: "Desde USD 105.000.", fecha: hace(19) });
+
+    const r = await hub("GET", "revisar");
+    const pendientes = r.json.pendientes as { mensaje: number; antes: unknown[]; borrador: string; linea_nombre: string }[];
+    const ultima = pendientes.find((p) => p.mensaje === 10004)!;
+    expect(ultima.antes).toHaveLength(3);
+    expect(ultima.linea_nombre).toBe("Leads entrantes");
+    expect(ultima.borrador).toBe("Interesado: Hola, soy [nombre], quiero info de Lerma\nAsistente: ¡Hola [nombre]! Lerma 439 tiene 1 y 2 ambientes.\nInteresado: ¿Precio del 2 ambientes?\nAsistente: Desde USD 105.000.");
+
+    // Una mala tiene que decir qué corregir.
+    expect((await hub("POST", "revisar/10002", { veredicto: "mala" })).status).toBe(400);
+    const mala = await hub("POST", "revisar/10002", { veredicto: "mala", nota: "Tenía que preguntar para qué busca antes de contar." }, { usuario: "Mindlin" });
+    expect(mala.json.hecho).toBe("Anotada como mala, con qué corregir.");
+    expect((mala.json.malas as { mensaje: number; nota: string; creado_por: string }[])[0]).toMatchObject({ mensaje: 10002, nota: "Tenía que preguntar para qué busca antes de contar.", creado_por: "Mindlin" });
+    expect((mala.json.pendientes as { mensaje: number }[]).map((p) => p.mensaje)).not.toContain(10002);
+
+    // Una buena, con el ejemplo corregido: queda en los ejemplos y el asistente lo usa.
+    const buena = await hub("POST", "revisar/10004", { veredicto: "buena", titulo: "Precio directo", conversacion: "Interesado: ¿Precio del 2 ambientes?\nAsistente: Desde USD 105.000." });
+    expect(buena.json.hecho).toMatch(/^Buena: quedó como ejemplo/);
+    expect((await a.ejemplos()).map((e) => e.titulo)).toContain("Precio directo");
+    expect(buena.json.revisadas_7_dias).toEqual({ buenas: 1, malas: 1 });
+
+    // Lo que no se puede.
+    expect((await hub("POST", "revisar/10003", { veredicto: "buena" })).status).toBe(404);
+    expect((await hub("POST", "revisar/10004", { veredicto: "regular" })).status).toBe(400);
+    expect((await hub("POST", "revisar/10004", { veredicto: "buena", titulo: "", conversacion: "x" })).status).toBe(400);
+  });
 });
 
 const MIGRAR_EN_ESQUEMA = `
