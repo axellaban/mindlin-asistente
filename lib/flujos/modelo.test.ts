@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lerma, otroProyecto } from "../../test/fixtures";
-import { archivosDe, describirPasos, elegirFlujo, margenDeEspera, pasoEn, proyectoNombrado, rama, siguiente, textoHoras, ubicar, validarPasos, type Paso } from "./modelo";
+import { archivosDe, describirPasos, describirPosicion, elegirFlujo, margenDeEspera, pasoEn, proyectoNombrado, rama, siguiente, textoHoras, ubicar, validarPasos, type Paso } from "./modelo";
 import { PLANTILLAS } from "./plantillas";
 
 /** El bot de Kommo de «17 y 43», resumido: presenta, espera 24 h y, si no responde, sigue. */
@@ -117,5 +117,15 @@ describe("margen de las esperas para el cron", () => {
     expect(margenDeEspera(espera("2026-11-16T13:00:00Z", 24), M)).toBe(M);
     expect(margenDeEspera(espera("2026-11-16T13:00:00Z", 2), M)).toBe(3_600_000);
     expect(margenDeEspera({ espera_desde: null, vence: "2026-11-16T13:00:00Z" }, M)).toBe(M);
+  });
+});
+
+describe("dónde va una corrida, para leerlo", () => {
+  it("el paso de la lista principal y el de adentro de un camino", () => {
+    expect(describirPosicion(kommo(), "0")).toBe("Paso 1: Mensaje");
+    expect(describirPosicion(kommo(), "3")).toBe("Paso 4: Esperar respuesta");
+    expect(describirPosicion(kommo(), "3.no.0")).toMatch(/^Paso 4 › Si no responde › paso 1: /);
+    expect(describirPosicion(kommo(), "3.si.9")).toBe("Paso 4 › Si responde › paso 10: fin del camino");
+    expect(describirPosicion(kommo(), "7.si.0")).toBe("posición 7.si.0");
   });
 });

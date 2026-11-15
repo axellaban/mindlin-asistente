@@ -133,9 +133,26 @@ Prueba de verdad cada pieza (no solo que las variables existan): Chatwoot con el
 
 Con una línea (`/resumen/linea-3`), solo lo de las conversaciones de esa línea. `{ "ultimos_7_dias": { "conversaciones": 12, "respuesta": 40, "paso_a_persona": 5, "la_tomo_una_persona": 2, "seguimiento": 8, "error": 0, … }, "registro": [{ "fecha": "…", "conversacion": 7, "tipo": "respuesta", "detalle": "…" }] }`. Lo mismo que muestra el Resumen del panel.
 
+## Conversaciones (desde el 15/11)
+
+Para ver las conversaciones en el hub (en el CRM y en Asistente de WhatsApp → Conversaciones). Se leen de la base del asistente, que guarda cada mensaje que pasa por el Agent Bot: lo que escribe la persona, el asistente y el equipo. No se consulta a Chatwoot. Lo que no está en la base (las fotos, los audios y los archivos en sí, las notas internas) se ve con el link `enlace`, que abre la conversación en Chatwoot (`null` si falta `CHATWOOT_URL` o `CHATWOOT_ACCOUNT_ID`).
+
+- **`GET /api/hub/conversaciones`** (o `/conversaciones/{línea}`): las 200 más recientes, de todas las líneas o de una. Cada una:
+
+  ```json
+  { "chatwoot_id": 501, "linea": "linea-3", "linea_nombre": "Leads entrantes", "nombre": "Ana", "telefono": "549…", "proyecto": "lerma-439", "crm_contacto_id": "c…",
+    "ultimo": "2026-11-16T13:00:10.000Z", "ultimo_texto": "¡Hola Ana! …", "ultimo_rol": "bot", "mensajes": 2,
+    "atiende": "asistente", "flujo": { "nombre": "Presentación", "estado": "esperando", "resultado": null, "paso": "Paso 2: Esperar respuesta", "vence": "…", "inicio": "…" },
+    "enlace": "https://chat…/app/accounts/1/conversations/501" }
+  ```
+
+  `ultimo_rol`: `interesado`, `bot` (el asistente) o `persona` (el equipo, desde Chatwoot o el celular de la línea). `atiende`: `equipo` si lo último fue que pasó al equipo o que alguien del equipo escribió; si no, `asistente`. `flujo`: la corrida más nueva (`null` si nunca tuvo); `paso` dice por dónde va (`«Paso 12 › Si no responde › paso 2: Mensaje»`) o «Terminó». Para buscar por nombre o teléfono, el hub filtra esta lista.
+- **`GET /api/hub/conversacion/{id}`**: una conversación entera: `{ "conversacion": { …lo de arriba, "interesado": { lo anotado }, "paso_seguimiento", "sin_seguimientos", "ultimo_seguimiento" }, "mensajes": [{ "id", "rol", "texto", "fecha" }], "registro": [lo último que hizo el asistente] }`. Hasta los 300 mensajes más nuevos, del más viejo al más nuevo. Los adjuntos vienen como texto: «[foto]», «[archivo]», y los audios transcriptos como «[audio: «…»]».
+- **`POST /api/hub/contacto`** con `{ "id": "<id del CRM>", "telefono": "<como esté en el CRM>" }` (uno de los dos alcanza): las conversaciones de ese contacto (hasta 5: puede haber escrito por más de una línea), cada una con `historial` (sus mensajes, como arriba). Cruza por el ID que anotó el asistente en la conversación o por los últimos 8 números del teléfono, como el CRM del hub (así coincide «+54 9 11 5555-1234» con «011 15 5555-1234»). Es una lectura, pero va por POST para que el teléfono no viaje en la dirección.
+
 ## Lo que la API no hace (todavía)
 
-- No lista conversaciones ni mensajes: eso se ve en Chatwoot (y, en chico, en `/panel/conversaciones`).
+- No manda mensajes: para responder, Chatwoot (es la fase 3 de las conversaciones en el hub).
 - No cambia datos de los contactos del CRM: eso lo hace el equipo desde el hub. Las etapas las mueve el asistente solo, con las reglas de `etapas` (ver [`integracion-crm.md`](integracion-crm.md)).
 
 ## Las pantallas del hub

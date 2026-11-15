@@ -3,7 +3,7 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { crearAlmacen } from "../datos/postgres";
 import { datosPanel } from "../panel/datos";
-import { manejarHub, type DependenciasHub, type PedidoHub } from "./api";
+import { enlacesChatwoot, manejarHub, type DependenciasHub, type PedidoHub } from "./api";
 
 const CLAVE = "clave-del-hub-de-prueba";
 const pedido = (metodo: string, ruta: string, cuerpo: unknown = null, extra: Partial<PedidoHub> = {}): PedidoHub => ({
@@ -21,6 +21,14 @@ describe("API del hub: quién entra", () => {
     expect((await manejarHub(pedido("GET", "config", null, { autorizacion: null }), { clave: CLAVE, datos: null })).status).toBe(401);
     // Con la clave bien pero sin base, avisa qué falta.
     expect(await manejarHub(pedido("GET", "config"), { clave: CLAVE, datos: null })).toEqual({ status: 503, json: { error: "Falta la base de datos (DATABASE_URL) en Vercel." } });
+  });
+});
+
+describe("API del hub: el link a Chatwoot", () => {
+  it("se arma con CHATWOOT_URL y la cuenta; si falta algo, no hay link", () => {
+    expect(enlacesChatwoot({ CHATWOOT_URL: "https://chat.ejemplo.test/", CHATWOOT_ACCOUNT_ID: " 1 " })?.(7)).toBe("https://chat.ejemplo.test/app/accounts/1/conversations/7");
+    expect(enlacesChatwoot({ CHATWOOT_URL: "https://chat.ejemplo.test" })).toBeNull();
+    expect(enlacesChatwoot({ CHATWOOT_URL: "chat.ejemplo.test", CHATWOOT_ACCOUNT_ID: "1" })).toBeNull();
   });
 });
 
@@ -272,6 +280,63 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     // El resumen de una línea.
     expect((await hub("GET", "resumen/linea-3")).status).toBe(200);
     expect((await hub("GET", "resumen/linea-9")).status).toBe(404);
+  });
+
+  it("conversaciones: de una línea o de un contacto del CRM, con sus mensajes, quién la atiende, el flujo y el link a Chatwoot", async () => {
+    const a = crearAlmacen(pool);
+    deps = { ...deps, enlaceChatwoot: enlacesChatwoot({ CHATWOOT_URL: "https://chat.ejemplo.test/", CHATWOOT_ACCOUNT_ID: "1" }) };
+    // Ana: línea 3, en el CRM, con un flujo esperando. Beto: línea 4, sin CRM, la tomó el equipo.
+    await a.guardarConversacion({ chatwoot_id: 501, nombre: "Ana Prueba", telefono: "5491155550001", linea: "linea-3", crm_contacto_id: "cprueba1" });
+    await a.guardarConversacion({ chatwoot_id: 502, nombre: "Beto Prueba", telefono: "+54 9 11 5555-0002", linea: "linea-4" });
+    await a.guardarMensaje({ id: 9001, conversacion: 501, rol: "interesado", texto: "Hola, quiero info de Lerma", fecha: "2026-11-16T13:00:00.000Z" });
+    await a.guardarMensaje({ id: 9002, conversacion: 501, rol: "bot", texto: "¡Hola Ana! Te cuento.", fecha: "2026-11-16T13:00:10.000Z" });
+    await a.guardarMensaje({ id: 9003, conversacion: 502, rol: "interesado", texto: "Hola", fecha: "2026-11-16T14:00:00.000Z" });
+    await a.guardarMensaje({ id: 9004, conversacion: 502, rol: "persona", texto: "Hola Beto, soy Tadeo", fecha: "2026-11-16T14:05:00.000Z" });
+    await a.registrar({ tipo: "la_tomo_una_persona", conversacion: 502, detalle: "Escribió Tadeo." });
+    const pasos = [{ tipo: "mensaje", texto: "Hola", archivo: null }, { tipo: "esperar", horas: 24, si_responde: [{ tipo: "seguir_ia" }], si_no: [{ tipo: "fin" }] }];
+    const c = await a.iniciarCorrida({ conversacion: 501, linea: "linea-3", flujo: null as never, nombre: "Presentación", pasos: pasos as never, ahora: "2026-11-16T13:00:00.000Z" });
+    await a.guardarCorrida(c!.id, { estado: "esperando", posicion: "1", espera_desde: "2026-11-16T13:00:00.000Z", vence: "2026-11-17T13:00:00.000Z" }, "2026-11-16T13:00:00.000Z");
+
+    const todas = (await hub("GET", "conversaciones")).json.conversaciones as { chatwoot_id: number }[];
+    expect(todas.slice(0, 2).map((x) => x.chatwoot_id)).toEqual([502, 501]);
+    const linea3 = await hub("GET", "conversaciones/linea-3");
+    expect(linea3.json.conversaciones).toEqual([
+      expect.objectContaining({
+        chatwoot_id: 501,
+        linea: "linea-3",
+        linea_nombre: "Leads entrantes",
+        nombre: "Ana Prueba",
+        crm_contacto_id: "cprueba1",
+        ultimo_texto: "¡Hola Ana! Te cuento.",
+        ultimo_rol: "bot",
+        mensajes: 2,
+        atiende: "asistente",
+        flujo: expect.objectContaining({ nombre: "Presentación", estado: "esperando", paso: "Paso 2: Esperar respuesta", vence: "2026-11-17T13:00:00.000Z" }),
+        enlace: "https://chat.ejemplo.test/app/accounts/1/conversations/501",
+      }),
+    ]);
+    expect((await hub("GET", "conversaciones/linea-9")).status).toBe(404);
+
+    // Una conversación entera.
+    const una = await hub("GET", "conversacion/502");
+    expect(una.json.conversacion).toMatchObject({ chatwoot_id: 502, linea: "linea-4", atiende: "equipo", flujo: null, enlace: "https://chat.ejemplo.test/app/accounts/1/conversations/502" });
+    expect((una.json.mensajes as { rol: string }[]).map((m) => m.rol)).toEqual(["interesado", "persona"]);
+    expect((una.json.registro as { tipo: string }[])[0].tipo).toBe("la_tomo_una_persona");
+    expect((await hub("GET", "conversacion/999")).status).toBe(404);
+
+    // Las de un contacto del CRM: por el ID que anotó el asistente o por el teléfono (como lo guarde el CRM).
+    const porId = await hub("POST", "contacto", { id: "cprueba1" });
+    expect((porId.json.conversaciones as { chatwoot_id: number; historial: { texto: string }[] }[]).map((x) => [x.chatwoot_id, x.historial.map((m) => m.texto)])).toEqual([
+      [501, ["Hola, quiero info de Lerma", "¡Hola Ana! Te cuento."]],
+    ]);
+    const porTelefono = await hub("POST", "contacto", { id: "otro-id", telefono: "11 5555-0002" });
+    expect((porTelefono.json.conversaciones as { chatwoot_id: number }[]).map((x) => x.chatwoot_id)).toEqual([502]);
+    // Escrito a la antigua, con el 15: igual coincide (los últimos 8 números, como el CRM del hub).
+    const conQuince = await hub("POST", "contacto", { telefono: "011 15 5555-0002" });
+    expect((conQuince.json.conversaciones as { chatwoot_id: number }[]).map((x) => x.chatwoot_id)).toEqual([502]);
+    expect((await hub("POST", "contacto", { telefono: "123" })).json.conversaciones).toEqual([]);
+    expect((await hub("POST", "contacto", {})).status).toBe(400);
+    expect((await hub("GET", "contacto")).status).toBe(405);
   });
 });
 
