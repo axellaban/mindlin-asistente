@@ -21,6 +21,7 @@ import { sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
 import type { Transcriptor } from "./openai";
 import { paraWhatsApp } from "./whatsapp";
+import type { AvisarAlEquipo } from "../hub/aviso";
 
 export interface Servicios {
   almacen: Almacen;
@@ -33,6 +34,8 @@ export interface Servicios {
   dormir?: (ms: number) => Promise<void>;
   /** Cuánto esperar por si la persona sigue escribiendo. */
   esperaMs?: number;
+  /** Avisa en el hub (la campanita y el celular) cuando pasa una conversación al equipo. */
+  avisarAlEquipo?: AvisarAlEquipo | null;
 }
 
 /** Mensajes del historial que se le pasan a la IA. */
@@ -265,7 +268,7 @@ export async function prepararCharla(
       if (visto) ch.historial.push({ id: -ch.historial.length - 1, conversacion: conv, rol: "bot", texto: visto, fecha: ahora().toISOString() });
     },
     async pasarAlEquipo(p) {
-      await pasarAPersona(s, conv, p, ch.contacto ?? null, ahora);
+      await pasarAPersona(s, conv, p, ch.contacto ?? null, ahora, { nombre: ch.anotado.nombre || nombre || "", telefono: telefono ?? "", linea: linea?.nombre ?? null, proyecto: ch.proyectoId });
     },
     async refrescarHistorial() {
       const nuevo = await s.almacen.historial(conv, LARGO_HISTORIAL);
@@ -319,7 +322,22 @@ export async function prepararCharla(
   return ch;
 }
 
-export async function pasarAPersona(s: Pick<Servicios, "almacen" | "chatwoot" | "crm">, conv: number, p: PedidoDeEquipo, contacto: ContactoCRM | null, ahora: () => Date) {
+/** Quién es, para el aviso al hub (sin esto, el aviso dice solo el número de conversación). */
+export interface QuienEs {
+  nombre: string;
+  telefono: string;
+  linea: string | null;
+  proyecto: string | null;
+}
+
+export async function pasarAPersona(
+  s: Pick<Servicios, "almacen" | "chatwoot" | "crm" | "avisarAlEquipo">,
+  conv: number,
+  p: PedidoDeEquipo,
+  contacto: ContactoCRM | null,
+  ahora: () => Date,
+  quien: QuienEs | null = null,
+) {
   const nota = [`🙋 El asistente pasó esta conversación al equipo: ${p.motivo}`, p.resumen && `Resumen: ${p.resumen}`, contacto?.responsable && `Responsable en el CRM: ${contacto.responsable}`]
     .filter(Boolean)
     .join("\n");
@@ -330,5 +348,21 @@ export async function pasarAPersona(s: Pick<Servicios, "almacen" | "chatwoot" | 
   await s.almacen.registrar({ tipo: "paso_a_persona", conversacion: conv, detalle: p.motivo, datos: p });
   if (s.crm && contacto) {
     await s.crm.anotarActividad({ contacto, detalle: `Pasó al equipo: ${p.motivo}. ${p.resumen}`.trim(), ahora: ahora().toISOString() }).catch(() => {});
+  }
+  // El aviso en el hub, al responsable del lead. Si falla, queda en el registro: la conversación ya pasó.
+  if (s.avisarAlEquipo) {
+    await s
+      .avisarAlEquipo({
+        conversacion: conv,
+        nombre: contacto?.nombre || quien?.nombre || "",
+        telefono: quien?.telefono || contacto?.telefono || "",
+        motivo: p.motivo,
+        resumen: p.resumen,
+        responsable: contacto?.responsable ?? "",
+        contacto: contacto?.id ?? null,
+        proyecto: quien?.proyecto ?? contacto?.proyectos[0] ?? null,
+        linea: quien?.linea ?? null,
+      })
+      .catch((e) => s.almacen.registrar({ tipo: "error", conversacion: conv, detalle: `Aviso al hub: ${detalle(e)}` }).catch(() => {}));
   }
 }

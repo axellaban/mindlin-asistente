@@ -15,6 +15,7 @@ import type { ReglasEtapa } from "../etapas/reglas";
 import { elegirRegla, enHorario, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
 import type { Modelo } from "../agente/agente";
 import { retomarFlujos } from "../flujos/servicio";
+import type { AvisarAlEquipo } from "../hub/aviso";
 
 /** Cuántos seguimientos como mucho por corrida: WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. */
 export const TOPE_POR_CORRIDA = 20;
@@ -40,6 +41,7 @@ export async function correrSeguimientos({
   tope = TOPE_POR_CORRIDA,
   modelo = null,
   dormir,
+  avisarAlEquipo = null,
 }: {
   almacen: Almacen;
   chatwoot: Chatwoot;
@@ -49,6 +51,8 @@ export async function correrSeguimientos({
   /** Para los pasos «La IA escribe» de los flujos. Sin ella, esos flujos pasan al equipo. */
   modelo?: Modelo | null;
   dormir?: (ms: number) => Promise<void>;
+  /** Para avisar en el hub si un flujo pasa la conversación al equipo. */
+  avisarAlEquipo?: AvisarAlEquipo | null;
 }): Promise<ResultadoCorrida> {
   const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0, movidos: 0, flujos: 0 };
   if (!enHorario(ahora)) return { ...resultado, estado: "fuera de horario" };
@@ -58,7 +62,7 @@ export async function correrSeguimientos({
   const sinIA: Modelo = async () => {
     throw new Error("Falta la clave de la IA en Vercel.");
   };
-  const f = await retomarFlujos({ almacen, chatwoot, crm, modelo: modelo ?? sinIA, ahora: () => ahora, dormir }, { tope }).catch(async (e) => {
+  const f = await retomarFlujos({ almacen, chatwoot, crm, modelo: modelo ?? sinIA, ahora: () => ahora, dormir, avisarAlEquipo }, { tope }).catch(async (e) => {
     await almacen.registrar({ tipo: "error", conversacion: null, detalle: `Flujos (cron): ${detalle(e)}` }).catch(() => {});
     return { revisadas: 0, retomadas: 0, errores: 1 };
   });

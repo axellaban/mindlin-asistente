@@ -39,7 +39,7 @@ export async function manejarWebhook(
     return { status: 400, json: { error: "El cuerpo no es JSON." } };
   }
 
-  const { almacen, chatwoot, modelo, crm, transcribir = null } = conexiones;
+  const { almacen, chatwoot, modelo, crm, transcribir = null, avisarAlEquipo = null } = conexiones;
   const mensaje = mensajeParaHistorial(evento);
   const accion: Accion = accionPara(evento);
 
@@ -122,7 +122,7 @@ export async function manejarWebhook(
     };
   }
 
-  return { status: 200, json: { accion: accion.tipo, ...(linea ? { linea: linea.id } : {}) }, tarea: () => atender({ ...opciones, almacen, chatwoot, modelo, crm, transcribir }, accion, linea) };
+  return { status: 200, json: { accion: accion.tipo, ...(linea ? { linea: linea.id } : {}) }, tarea: () => atender({ ...opciones, almacen, chatwoot, modelo, crm, transcribir, avisarAlEquipo }, accion, linea) };
 }
 
 /** El texto sin las etiquetas de los adjuntos («[foto]», «[audio]»…): el eco de un archivo puede llegar con otra. */
