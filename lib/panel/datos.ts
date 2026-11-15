@@ -97,6 +97,23 @@ export interface PorCampania {
   conversaciones: number;
 }
 
+/** Una persona adentro de un flujo (una corrida en curso o esperando), para verla y sacarla o reiniciarla. */
+export interface CorridaPanel {
+  id: number;
+  flujo: number | null;
+  nombre_flujo: string;
+  conversacion: number;
+  linea: string | null;
+  nombre: string | null;
+  telefono: string | null;
+  estado: "en_curso" | "esperando";
+  /** «Paso 4: Esperar respuesta». */
+  paso: string;
+  /** Hasta cuándo espera la respuesta (si está esperando). */
+  vence: string | null;
+  inicio: string;
+}
+
 /** Para buscar conversaciones: de una línea, o de un contacto del CRM (por su ID o su teléfono). */
 export interface FiltroConversaciones {
   linea?: string | null;
@@ -417,6 +434,59 @@ export function datosPanel(db: Db) {
       }
       const { rowCount } = await db.query("update flujos set activo = $2, actualizado = now(), actualizado_por = $3 where id = $1", [id, activo, por]);
       return rowCount === 1;
+    },
+
+    /** Quiénes están adentro de un flujo ahora (en curso o esperando), lo más nuevo primero. */
+    async corridasVivas(): Promise<CorridaPanel[]> {
+      const { rows } = await db.query(
+        `select x.id, x.flujo, x.nombre as nombre_flujo, x.conversacion, x.linea, x.estado, x.posicion, x.pasos, x.vence, x.inicio, c.nombre, c.telefono
+         from flujo_corridas x left join conversaciones c on c.chatwoot_id = x.conversacion
+         where x.estado <> 'terminado'
+         order by x.inicio desc
+         limit 500`,
+      );
+      return rows.map((r) => ({
+        id: Number(r.id),
+        flujo: r.flujo == null ? null : Number(r.flujo),
+        nombre_flujo: r.nombre_flujo,
+        conversacion: Number(r.conversacion),
+        linea: r.linea ?? null,
+        nombre: r.nombre ?? null,
+        telefono: r.telefono ?? null,
+        estado: r.estado,
+        paso: describirPosicion(r.pasos ?? [], r.posicion),
+        vence: r.estado === "esperando" ? iso(r.vence) : null,
+        inicio: iso(r.inicio)!,
+      }));
+    },
+
+    /**
+     * Saca a una persona del flujo: la corrida termina y, desde ahí, conversa la IA (como cuando el
+     * equipo se la devuelve). False si ya no estaba adentro.
+     */
+    async sacarCorrida(id: number, por: string): Promise<boolean> {
+      const { rows } = await db.query("update flujo_corridas set estado = 'terminado', resultado = 'cancelado', ocupado_hasta = null, actualizado = now() where id = $1 and estado <> 'terminado' returning conversacion, nombre", [id]);
+      if (!rows[0]) return false;
+      await db.query("insert into registro (tipo, conversacion, detalle) values ('flujo', $1, $2)", [rows[0].conversacion, `${por} la sacó del flujo «${rows[0].nombre}» desde el hub: desde ahora conversa la IA.`]);
+      return true;
+    },
+
+    /**
+     * Vuelve a empezar el flujo con esa persona, con los pasos de hoy (si el flujo todavía existe).
+     * No manda nada en el momento: la retoma el cron (en su horario y con su tope), como una
+     * corrida que se cortó. False si no existe; «23505» si esa conversación ya tiene otro flujo vivo.
+     */
+    async reiniciarCorrida(id: number, por: string): Promise<boolean> {
+      const { rows } = await db.query(
+        `update flujo_corridas x set estado = 'en_curso', posicion = '0', resultado = null, espera_desde = null, vence = null, respondio = null,
+                pasos = coalesce((select f.pasos from flujos f where f.id = x.flujo), x.pasos), inicio = now(),
+                ocupado_hasta = now() - interval '1 second', actualizado = now()
+         where x.id = $1 returning x.conversacion, x.nombre`,
+        [id],
+      );
+      if (!rows[0]) return false;
+      await db.query("insert into registro (tipo, conversacion, detalle) values ('flujo', $1, $2)", [rows[0].conversacion, `${por} reinició el flujo «${rows[0].nombre}» desde el hub: arranca de nuevo en la próxima corrida.`]);
+      return true;
     },
 
     async borrarFlujo(id: number): Promise<boolean> {

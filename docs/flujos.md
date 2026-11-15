@@ -40,6 +40,7 @@ Reglas de forma (`lib/flujos/modelo.ts`, `validarPasos`):
 - **Si la persona escribe mientras sale la presentación**, al llegar a «Esperar respuesta» ya cuenta como que respondió y sigue por «Si responde».
 - **Si responde a una espera**, el webhook sigue por «Si responde» enseguida.
 - **Si no responde**, la retoma el cron (una vez por día, a las 10) por «Si no responde». Como en los seguimientos, la espera vence media corrida antes: «24 horas» quiere decir «en la corrida de mañana a las 10». Pero el margen nunca pasa de la mitad de la espera: una de «2 horas» que arranca a las 9:59 no sale en la corrida de las 10, sino en la del día siguiente (`margenDeEspera`, 15/11). Con Vercel Pro se puede correr más seguido.
+- **Desde el hub** (Flujos → «Quiénes van»), se ve en qué paso va cada persona y se la puede **sacar** del flujo (desde ahí conversa la IA) o **reiniciar** (vuelve al primer paso con los pasos de hoy y la retoma el cron de las 10). Queda en el registro quién lo hizo (desde el 15/11).
 - **Una sola corrida a la vez por conversación.** Dos avisos a la vez, o el cron y un aviso, no la corren los dos: cada uno la «reclama» y la base deja uno solo. Mientras corre queda ocupada 6 minutos, más que lo que dura una función. Si se cortó, el cron la retoma.
 - **Nadie queda sin respuesta:** si la persona respondió y el camino termina sin decirle nada, pasa al equipo. Si escribe después de un «Terminar», también.
 - **Si algo falla** (Chatwoot, la IA), la conversación pasa al equipo con una nota y el error queda en el registro.
