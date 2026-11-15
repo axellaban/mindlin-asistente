@@ -66,6 +66,8 @@ export interface FlujoDeConversacion {
 export interface ConversacionHub {
   chatwoot_id: number;
   linea: string | null;
+  /** El nombre de la línea («Leads entrantes»), para mostrarlo sin pedir las líneas aparte. */
+  linea_nombre: string | null;
   nombre: string | null;
   telefono: string | null;
   proyecto: string | null;
@@ -467,13 +469,14 @@ export function datosPanel(db: Db) {
       const telefono = tel.length >= 8 ? tel : null;
       if (contacto && !id && !telefono) return [];
       const { rows } = await db.query(
-        `select c.chatwoot_id, c.linea, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
+        `select c.chatwoot_id, c.linea, l.nombre as linea_nombre, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
                 m.fecha as ultimo, m.texto as ultimo_texto, m.rol as ultimo_rol,
                 (select count(*) from mensajes x where x.conversacion = c.chatwoot_id) as cantidad,
                 e.tipo as equipo,
                 f.nombre as flujo_nombre, f.estado as flujo_estado, f.resultado as flujo_resultado, f.posicion as flujo_posicion,
                 f.pasos as flujo_pasos, f.vence as flujo_vence, f.inicio as flujo_inicio
          from conversaciones c
+         left join lineas l on l.id = c.linea
          left join lateral (select fecha, texto, rol from mensajes where conversacion = c.chatwoot_id order by fecha desc, id desc limit 1) m on true
          left join lateral (select tipo from registro where conversacion = c.chatwoot_id and tipo = any($5::text[]) order by fecha desc, id desc limit 1) e on true
          left join lateral (select nombre, estado, resultado, posicion, pasos, vence, inicio from flujo_corridas where conversacion = c.chatwoot_id order by inicio desc, id desc limit 1) f on true
@@ -489,6 +492,7 @@ export function datosPanel(db: Db) {
       return rows.map((r) => ({
         chatwoot_id: Number(r.chatwoot_id),
         linea: r.linea ?? null,
+        linea_nombre: r.linea_nombre ?? null,
         nombre: r.nombre ?? null,
         telefono: r.telefono ?? null,
         proyecto: r.proyecto ?? null,

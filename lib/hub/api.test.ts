@@ -304,6 +304,7 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
       expect.objectContaining({
         chatwoot_id: 501,
         linea: "linea-3",
+        linea_nombre: "Leads entrantes",
         nombre: "Ana Prueba",
         crm_contacto_id: "cprueba1",
         ultimo_texto: "¡Hola Ana! Te cuento.",

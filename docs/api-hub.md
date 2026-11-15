@@ -140,7 +140,7 @@ Para ver las conversaciones en el hub (en el CRM y en Asistente de WhatsApp → 
 - **`GET /api/hub/conversaciones`** (o `/conversaciones/{línea}`): las 200 más recientes, de todas las líneas o de una. Cada una:
 
   ```json
-  { "chatwoot_id": 501, "linea": "linea-3", "nombre": "Ana", "telefono": "549…", "proyecto": "lerma-439", "crm_contacto_id": "c…",
+  { "chatwoot_id": 501, "linea": "linea-3", "linea_nombre": "Leads entrantes", "nombre": "Ana", "telefono": "549…", "proyecto": "lerma-439", "crm_contacto_id": "c…",
     "ultimo": "2026-11-16T13:00:10.000Z", "ultimo_texto": "¡Hola Ana! …", "ultimo_rol": "bot", "mensajes": 2,
     "atiende": "asistente", "flujo": { "nombre": "Presentación", "estado": "esperando", "resultado": null, "paso": "Paso 2: Esperar respuesta", "vence": "…", "inicio": "…" },
     "enlace": "https://chat…/app/accounts/1/conversations/501" }
