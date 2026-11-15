@@ -123,7 +123,8 @@ Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial compl
 - [x] **Pantallas del hub** (recorridas en la computadora y en el celular contra el asistente en local, con su base y datos inventados): sin errores de consola, sin pedidos fallidos y nada corrido de costado. El editor de flujos se desarmaba con una espera adentro de otra (la trae el modelo «Presentación, brochure y un seguimiento»): las tarjetas se salían de su camino y, en el celular, la flecha tapaba el título. Arreglado en el hub ([#87](https://github.com/matimindlin111/mindlinhub/pull/87)), junto con la pastilla «General» estirada y las tarjetas de las líneas: la 4, sin bandeja, decía «atiende la IA» y ahora dice «Falta conectarla». — Claude, 15/11
 - [x] `/panel/lineas` del asistente, en la computadora y en el celular: anda bien. — Claude, 15/11
 - [ ] Sugerencia: en el celular, las cuatro tarjetas de las líneas y la cabecera ocupan la primera pantalla y hay que bajar para llegar a las solapas. Se podría mostrar las líneas en una fila que se desliza. — Mindlin decide, después Claude
-- [ ] «Probar» con la IA de verdad y subir archivos no se pudieron ver en local (sin clave de IA ni Chatwoot): los cubre la tarea 12. — Panel con Axel
+- [x] Subir archivos por la API del hub, en local: una foto entra; un tipo que no se permite y uno de más de 2,5 MB se rechazan con un mensaje claro. — Claude, 15/11
+- [ ] «Probar» con la IA de verdad no se pudo ver en local (sin clave de IA), ni cómo llega un archivo a WhatsApp: los cubre la tarea 12. — Panel con Axel
 - [ ] Menor: el tipo de un archivo subido es el que declara el navegador; no se mira el contenido. Solo pueden subir quienes tienen Comercial en el hub, así que el riesgo es bajo. Se puede sumar el control de las primeras letras del archivo. — Claude, si se decide
 
 **1. Bugs, arreglos, base de datos y arquitectura**
