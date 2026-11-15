@@ -228,6 +228,18 @@ export function siguiente(posicion: Posicion): Posicion {
 /** El primer paso de un camino de una espera. */
 export const rama = (posicion: Posicion, camino: "si" | "no"): Posicion => `${posicion}.${camino}.0`;
 
+/**
+ * Cuánto antes de su vencimiento el cron puede tomar una espera. El cron corre cada `margenMs * 2`
+ * (una vez por día en el plan Hobby): con medio día de margen, «24 horas» es «mañana a las 10» y
+ * no «pasado mañana». Pero nunca más que la mitad de la espera: si no, una de «2 horas» que
+ * arrancó a las 9:59 vencería en la corrida de las 10:00, al minuto. Puro. La misma cuenta está en
+ * SQL en lib/datos/postgres.ts (corridasParaRetomar).
+ */
+export function margenDeEspera(c: { espera_desde: string | null; vence: string }, margenMs: number): number {
+  if (!c.espera_desde) return margenMs;
+  return Math.max(0, Math.min(margenMs, (Date.parse(c.vence) - Date.parse(c.espera_desde)) / 2));
+}
+
 /** Horas → «1 hora», «12 horas», «1 día», «3 días», «1 semana». */
 export function textoHoras(horas: number): string {
   if (horas % 168 === 0) return horas === 168 ? "1 semana" : `${horas / 168} semanas`;

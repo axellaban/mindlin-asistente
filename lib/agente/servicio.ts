@@ -64,12 +64,15 @@ export async function atender(s: Servicios, a: Responder, linea: Linea | null = 
     }
 
     // Si el equipo había tomado la conversación y la volvió a poner pendiente, se la devolvió al bot.
-    const devuelta = await s.almacen.volvioAlBot(conv);
-    if (devuelta) {
+    // Casi siempre el aviso del cambio de estado llega antes y ya lo anotó (webhook): por eso
+    // también se mira el registro. Vale hasta que la conversación vuelva a pasar al equipo.
+    const recien = await s.almacen.volvioAlBot(conv);
+    if (recien) {
       await s.almacen.registrar({ tipo: "volvio_al_bot", conversacion: conv, detalle: "El equipo le devolvió la conversación al asistente: vuelve a responder y a llevar seguimientos." });
       // Lo decidió el equipo: desde acá conversa la IA, aunque hubiera un flujo a medias.
       await s.almacen.cancelarCorridas(conv).catch(() => {});
     }
+    const devuelta = recien || (await s.almacen.laDevolvioElEquipo(conv).catch(() => false));
 
     const ch = await prepararCharla(s, { conv, linea, historial, contacto: a.contacto, bandeja: a.bandeja, eventoPara: (g) => eventoDelMensaje(historial, g?.ultimo_seguimiento) });
 

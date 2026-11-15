@@ -140,6 +140,32 @@ describe("flujos en una conversación de verdad", () => {
     x.pasar(200);
     expect(await x.escribe("Hola, ¿sigue disponible?")).toBe("pasó al equipo: escribió después de que terminó el flujo");
     expect(x.hechos.slice(-2)).toEqual(["nota 7: 🙋 El asistente pasó esta conversación al equipo: La persona escribió después de que terminó el flujo «Presentación».", "abrir 7"]);
+    // El equipo se la devuelve (la pone pendiente: el webhook lo anota antes de que escriba): contesta la IA.
+    await x.datos.almacen.volvioAlBot(7);
+    await x.datos.almacen.registrar({ tipo: "volvio_al_bot", conversacion: 7, detalle: "El equipo le devolvió la conversación al asistente (la puso pendiente)." });
+    x.pasar(201);
+    x.respuestas.push(respuesta([{ type: "text", text: "¡Hola Ana! Sí, sigue disponible." }]));
+    expect(await x.escribe("¿Hola?")).toBe("respondió");
+    x.respuestas.push(respuesta([{ type: "text", text: "Se entrega en 2027." }]));
+    expect(await x.escribe("¿Y cuándo se entrega?")).toBe("respondió");
+  });
+
+  it("una espera corta no vence antes de tiempo: el margen del cron no pasa de la mitad de la espera", async () => {
+    const corta: Paso[] = [
+      { tipo: "mensaje", texto: "¡Hola! Te cuento de {{proyecto}}.", archivo: null },
+      { tipo: "esperar", horas: 2, si_responde: [{ tipo: "seguir_ia" }], si_no: [{ tipo: "mensaje", texto: "¿Te quedó alguna duda?", archivo: null }, { tipo: "fin" }] },
+    ];
+    const x = armar({ flujos: [{ id: 1, nombre: "Corta", proyecto: null, pasos: corta, linea: "linea-3" }] });
+    // Escribe a las 9:59 (12:59 UTC); la corrida del cron es a las 10.
+    x.pasar(-1 / 60);
+    await x.escribe("Hola, quiero info de Lerma");
+    x.pasar(0);
+    expect(await correrSeguimientos({ ...x.s, ahora: hora(0) })).toMatchObject({ flujos: 0 });
+    expect(x.hechos).toHaveLength(1);
+    // Al día siguiente, sí.
+    x.pasar(24);
+    expect(await correrSeguimientos({ ...x.s, ahora: hora(24) })).toMatchObject({ flujos: 1 });
+    expect(x.hechos.at(-1)).toBe("enviar 7: ¿Te quedó alguna duda?");
   });
 
   it("si responde al segundo mensaje, conversa la IA", async () => {

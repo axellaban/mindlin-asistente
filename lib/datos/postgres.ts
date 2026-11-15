@@ -4,7 +4,7 @@ import { esTipoLinea, type Linea } from "../lineas";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido } from "../agente/horario";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
-import type { Almacen, CandidatoSeguimiento, Conversacion, Corrida, Ejemplo, Proyecto, ReglaSeguimiento, Tono } from "./tipos";
+import { TIPOS_DEL_EQUIPO, type Almacen, type CandidatoSeguimiento, type Conversacion, type Corrida, type Ejemplo, type Proyecto, type ReglaSeguimiento, type Tono } from "./tipos";
 
 /**
  * La base del asistente: Postgres en Neon, creado desde Vercel (que carga DATABASE_URL solo).
@@ -184,6 +184,13 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       ]);
       return rowCount === 1;
     },
+    async laDevolvioElEquipo(conversacion) {
+      const { rows } = await db.query(
+        "select tipo from registro where conversacion = $1 and tipo = any($2::text[]) order by fecha desc, id desc limit 1",
+        [conversacion, TIPOS_DEL_EQUIPO],
+      );
+      return rows[0]?.tipo === "volvio_al_bot";
+    },
     async pausado() {
       const { rows } = await db.query("select pausado from asistente_estado where id = 1");
       return rows[0]?.pausado === true;
@@ -297,7 +304,9 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       const { rows } = await db.query(
         `select ${COLUMNAS_CORRIDA.split(", ").map((c) => `f.${c}`).join(", ")} from flujo_corridas f left join lineas l on l.id = f.linea
          where (l.id is null or not l.pausada)
-           and ((f.estado = 'esperando' and f.vence <= $1::timestamptz + make_interval(secs => $2))
+           -- El margen es medio día (MARGEN_MS) o la mitad de la espera, lo que sea menos (margenDeEspera).
+           and ((f.estado = 'esperando'
+                 and f.vence - least(make_interval(secs => $2), coalesce((f.vence - f.espera_desde) / 2, make_interval(secs => $2))) <= $1::timestamptz)
              or (f.estado = 'en_curso' and f.ocupado_hasta < $1::timestamptz))
          order by coalesce(f.vence, f.actualizado)
          limit 200`,
