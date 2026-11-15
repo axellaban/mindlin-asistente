@@ -194,6 +194,22 @@ describe("flujos en una conversación de verdad", () => {
     expect(x.datos.registro.at(-1)?.detalle).toBe("Flujo «Presentación»: se cortó porque la persona pidió que no le escriban más.");
   });
 
+  it("la misma persona por dos líneas queda una sola vez en el CRM", async () => {
+    const x = armar();
+    // Escribe por la línea 3: el flujo la da de alta.
+    await x.escribe("Hola, quiero info de Lerma");
+    expect(x.pestanias["CRM Contactos"]).toHaveLength(1);
+    // Después escribe por la línea 4 (otra conversación de Chatwoot, mismo teléfono): la IA la registra y la encuentra.
+    x.pasar(2);
+    x.respuestas.push(
+      respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "Ana Prueba", para: "", ambientes: "2", presupuesto_usd: "", forma_de_pago: "", plazo: "", resumen: "Busca 2 ambientes" } }]),
+      respuesta([{ type: "text", text: "¡Hola Ana! Te cuento." }]),
+    );
+    expect(await x.escribe("Hola, busco 2 ambientes", 8, LINEAS_DE_FABRICA[3])).toBe("respondió");
+    expect(x.pestanias["CRM Contactos"]).toHaveLength(1);
+    expect(x.datos.conversaciones.get(8)?.crm_contacto_id).toBe(x.pestanias["CRM Contactos"][0][0]);
+  });
+
   it("una espera corta no vence antes de tiempo: el margen del cron no pasa de la mitad de la espera", async () => {
     const corta: Paso[] = [
       { tipo: "mensaje", texto: "¡Hola! Te cuento de {{proyecto}}.", archivo: null },
