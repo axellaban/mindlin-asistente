@@ -314,7 +314,7 @@ Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: C
 
 Se evaluó instalar DeskcommCRM (un CRM de código abierto con WhatsApp e IA) y se eligió seguir con lo nuestro y sumar lo que sirve de él (camino C). Lo demás ya lo tenían el hub o el asistente. Dueño: Claude.
 
-1. [x] **«No me escriban más», firme** ([`docs/baja.md`](docs/baja.md)): una sola regla de baja; corta flujos y seguimientos para siempre en esa conversación. Arregla, además, que la señal «no le interesa» se borraba cuando la persona volvía a escribir.
-2. [ ] **Seguimientos espaciados**: unos segundos al azar entre un mensaje automático y el siguiente, para no mandar 20 seguidos desde el mismo número.
+1. [x] **«No me escriban más», firme** ([#35](https://github.com/axellaban/mindlin-asistente/pull/35), [`docs/baja.md`](docs/baja.md)): una sola regla de baja; corta flujos y seguimientos para siempre en esa conversación. Arregla, además, que la señal «no le interesa» se borraba cuando la persona volvía a escribir.
+2. [x] **Seguimientos espaciados** ([`docs/seguimientos.md`](docs/seguimientos.md), «Espaciados»): entre 4 y 9 segundos al azar entre un mensaje automático y el siguiente, y los flujos escalonados, para no mandar 20 seguidos desde el mismo número.
 3. [ ] **Hub: «Te escribió y nadie le contestó»**: en el Dashboard y en Chats, los leads que escribieron por WhatsApp, ya no los atiende el asistente y esperan respuesta del equipo.
 4. [ ] **Hub: respuestas rápidas** en el chat del lead.

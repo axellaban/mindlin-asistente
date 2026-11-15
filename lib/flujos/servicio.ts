@@ -16,6 +16,7 @@ import type { Corrida } from "../datos/tipos";
 import type { Linea } from "../lineas";
 import { elegirFlujo } from "./modelo";
 import { avanzar, type Acciones, type Disparo } from "./motor";
+import { escalonar } from "../seguimientos/espaciar";
 
 const detalle = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const dormirReal = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -137,19 +138,24 @@ export interface ResultadoFlujos {
 /**
  * Lo que hace el cron con los flujos: las esperas que vencieron siguen por «Si no responde» (o por
  * «Si responde», si la persona escribió y el aviso no llegó a tomarla) y las corridas que se
- * cortaron a la mitad siguen desde donde quedaron. Hasta `tope` por corrida del cron, todas a la
- * vez (cada una puede tener pausas: así entran en los 300 segundos).
+ * cortaron a la mitad siguen desde donde quedaron. Hasta `tope` por corrida del cron, todas en
+ * paralelo (cada una puede tener pausas: así entran en los 300 segundos), pero escalonadas: cada
+ * una arranca unos segundos después de la anterior, todas dentro de los primeros 90 segundos.
  */
-export async function retomarFlujos(s: Servicios, { tope }: { tope: number }): Promise<ResultadoFlujos> {
+export async function retomarFlujos(s: Servicios, { tope, azar = Math.random }: { tope: number; azar?: () => number }): Promise<ResultadoFlujos> {
   const ahora = s.ahora ?? (() => new Date());
   const resultado: ResultadoFlujos = { revisadas: 0, retomadas: 0, errores: 0 };
   const corridas = (await s.almacen.corridasParaRetomar(ahora().toISOString())).slice(0, tope);
   if (!corridas.length) return resultado;
   const lineas = await s.almacen.lineas();
+  // Escalonados (lib/seguimientos/espaciar.ts): no salen todos en el mismo segundo desde el mismo número.
+  const inicios = escalonar(corridas.length, azar);
+  const dormir = s.dormir ?? dormirReal;
   await Promise.all(
-    corridas.map(async (c) => {
+    corridas.map(async (c, i) => {
       resultado.revisadas++;
       try {
+        if (inicios[i]) await dormir(inicios[i]);
         if (!(await s.almacen.reclamarCorrida(c.id, { estado: c.estado, posicion: c.posicion }, ahora().toISOString()))) return;
         const linea: Linea | null = lineas.find((l) => l.id === c.linea) ?? null;
         const historial = await s.almacen.historial(c.conversacion, LARGO_HISTORIAL);

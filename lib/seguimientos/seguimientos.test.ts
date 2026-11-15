@@ -8,6 +8,7 @@ import { almacenEnMemoria } from "../datos/memoria";
 import type { ReglaSeguimiento } from "../datos/tipos";
 import { REGLAS_POR_DEFECTO, type ReglasEtapa } from "../etapas/reglas";
 import { correrSeguimientos } from "./correr";
+import { escalonar, pausaAlAzar, PRESUPUESTO_MS } from "./espaciar";
 import { CORRIDA, elegirRegla, enHorario, limiteCandidatos, MARGEN_MS, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
 
 const regla = (cambios: Partial<ReglaSeguimiento> = {}): ReglaSeguimiento => ({
@@ -143,7 +144,7 @@ function preparar({ reglas = [regla()], contactos = [] as string[][], etapas = {
     await datos.almacen.guardarMensaje(m(conversacion * 10 + 1, "bot", 1));
     await datos.almacen.guardarConversacion({ chatwoot_id: conversacion, proyecto: "lerma-439", nombre: cambios.nombre ?? "Ana Prueba", telefono: cambios.telefono ?? "5491155550000" });
   };
-  const correr = (ahora = AHORA) => correrSeguimientos({ almacen: datos.almacen, chatwoot, crm, ahora });
+  const correr = (ahora = AHORA) => correrSeguimientos({ almacen: datos.almacen, chatwoot, crm, ahora, dormir: async () => {} });
   return { datos, hechos, pestanias, charla, correr, fallarChatwoot: () => (falla = true), caerCRM: () => (crmCaido = true) };
 }
 
@@ -153,7 +154,7 @@ describe("la corrida de seguimientos", () => {
   it("le escribe a quien dejó de responder, por Chatwoot, y lo anota para medir y en el CRM", async () => {
     const p = preparar({ contactos: [filaCRM({ ID: "c1", Nombre: "Ana María Prueba", Teléfono: "+54 9 11 5555-0000", Etapa: "Nuevo" })] });
     await p.charla(7, 3);
-    expect(await p.correr()).toEqual({ estado: "listo", revisadas: 1, enviados: 1, errores: 0, movidos: 0, flujos: 0 });
+    expect(await p.correr()).toEqual({ estado: "listo", revisadas: 1, enviados: 1, errores: 0, movidos: 0, flujos: 0, postergados: 0 });
     expect(p.hechos).toEqual(["enviar 7: Hola Ana, ¿pudiste ver lo de Lerma 439?"]);
     expect(p.datos.enviados).toMatchObject([{ conversacion: 7, regla: 1, etapa: "Nuevo", paso: 1, version: 1, mensaje_id: 907, respondio: null }]);
     expect(p.datos.registro.map((r) => r.tipo)).toEqual(["seguimiento"]);
@@ -273,8 +274,43 @@ describe("la corrida de seguimientos", () => {
   it("como mucho TOPE por corrida", async () => {
     const p = preparar();
     for (let c = 1; c <= 5; c++) await p.charla(c, 3, { telefono: `54911555500${c}0` });
-    const r = await correrSeguimientos({ almacen: p.datos.almacen, chatwoot: stubChatwoot(p.hechos), crm: null, ahora: AHORA, tope: 2 });
+    const r = await correrSeguimientos({ almacen: p.datos.almacen, chatwoot: stubChatwoot(p.hechos), crm: null, ahora: AHORA, tope: 2, dormir: async () => {} });
     expect(r.enviados).toBe(2);
+  });
+
+  it("salen espaciados: unos segundos al azar entre uno y otro, sin pasarse del tiempo de la función", async () => {
+    const p = preparar();
+    for (let c = 1; c <= 3; c++) await p.charla(c, 3, { telefono: `54911555500${c}0` });
+    const pausas: number[] = [];
+    const r = await correrSeguimientos({ almacen: p.datos.almacen, chatwoot: stubChatwoot(p.hechos), crm: null, ahora: AHORA, dormir: async (ms) => void pausas.push(ms), azar: () => 0.5 });
+    expect(r).toMatchObject({ enviados: 3, postergados: 0 });
+    // Antes del primero no espera; entre los demás, 6,5 segundos (la mitad entre 4 y 9).
+    expect(pausas).toEqual([6500, 6500]);
+
+    // Si ya casi no queda tiempo, el resto queda para la corrida siguiente (sin reclamarlo).
+    const q = preparar();
+    for (let c = 1; c <= 3; c++) await q.charla(c, 3, { telefono: `54911555500${c}0` });
+    let llamadas = 0;
+    const reloj = () => (llamadas++ === 0 ? 0 : PRESUPUESTO_MS - 1_000);
+    const r2 = await correrSeguimientos({ almacen: q.datos.almacen, chatwoot: stubChatwoot(q.hechos), crm: null, ahora: AHORA, dormir: async () => {}, reloj });
+    expect(r2).toMatchObject({ enviados: 1, postergados: 2 });
+    expect((await q.datos.almacen.candidatosSeguimiento(AHORA.toISOString())).length).toBe(2);
+  });
+});
+
+describe("espaciar los mensajes automáticos (lib/seguimientos/espaciar.ts)", () => {
+  it("una pausa entre 4 y 9 segundos", () => {
+    expect([pausaAlAzar(() => 0), pausaAlAzar(() => 1), pausaAlAzar(() => 0.5)]).toEqual([4000, 9000, 6500]);
+  });
+
+  it("los flujos arrancan escalonados, todos dentro de los primeros 90 segundos", () => {
+    expect(escalonar(0)).toEqual([]);
+    expect(escalonar(1)).toEqual([0]);
+    expect(escalonar(3, () => 0)).toEqual([0, 4000, 8000]);
+    const veinte = escalonar(20, () => 1);
+    expect(veinte).toHaveLength(20);
+    expect(veinte.at(-1)).toBeLessThanOrEqual(90_000);
+    expect(veinte.every((t, i) => i === 0 || t > veinte[i - 1])).toBe(true);
   });
 });
 
