@@ -95,6 +95,21 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 - [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. — Axel
 - [x] Probar el CRM con la planilla real (con la línea de prueba): el contacto quedó con proyecto `lerma-439`, origen WhatsApp y su etapa. Antes hubo que poner al día tres títulos de «CRM Contactos» (B decía «Proyecto» y faltaban «Hora próximo paso» y «Tags»); se cambiaron solo esas celdas de la fila 1, después de confirmar que el hub lee la planilla por posición. — Panel y Axel, 13/11
 
+## Traspaso para la próxima sesión (15/11, Claude)
+
+Las líneas y los flujos ya están en `main`: asistente #21 y hub matimindlin111/mindlinhub#86. Lo que sigue, en orden:
+
+1. **QA en producción** (Panel con Axel): tarea 12 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md). Va primero porque desde una sesión de código no se llega a producción ni a WhatsApp.
+2. **QA desde el código** (la próxima IA de código):
+   - Recorrer las pantallas nuevas del hub (Comercial → Asistente de WhatsApp: tarjetas de líneas, Flujos, editor, Probar, Conexión) en la computadora y en el celular. Una forma: una página temporal sin sesión que muestre `<Asistente />`, con `page.route` de Playwright devolviendo datos inventados para `/api/comercial/asistente/**`. Las mismas formas de datos están en `components/asistente/Asistente.test.tsx`.
+   - En el asistente: `/panel/lineas` con Postgres local.
+   - Revisar el código mergeado (`lib/flujos/`, `lib/agente/charla.ts`, `lib/webhook.ts`, la migración `202611150011`) y anotar acá lo que salga, con dueño.
+   - Todo lo de la lista «QA de punta a punta», de abajo.
+3. **Conversaciones en el hub:** sección 12 de [`docs/arquitectura.md`](docs/arquitectura.md) y la lista «Conversaciones en el hub», más abajo. Se hace después de la QA.
+4. **Esperan a Mindlin:** el panel de outreach frío (línea 1) y las decisiones de la línea 2 (bot de Telegram).
+
+Para trabajar: ramas `claude/…` y PR, `npm run verificar` antes del PR y Postgres local para las pruebas (`PRUEBA_DATABASE_URL`). Las ramas `claude/modest-bardeen-xcg21w` de los dos repos ya están mergeadas: si se reusan, hay que arrancarlas de nuevo desde `main`.
+
 ## QA de punta a punta (después del merge de las líneas y los flujos)
 
 Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial completo y el CRM, de principio a fin. Se hace con datos inventados y un teléfono de prueba, en la línea 3 (y en la 4 cuando esté). Lo que se encuentre se anota acá como tarea (con dueño) y se corrige en PRs chicos. Dueños: Claude (código y revisión), Panel con Axel (lo que pasa en Chatwoot, WhatsApp y Vercel) y Mindlin (lo comercial).
