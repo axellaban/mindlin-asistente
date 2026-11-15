@@ -40,6 +40,7 @@ import { MAX_FRASE, MAX_FRASES, MAX_NOMBRE_CAMPANIA, MIN_FRASE, validarCampania 
 import { resultadosPor } from "../resultados";
 import type { ContactoCRM } from "../crm/planilla";
 import type { MensajeHistorial } from "../chatwoot/evento";
+import type { LectorDeAdjuntos } from "../chatwoot/adjuntos";
 import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
 import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
@@ -70,6 +71,8 @@ export interface DependenciasHub {
   enlaceChatwoot?: ((conversacion: number) => string | null) | null;
   /** Responder desde el hub (lib/agente/servicio.ts, responderDesdeElHub). Null si falta Chatwoot o la base. */
   responder?: ((conversacion: number, texto: string, por: string) => Promise<MensajeHistorial>) | null;
+  /** Las fotos, audios y archivos de una conversación, pedidos a Chatwoot (CHATWOOT_HUB_TOKEN). Null si falta. */
+  adjuntos?: LectorDeAdjuntos | null;
   /** Los contactos del CRM, para medir qué vende (lib/resultados.ts). Null si el CRM no está conectado. */
   contactosCRM?: (() => Promise<ContactoCRM[]>) | null;
 }
@@ -267,6 +270,21 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
             }),
           },
         };
+      }
+
+      case "adjuntos": {
+        // Las fotos y los audios de una conversación, para verlos en el hub (mejora 8). Sin el token
+        // del usuario «Hub», no hay: el hub sigue mostrando «📷 Foto» y «Abrir en Chatwoot».
+        if (metodo !== "GET") return noSePuede();
+        const n = idDe(id);
+        if (!n) return noSePuede();
+        if (!d.adjuntos) return { status: 200, json: { disponible: false, adjuntos: [], motivo: "Falta CHATWOOT_HUB_TOKEN en Vercel (el token de un usuario «Hub» de Chatwoot)." } };
+        if (!(await datos.conversacion(n))) return error(404, "Esa conversación no existe.");
+        try {
+          return { status: 200, json: { disponible: true, adjuntos: await d.adjuntos(n) } };
+        } catch (e) {
+          return error(502, e instanceof Error ? e.message : String(e));
+        }
       }
 
       case "revisar": {

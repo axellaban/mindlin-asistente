@@ -35,8 +35,9 @@ Si una sección de `docs/estado-paneles.md` quedó vieja, marcala como resuelta,
 
 1. **Tarea 12** · QA en producción de las líneas y los flujos. Se puede hacer ya.
 2. **Tarea 13** · Prender los avisos al responsable: una variable en Vercel. Se puede hacer ya.
-3. **Tarea 11** · Sumar la línea 4. Necesita el chip o número de esa línea: no arranques sin él.
-4. **Tarea 7** · El equipo en Chatwoot. Espera a que Axel decida el correo de Chatwoot.
+3. **Tarea 14** · El usuario «Hub» de Chatwoot, para ver fotos y audios en el hub. Se puede hacer ya, con Axel.
+4. **Tarea 11** · Sumar la línea 4. Necesita el chip o número de esa línea: no arranques sin él.
+5. **Tarea 7** · El equipo en Chatwoot. Espera a que Axel decida el correo de Chatwoot.
 
 **Hechas:** 1, 2, 3, 9 y 10. **Reemplazadas por la 9 (Easypanel):** 4, 5, 6 y 8. Eran de la instalación vieja sobre Ubuntu y quedan como referencia: no hay que volver a hacerlas. La guía de hoy para el servidor es [`docs/easypanel.md`](docs/easypanel.md).
 
@@ -241,4 +242,17 @@ Desde el 15/11 el asistente avisa en el hub (la campanita y el celular) cuando l
 2. Abrí `https://mindlin-asistente.vercel.app/api/salud`: tiene que decir `"avisosAlHub": true`.
 3. **Preguntale a Axel** a quién le llegan los avisos de los leads sin responsable en el CRM. Si quiere, en **Vercel → el proyecto del hub**, `ASISTENTE_AVISAR_SIN_RESPONSABLE` = los apodos separados por comas (por ejemplo `Mati,Tade`), y volver a publicar el hub.
 4. **Probar** (con Axel, en la línea 3): escribí desde el teléfono de prueba «Quiero ir a ver el showroom». Cuando el asistente pase la conversación al equipo, al responsable del lead (o a los de la lista) le tiene que llegar «WhatsApp: … necesita al equipo» en la campanita del hub. Anotá el resultado en `docs/estado-paneles.md`, sin teléfonos.
+
+### Tarea 14 · El usuario «Hub» de Chatwoot, para ver fotos y audios en el hub (15/11)
+
+Desde el 15/11 el hub puede mostrar las fotos y los audios de cada conversación, pidiéndoselos a Chatwoot en el momento. Hace falta un usuario de Chatwoot para eso: el token del Agent Bot no puede leer el historial.
+
+1. **Preguntale a Axel** con qué mail crear el usuario (puede ser uno de Mindlin que no use nadie para escribir, por ejemplo un alias).
+2. En Chatwoot: **Configuración → Agentes → Agregar agente**, nombre **«Hub»**, rol **Administrador** (así ve todas las bandejas). Si Axel prefiere Agente, sumalo a **todas** las bandejas de las líneas.
+3. Entrá con ese usuario (o pedile a Axel que entre) → perfil → **Configuración del perfil** → copiá el **Token de acceso**. **No lo pegues en ningún chat.**
+4. En **Vercel → `mindlin-asistente` → Settings → Environment Variables**, cargá `CHATWOOT_HUB_TOKEN` con ese token (Production, como Secret) y volvé a publicar.
+5. Abrí `https://mindlin-asistente.vercel.app/api/salud`: tiene que decir `"adjuntosEnElHub": true`.
+6. **Probar:** mandá una foto desde el teléfono de prueba a la línea 3. En el hub, Asistente de WhatsApp → Conversaciones → esa conversación: la foto tiene que verse adentro. Anotá el resultado en `docs/estado-paneles.md`.
+
+Ese usuario no escribe: solo lee. Si alguna vez se borra o cambia su contraseña, hay que volver a cargar el token.
 

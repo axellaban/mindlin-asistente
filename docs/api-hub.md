@@ -196,6 +196,10 @@ Con `{ "texto": "Hola Ana, soy Mati…" }` y el encabezado `X-Hub-Usuario` (qui�
 
 Devuelve `{ "mensaje": { "id", "conversacion", "rol": "persona", "texto", "fecha" } }`. En la base queda como del equipo. Solo texto, hasta 4000 letras. 404 si la conversación no existe; 503 si falta Chatwoot o la base en Vercel. Para devolvérsela al asistente, como siempre: «Pendiente» en Chatwoot.
 
+## Fotos y audios de una conversación: `GET /api/hub/adjuntos/{conversación}` (desde el 15/11)
+
+`{ "disponible": true, "adjuntos": [{ "mensaje": 102, "tipo": "foto" | "audio" | "video" | "archivo", "url": "https://chat…/rails/active_storage/…", "miniatura": "…" | null }] }`. `mensaje` es el mismo id que en `GET /conversacion/{id}`: así cada archivo va con su mensaje. Se le piden a Chatwoot en el momento (hasta unos 200 mensajes para atrás), con `CHATWOOT_HUB_TOKEN`; solo links de ese Chatwoot. Sin el token, `{ "disponible": false, "adjuntos": [], "motivo": "…" }`. Si Chatwoot falla o no deja leer, 502 con el motivo.
+
 ## Revisar respuestas reales: `GET /api/hub/revisar` (desde el 15/11)
 
 `{ "pendientes": [{ "mensaje", "conversacion", "fecha", "texto", "antes": [{ "rol", "texto", "fecha" }], "nombre", "linea_nombre", "proyecto", "borrador" }], "malas": [{ "mensaje", "conversacion", "texto", "nota", "creado", "creado_por" }], "revisadas_7_dias": { "buenas": 3, "malas": 1 } }`. Las pendientes son las respuestas del asistente de los últimos 7 días que nadie revisó (hasta 30). `borrador` es el ejemplo que se propone, sin el nombre ni los números de la persona ([`revisar.md`](revisar.md)).
