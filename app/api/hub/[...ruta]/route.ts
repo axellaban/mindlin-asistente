@@ -6,6 +6,7 @@ import { enlacesChatwoot, manejarHub } from "@/lib/hub/api";
 import { chequear, datos } from "@/lib/panel/servidor";
 import { conexionesDesdeEnv } from "@/lib/servicios";
 import { responderDesdeElHub } from "@/lib/agente/servicio";
+import { lectorDeAdjuntos } from "@/lib/chatwoot/adjuntos";
 
 export const dynamic = "force-dynamic";
 // «Probar» es un pedido a la IA (con herramientas puede llevar más de una vuelta, y un flujo, varias).
@@ -35,6 +36,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       chequear: () => chequear(),
       enlaceChatwoot: enlacesChatwoot(process.env),
       contactosCRM: crm ? () => crm.contactos() : null,
+      adjuntos: lectorDeAdjuntos(process.env),
       responder: almacen && chatwoot ? (conversacion, texto, por) => responderDesdeElHub({ almacen, chatwoot }, conversacion, texto, por) : null,
     },
   );

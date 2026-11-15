@@ -505,6 +505,18 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("POST", "revisar/10004", { veredicto: "regular" })).status).toBe(400);
     expect((await hub("POST", "revisar/10004", { veredicto: "buena", titulo: "", conversacion: "x" })).status).toBe(400);
   });
+
+  it("adjuntos: sin el token del usuario «Hub» lo dice; con él, los de la conversación; si Chatwoot falla, 502", async () => {
+    const a = crearAlmacen(pool);
+    await a.guardarConversacion({ chatwoot_id: 1101, nombre: "Ana Prueba", linea: "linea-3" });
+    deps = { ...deps, adjuntos: null };
+    expect((await hub("GET", "adjuntos/1101")).json).toMatchObject({ disponible: false, adjuntos: [], motivo: expect.stringMatching(/CHATWOOT_HUB_TOKEN/) });
+    deps = { ...deps, adjuntos: async (c) => [{ mensaje: 5, tipo: "foto", url: `https://chat.ejemplo.test/${c}.jpg`, miniatura: null }] };
+    expect((await hub("GET", "adjuntos/1101")).json).toEqual({ disponible: true, adjuntos: [{ mensaje: 5, tipo: "foto", url: "https://chat.ejemplo.test/1101.jpg", miniatura: null }] });
+    expect((await hub("GET", "adjuntos/999999")).status).toBe(404);
+    deps = { ...deps, adjuntos: async () => { throw new Error("Chatwoot respondió 500 al leer los mensajes."); } };
+    expect(await hub("GET", "adjuntos/1101")).toEqual({ status: 502, json: { error: "Chatwoot respondió 500 al leer los mensajes." } });
+  });
 });
 
 const MIGRAR_EN_ESQUEMA = `
