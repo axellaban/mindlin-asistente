@@ -415,6 +415,43 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("GET", "resultados")).json).toMatchObject({ crm: false, error: "No se pudo leer el CRM: cuota de Google" });
     expect((await hub("POST", "resultados")).status).toBe(405);
   });
+
+  it("corridas: quiénes están adentro de un flujo y en qué paso; sacar a una persona o reiniciarla (lo retoma el cron)", async () => {
+    const a = crearAlmacen(pool);
+    const viejos = [{ tipo: "mensaje", texto: "Hola", archivo: null }, { tipo: "esperar", horas: 24, si_responde: [{ tipo: "seguir_ia" }], si_no: [{ tipo: "fin" }] }];
+    const { rows } = await pool.query("insert into flujos (linea, nombre, activo, pasos) values ('linea-4', 'Para sacar', false, $1) returning id", [JSON.stringify(viejos)]);
+    const flujo = Number(rows[0].id);
+    const ahora = new Date().toISOString();
+    await a.guardarConversacion({ chatwoot_id: 801, nombre: "Ana Prueba", telefono: "5491177770001", linea: "linea-4" });
+    const c = await a.iniciarCorrida({ conversacion: 801, linea: "linea-4", flujo, nombre: "Para sacar", pasos: viejos as never, ahora });
+    await a.guardarCorrida(c!.id, { estado: "esperando", posicion: "1", espera_desde: ahora, vence: new Date(Date.now() + 86_400_000).toISOString() }, ahora);
+
+    const lista = await hub("GET", "corridas");
+    expect((lista.json.corridas as { id: number }[]).find((x) => x.id === c!.id)).toMatchObject({ flujo, nombre_flujo: "Para sacar", conversacion: 801, nombre: "Ana Prueba", estado: "esperando", paso: "Paso 2: Esperar respuesta" });
+
+    // Sacarla: termina, desde ahí conversa la IA, y queda en el registro.
+    const sacar = await hub("PATCH", `corridas/${c!.id}`, { accion: "sacar" }, { usuario: "Mati" });
+    expect(sacar.json.hecho).toMatch(/^La sacaste del flujo/);
+    expect(await a.ultimaCorrida(801)).toMatchObject({ estado: "terminado", resultado: "cancelado" });
+    expect((await pool.query("select detalle from registro where conversacion = 801 order by id desc limit 1")).rows[0].detalle).toBe("Mati la sacó del flujo «Para sacar» desde el hub: desde ahora conversa la IA.");
+    expect((await hub("PATCH", `corridas/${c!.id}`, { accion: "sacar" })).status).toBe(404);
+
+    // Reiniciarla: vuelve al primer paso con los pasos de hoy del flujo; la retoma el cron.
+    const nuevos = [{ tipo: "mensaje", texto: "Hola de nuevo", archivo: null }, { tipo: "fin" }];
+    await pool.query("update flujos set pasos = $2 where id = $1", [flujo, JSON.stringify(nuevos)]);
+    const reiniciar = await hub("PATCH", `corridas/${c!.id}`, { accion: "reiniciar" });
+    expect(reiniciar.json.hecho).toMatch(/^Reiniciado/);
+    expect(await a.corridaViva(801)).toMatchObject({ estado: "en_curso", posicion: "0", pasos: nuevos });
+    expect((await a.corridasParaRetomar(new Date().toISOString())).map((x) => x.id)).toContain(c!.id);
+
+    // Con otro flujo vivo en la misma conversación, no se puede reiniciar el viejo.
+    await a.cancelarCorridas(801);
+    await a.iniciarCorrida({ conversacion: 801, linea: "linea-4", flujo, nombre: "Otro", pasos: nuevos as never, ahora });
+    expect((await hub("PATCH", `corridas/${c!.id}`, { accion: "reiniciar" })).status).toBe(409);
+    expect((await hub("PATCH", "corridas/999999", { accion: "reiniciar" })).status).toBe(404);
+    expect((await hub("PATCH", `corridas/${c!.id}`, { accion: "otra" })).status).toBe(400);
+    expect((await hub("POST", "corridas")).status).toBe(405);
+  });
 });
 
 const MIGRAR_EN_ESQUEMA = `

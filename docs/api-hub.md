@@ -175,6 +175,17 @@ Para cada flujo y cada versión de seguimiento de los últimos 90 días, a cuán
 
 Lee la planilla del CRM entera: pedirlo cuando se abre la pantalla, no a cada rato. Sin CRM, o si no responde, `crm: false` y `error` con el motivo.
 
+## Quiénes van en un flujo: `GET /api/hub/corridas` (desde el 15/11)
+
+Las personas que están adentro de un flujo ahora (en curso o esperando la respuesta), la más nueva primero: `{ "corridas": [{ "id": 12, "flujo": 3, "nombre_flujo": "Presentación", "conversacion": 501, "linea": "linea-3", "nombre": "Ana", "telefono": "549…", "estado": "esperando", "paso": "Paso 4: Esperar respuesta", "vence": "…", "inicio": "…" }] }`.
+
+| Qué | Pedido | Cuerpo |
+| --- | --- | --- |
+| Sacarla del flujo (desde ahí conversa la IA) | `PATCH /api/hub/corridas/{id}` | `{ "accion": "sacar" }` |
+| Reiniciarle el flujo, con los pasos de hoy | `PATCH /api/hub/corridas/{id}` | `{ "accion": "reiniciar" }` |
+
+Reiniciar no manda nada en el momento: la corrida vuelve al primer paso y la retoma el cron, en su horario y con su tope. Si esa conversación ya tiene otro flujo en marcha, contesta 409. Cada acción queda en el registro con quién la hizo.
+
 ## Lo que la API no hace (todavía)
 
 - No manda mensajes: para responder, Chatwoot (es la fase 3 de las conversaciones en el hub).

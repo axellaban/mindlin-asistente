@@ -263,6 +263,28 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
         };
       }
 
+      case "corridas": {
+        // Quiénes están adentro de un flujo ahora, y sacar o reiniciar a una persona (mejora 5).
+        const listo = async (extra: Objeto = {}) => ({ status: 200, json: { ...extra, corridas: await datos.corridasVivas() } });
+        if (metodo === "GET" && !id) return listo();
+        const n = idDe(id);
+        if (metodo !== "PATCH" || !n) return noSePuede();
+        if (cuerpo.accion === "sacar") {
+          if (!(await datos.sacarCorrida(n, por))) return error(404, "Esa persona ya no está en el flujo.");
+          return listo({ hecho: "La sacaste del flujo: desde ahora conversa la IA." });
+        }
+        if (cuerpo.accion === "reiniciar") {
+          try {
+            if (!(await datos.reiniciarCorrida(n, por))) return error(404, "No se encontró esa corrida del flujo.");
+          } catch (e) {
+            if (!repetido(e)) throw e;
+            return error(409, "Esa conversación ya tiene otro flujo en marcha: sacala de ese antes.");
+          }
+          return listo({ hecho: "Reiniciado: el flujo vuelve a empezar en la próxima corrida (todos los días a las 10)." });
+        }
+        return error(400, "Mandá «accion»: «sacar» o «reiniciar».");
+      }
+
       case "campanias": {
         // De qué campaña viene cada lead (lib/campanias.ts): alta, cambio y baja.
         const listo = async (status = 200, extra: Objeto = {}) => ({ status, json: { ...extra, campanias: await datos.campanias() } });
