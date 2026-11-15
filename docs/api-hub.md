@@ -131,7 +131,20 @@ Prueba de verdad cada pieza (no solo que las variables existan): Chatwoot con el
 
 ## Números: `GET /api/hub/resumen` (o `/resumen/{línea}`)
 
-Con una línea (`/resumen/linea-3`), solo lo de las conversaciones de esa línea. `{ "ultimos_7_dias": { "conversaciones": 12, "respuesta": 40, "paso_a_persona": 5, "la_tomo_una_persona": 2, "seguimiento": 8, "error": 0, … }, "registro": [{ "fecha": "…", "conversacion": 7, "tipo": "respuesta", "detalle": "…" }] }`. Lo mismo que muestra el Resumen del panel.
+Con una línea (`/resumen/linea-3`), solo lo de las conversaciones de esa línea. `{ "ultimos_7_dias": { "conversaciones": 12, "respuesta": 40, "paso_a_persona": 5, "la_tomo_una_persona": 2, "seguimiento": 8, "error": 0, … }, "registro": [{ "fecha": "…", "conversacion": 7, "tipo": "respuesta", "detalle": "…" }], "por_campania_30_dias": [{ "campania": "Meta Lerma nov", "conversaciones": 9 }, { "campania": null, "conversaciones": 3 }] }`. Lo mismo que muestra el Resumen del panel; `por_campania_30_dias` cuenta las conversaciones que empezaron en los últimos 30 días, por campaña (`null`: sin campaña).
+
+## Campañas (desde el 15/11)
+
+De qué campaña viene cada lead ([`campanias.md`](campanias.md)). Vienen en `config` (`campanias`, también las apagadas, con `conversaciones_30_dias`) y los límites en `opciones.limites_campania`.
+
+| Qué | Pedido | Cuerpo |
+| --- | --- | --- |
+| Una campaña nueva | `POST /api/hub/campanias` | `{ "nombre": "Meta Lerma nov", "frases": ["Quiero más información sobre Lerma"] o "una\notra", "linea": "linea-3" o null (todas), "activa": true }` |
+| Cambiarla (solo lo que viene) | `PUT /api/hub/campanias/{id}` | Lo mismo, solo lo que cambia. |
+| Borrarla | `DELETE /api/hub/campanias/{id}` | Las conversaciones que ya la tienen la conservan. |
+| La campaña de la línea | `PUT /api/hub/lineas/{id}` | `{ "campania": "Meta MdP" }` (vacío: ninguna). |
+
+Cada respuesta trae la lista actualizada (`campanias`). Cada conversación de `GET /conversaciones` trae su `campania`.
 
 ## Conversaciones (desde el 15/11)
 

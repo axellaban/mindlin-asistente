@@ -338,6 +338,49 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     expect((await hub("POST", "contacto", {})).status).toBe(400);
     expect((await hub("GET", "contacto")).status).toBe(405);
   });
+
+  it("campañas: alta, cambio y baja; la campaña de una línea; de dónde vinieron las conversaciones", async () => {
+    const alta = await hub("POST", "campanias", { nombre: "Meta Lerma nov", frases: "Quiero más información sobre Lerma\nVi el anuncio de Lerma" }, { usuario: "Mati" });
+    expect(alta.status).toBe(201);
+    const id = alta.json.id as number;
+    expect(alta.json.campanias).toEqual([expect.objectContaining({ id, nombre: "Meta Lerma nov", linea: null, frases: ["Quiero más información sobre Lerma", "Vi el anuncio de Lerma"], activa: true, actualizado_por: "Mati" })]);
+    // El asistente la usa enseguida.
+    expect((await crearAlmacen(pool).campanias()).map((c) => c.nombre)).toEqual(["Meta Lerma nov"]);
+    // Solo cambia lo que viene.
+    const cambio = await hub("PUT", `campanias/${id}`, { linea: "linea-3", activa: false });
+    expect((cambio.json.campanias as { linea: string; activa: boolean; frases: string[] }[])[0]).toMatchObject({ linea: "linea-3", activa: false, frases: ["Quiero más información sobre Lerma", "Vi el anuncio de Lerma"] });
+    expect(await crearAlmacen(pool).campanias()).toEqual([]);
+    // Lo que no se puede.
+    expect((await hub("POST", "campanias", { nombre: "" })).status).toBe(400);
+    expect((await hub("POST", "campanias", { nombre: "X", frases: ["hol"] })).status).toBe(400);
+    expect((await hub("PUT", `campanias/${id}`, { linea: "linea-9" })).status).toBe(400);
+    expect((await hub("PUT", "campanias/999", { nombre: "X" })).status).toBe(404);
+    // En la configuración, con las opciones.
+    const config = await hub("GET", "config");
+    expect((config.json.campanias as unknown[]).length).toBe(1);
+    expect((config.json.opciones as { limites_campania: { nombre: number } }).limites_campania.nombre).toBe(30);
+
+    // La campaña de la línea (y el panel no la borra si no la manda: se cambia solo lo que viene).
+    const linea = await hub("PUT", "lineas/linea-4", { campania: " Meta  MdP " });
+    expect(linea.json.linea).toMatchObject({ campania: "Meta MdP" });
+    expect((await hub("PUT", "lineas/linea-4", { instrucciones: "De la campaña de Mar del Plata." })).json.linea).toMatchObject({ campania: "Meta MdP" });
+    expect((await hub("PUT", "lineas/linea-4", { campania: "x".repeat(31) })).status).toBe(400);
+
+    // De dónde vinieron las conversaciones nuevas: por campaña, y en cada conversación.
+    const a = crearAlmacen(pool);
+    await a.guardarConversacion({ chatwoot_id: 601, linea: "linea-4", campania: "Meta MdP", campania_por: "linea" });
+    await a.guardarMensaje({ id: 9101, conversacion: 601, rol: "interesado", texto: "Hola", fecha: new Date().toISOString() });
+    const resumen = await hub("GET", "resumen/linea-4");
+    // La de Beto (de la prueba de arriba) es de la línea 4 y no tiene campaña: va al final, como «sin campaña».
+    expect(resumen.json.por_campania_30_dias).toEqual([
+      { campania: "Meta MdP", conversaciones: 1 },
+      { campania: null, conversaciones: 1 },
+    ]);
+    const conversaciones = (await hub("GET", "conversaciones/linea-4")).json.conversaciones as { chatwoot_id: number; campania: string }[];
+    expect(conversaciones.find((c) => c.chatwoot_id === 601)?.campania).toBe("Meta MdP");
+
+    expect((await hub("DELETE", `campanias/${id}`)).json.campanias).toEqual([]);
+  });
 });
 
 const MIGRAR_EN_ESQUEMA = `

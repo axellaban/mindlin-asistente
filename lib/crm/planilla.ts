@@ -117,6 +117,8 @@ export interface DatosInteresado {
   formaDePago: string;
   plazo: string;
   notas: string;
+  /** Etiquetas para la columna Tags (por ejemplo, «Campaña: Meta Lerma»). */
+  tags?: string[];
 }
 
 export interface CRM {
@@ -190,6 +192,7 @@ export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string,
   poner("Ambientes", d.ambientes);
   poner("Notas", ["Entró por WhatsApp (asistente).", d.notas].filter(Boolean).join(" "));
   poner("Responsable", responsable);
+  poner("Tags", (d.tags ?? []).join(", "));
   poner("Creado", ahora);
   poner("Actualizado", ahora);
   poner("Entró a la etapa", ahora);

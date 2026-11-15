@@ -1,3 +1,4 @@
+import type { Campania, CampaniaPor } from "../campanias";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
 import type { HorarioEquipo } from "../agente/horario";
@@ -77,6 +78,9 @@ export interface Conversacion {
   linea?: string | null;
   /** La bandeja de Chatwoot por la que entró. */
   bandeja?: number | null;
+  /** De qué campaña viene (lib/campanias.ts): se decide con el primer mensaje y no cambia. */
+  campania?: string | null;
+  campania_por?: CampaniaPor | null;
 }
 
 /** «Si queda en tal etapa y pasan tantos días sin respuesta, mandar este mensaje», con versiones. */
@@ -197,6 +201,8 @@ export interface Almacen {
   lineas(): Promise<Linea[]>;
   /** Los flujos activos de una línea (uno general y uno por proyecto, como mucho). */
   flujosActivos(linea: string): Promise<FlujoActivo[]>;
+  /** Las campañas activas, para reconocer de cuál viene cada lead (lib/campanias.ts). */
+  campanias(): Promise<Campania[]>;
   archivo(id: number): Promise<Archivo | null>;
   /** La corrida que está en marcha o esperando en esta conversación (hay una sola a la vez). */
   corridaViva(conversacion: number): Promise<Corrida | null>;

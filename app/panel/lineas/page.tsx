@@ -79,6 +79,10 @@ export default async function Lineas({ searchParams }: { searchParams: Avisos })
                 </>
               )}
               {l.tipo !== "entrada" && <input type="hidden" name="instrucciones" value={l.instrucciones} />}
+              <label htmlFor={`campania-${l.id}`}>
+                Campaña de esta línea <small>Si el primer mensaje no coincide con ninguna campaña, el lead queda con esta (por ejemplo, «Meta MdP»). Vacío: ninguna. Las campañas con frases se cargan en el hub.</small>
+              </label>
+              <input id={`campania-${l.id}`} name="campania" type="text" maxLength={30} defaultValue={l.campania} />
               <label className="casilla">
                 <input type="checkbox" name="pausada" defaultChecked={l.pausada} /> Pausada: cada conversación nueva de esta línea pasa al equipo y no salen seguimientos ni flujos
               </label>

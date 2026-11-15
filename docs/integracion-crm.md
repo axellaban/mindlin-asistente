@@ -25,11 +25,12 @@ Las etapas que entiende son las del hub de noviembre de 2026: Nuevo, Contacto in
 
 ### Qué escribe
 
-**Nunca borra ni cambia los datos que cargó una persona.** Agrega filas y, de un contacto que ya existe, lo único que cambia es la **etapa** (ver abajo).
+**Nunca borra ni cambia los datos que cargó una persona.** Agrega filas y, de un contacto que ya existe, lo único que cambia es la **etapa** (ver abajo). Desde el 15/11, al contacto nuevo le pone en Tags la etiqueta «Campaña: …» si se sabe de qué campaña viene ([`campanias.md`](campanias.md)); al que ya estaba, no le toca las etiquetas.
 
 - **Un contacto nuevo** en «CRM Contactos», si la persona no estaba: ID, proyecto, nombre (o «WhatsApp +54…» si no lo dijo), teléfono, tipo «Beneficiario al costo», origen **WhatsApp**, etapa **Contacto inicial** (la del «primer contacto» en las etapas automáticas; sin reglas, **Nuevo**), presupuesto, forma de pago, plazo, para qué busca, ambientes, notas («Entró por WhatsApp (asistente).» y el resumen), responsable (`CRM_RESPONSABLE`, si está) y las fechas. Las opciones son las mismas listas del hub: si la IA entiende algo que no es una opción, deja la celda vacía.
 - **Actividad** en «CRM Actividad», tipo WhatsApp y usuario «Asistente WhatsApp»:
-  - el alta («Alta por WhatsApp…»);
+  - el alta («Alta por WhatsApp…», con la línea y la campaña);
+  - si un contacto que ya estaba escribe por una conversación nueva con campaña, «Escribió por WhatsApp (línea …, campaña …)»;
   - cada dato nuevo que cuenta la persona, si ya era contacto (solo lo que cambió: lo que ya estaba anotado no se repite);
   - cuando pasa la conversación al equipo, con el motivo y el resumen;
   - cada seguimiento automático.

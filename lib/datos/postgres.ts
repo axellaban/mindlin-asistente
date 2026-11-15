@@ -52,7 +52,7 @@ const mensajeDeFila = (f: FilaMensaje): MensajeHistorial => ({
   fecha: new Date(f.fecha).toISOString(),
 });
 
-const CAMPOS_CONVERSACION = ["proyecto", "crm_contacto_id", "telefono", "nombre", "interesado", "linea", "bandeja"] as const;
+const CAMPOS_CONVERSACION = ["proyecto", "crm_contacto_id", "telefono", "nombre", "interesado", "linea", "bandeja", "campania", "campania_por"] as const;
 
 const iso = (f: Date | string | null | undefined) => (f ? new Date(f).toISOString() : null);
 
@@ -73,9 +73,10 @@ export const lineaDeFila = (r: Fila): Linea => ({
   pasar_al_responder: r.pasar_al_responder === true,
   instrucciones: r.instrucciones ?? "",
   proyectos: r.proyectos ?? [],
+  campania: r.campania ?? "",
 });
 
-export const COLUMNAS_LINEA = "id, orden, nombre, tipo, descripcion, telefono, bandeja, por_defecto, pausada, pasar_al_responder, instrucciones, proyectos";
+export const COLUMNAS_LINEA = "id, orden, nombre, tipo, descripcion, telefono, bandeja, por_defecto, pausada, pasar_al_responder, instrucciones, proyectos, campania";
 
 export const corridaDeFila = (r: Fila): Corrida => ({
   id: Number(r.id),
@@ -140,7 +141,7 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       return rowCount === 1;
     },
     async conversacion(id) {
-      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento, linea, bandeja from conversaciones where chatwoot_id = $1", [id]);
+      const { rows } = await db.query("select chatwoot_id, proyecto, crm_contacto_id, telefono, nombre, interesado, ultimo_seguimiento, linea, bandeja, campania, campania_por from conversaciones where chatwoot_id = $1", [id]);
       const r = rows[0];
       return r
         ? ({ ...r, chatwoot_id: Number(r.chatwoot_id), bandeja: r.bandeja == null ? null : Number(r.bandeja), ultimo_seguimiento: r.ultimo_seguimiento ? new Date(r.ultimo_seguimiento).toISOString() : null } as Conversacion)
@@ -246,6 +247,10 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
     async lineas() {
       const { rows } = await db.query(`select ${COLUMNAS_LINEA} from lineas order by orden`);
       return rows.map(lineaDeFila);
+    },
+    async campanias() {
+      const { rows } = await db.query("select id, nombre, linea, frases, activa from campanias where activa order by id");
+      return rows.map((r) => ({ id: Number(r.id), nombre: r.nombre, linea: r.linea ?? null, frases: r.frases ?? [], activa: r.activa === true }));
     },
     async flujosActivos(linea) {
       const { rows } = await db.query("select id, nombre, proyecto, pasos from flujos where linea = $1 and activo order by proyecto nulls last, id", [linea]);
