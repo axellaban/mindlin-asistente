@@ -25,6 +25,7 @@ Ejemplo: Nuevo, paso 1, 2 días: «Hola {{nombre}}, ¿pudiste ver lo de {{proyec
 - Solo a quien ya escribió, y solo si lo último lo dijimos nosotros.
 - De 9 a 20, hora de Buenos Aires.
 - Como mucho 20 por corrida (una por día): WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. Si un día quedan más de 20 en condiciones, el resto sale en la corrida siguiente.
+- **Espaciados** (idea traída de DeskcommCRM, 15/11; `lib/seguimientos/espaciar.ts`): entre un seguimiento y el siguiente pasan entre 4 y 9 segundos al azar, como si los mandara una persona. Mandar 20 en el mismo segundo desde el mismo número es lo que WhatsApp ve como envío masivo. Los flujos que retoma la corrida también arrancan escalonados: unos segundos uno después del otro, todos dentro del primer minuto y medio. La corrida no manda seguimientos después de los 4 minutos (la función de Vercel corta a los 5): los que no entran quedan para la corrida siguiente y se cuentan como `postergados`.
 - Si la persona responde, frena: la atiende el bot y, si vuelve a quedar callada, los pasos empiezan de nuevo.
 - Si pidió que no le escriban más (o la IA marcó «no le interesa»), no le sale ninguno más, aunque vuelva a escribir: ver [`baja.md`](baja.md).
 - **Si una persona del equipo tomó la conversación** (escribió, o el bot se la pasó), no lleva más seguimientos automáticos.
