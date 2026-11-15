@@ -196,6 +196,18 @@ Con `{ "texto": "Hola Ana, soy Mati…" }` y el encabezado `X-Hub-Usuario` (qui�
 
 Devuelve `{ "mensaje": { "id", "conversacion", "rol": "persona", "texto", "fecha" } }`. En la base queda como del equipo. Solo texto, hasta 4000 letras. 404 si la conversación no existe; 503 si falta Chatwoot o la base en Vercel. Para devolvérsela al asistente, como siempre: «Pendiente» en Chatwoot.
 
+## Revisar respuestas reales: `GET /api/hub/revisar` (desde el 15/11)
+
+`{ "pendientes": [{ "mensaje", "conversacion", "fecha", "texto", "antes": [{ "rol", "texto", "fecha" }], "nombre", "linea_nombre", "proyecto", "borrador" }], "malas": [{ "mensaje", "conversacion", "texto", "nota", "creado", "creado_por" }], "revisadas_7_dias": { "buenas": 3, "malas": 1 } }`. Las pendientes son las respuestas del asistente de los últimos 7 días que nadie revisó (hasta 30). `borrador` es el ejemplo que se propone, sin el nombre ni los números de la persona ([`revisar.md`](revisar.md)).
+
+| Qué | Pedido | Cuerpo |
+| --- | --- | --- |
+| Buena, guardada como ejemplo | `POST /api/hub/revisar/{mensaje}` | `{ "veredicto": "buena", "titulo": "…", "conversacion": "el ejemplo, corregido" }` |
+| Buena, sin ejemplo | `POST /api/hub/revisar/{mensaje}` | `{ "veredicto": "buena" }` |
+| Mala | `POST /api/hub/revisar/{mensaje}` | `{ "veredicto": "mala", "nota": "qué corregir" }` (la nota es obligatoria) |
+
+Cada respuesta trae la lista actualizada y `hecho`. 404 si el mensaje no es una respuesta del asistente.
+
 ## Lo que la API no hace (todavía)
 
 - No manda archivos: fotos, audios y PDF se mandan desde Chatwoot.

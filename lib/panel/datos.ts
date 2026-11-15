@@ -7,6 +7,7 @@ import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { Campania } from "../campanias";
 import type { LeadDeResultado } from "../resultados";
+import { borradorDeEjemplo, type Veredicto } from "../revisiones";
 import { TIPOS_DEL_EQUIPO, type Anotado, type Ejemplo, type ReglaSeguimiento, type Tono, type TipoRegistro } from "../datos/tipos";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import { EVENTOS, type Evento } from "../etapas/reglas";
@@ -112,6 +113,31 @@ export interface CorridaPanel {
   /** Hasta cuándo espera la respuesta (si está esperando). */
   vence: string | null;
   inicio: string;
+}
+
+/** Una respuesta del asistente para revisar (mejora 7), con lo que venía antes en la charla. */
+export interface RespuestaParaRevisar {
+  mensaje: number;
+  conversacion: number;
+  fecha: string;
+  texto: string;
+  /** Hasta 4 mensajes de antes, del más viejo al más nuevo. */
+  antes: { rol: MensajeHistorial["rol"]; texto: string; fecha: string }[];
+  nombre: string | null;
+  linea_nombre: string | null;
+  proyecto: string | null;
+  /** El ejemplo que se propone si es buena (sin el nombre ni los números de la persona). */
+  borrador: string;
+}
+
+/** Una respuesta que alguien marcó como mala, con qué corregir. */
+export interface RespuestaMala {
+  mensaje: number;
+  conversacion: number;
+  texto: string;
+  nota: string;
+  creado: string;
+  creado_por: string | null;
 }
 
 /** Para buscar conversaciones: de una línea, o de un contacto del CRM (por su ID o su teléfono). */
@@ -670,6 +696,75 @@ export function datosPanel(db: Db) {
         flujos: f.rows.map((r) => ({ ...lead(r), flujo: Number(r.flujo) })),
         seguimientos: s.rows.map((r) => ({ ...lead(r), regla: Number(r.regla), version: Number(r.version) })),
       };
+    },
+
+    /** Las respuestas del asistente de los últimos `dias` que nadie revisó, la más nueva primero. */
+    async paraRevisar(dias = 7, limite = 30): Promise<RespuestaParaRevisar[]> {
+      const { rows } = await db.query(
+        `select m.id, m.conversacion, m.texto, m.fecha, c.nombre, l.nombre as linea_nombre, c.proyecto,
+                (select coalesce(json_agg(x order by x.fecha, x.id), '[]') from (
+                   select p.id, p.rol, p.texto, p.fecha from mensajes p
+                   where p.conversacion = m.conversacion and (p.fecha, p.id) < (m.fecha, m.id)
+                   order by p.fecha desc, p.id desc limit 4) x) as antes
+         from mensajes m
+         left join conversaciones c on c.chatwoot_id = m.conversacion
+         left join lineas l on l.id = c.linea
+         where m.rol = 'bot' and m.fecha > now() - make_interval(days => $1)
+           and not exists (select 1 from revisiones r where r.mensaje = m.id)
+         order by m.fecha desc, m.id desc
+         limit $2`,
+        [dias, limite],
+      );
+      return rows.map((r) => {
+        const antes = (r.antes ?? []).map((a: { rol: MensajeHistorial["rol"]; texto: string; fecha: string }) => ({ rol: a.rol, texto: a.texto, fecha: iso(a.fecha)! }));
+        return {
+          mensaje: Number(r.id),
+          conversacion: Number(r.conversacion),
+          fecha: iso(r.fecha)!,
+          texto: r.texto,
+          antes,
+          nombre: r.nombre ?? null,
+          linea_nombre: r.linea_nombre ?? null,
+          proyecto: r.proyecto ?? null,
+          borrador: borradorDeEjemplo(antes, r.texto, r.nombre ?? null),
+        };
+      });
+    },
+
+    /** Las que se marcaron como malas en los últimos `dias`, con qué corregir. */
+    async malas(dias = 30): Promise<RespuestaMala[]> {
+      const { rows } = await db.query(
+        `select r.mensaje, r.conversacion, m.texto, r.nota, r.creado, r.creado_por from revisiones r left join mensajes m on m.id = r.mensaje
+         where r.veredicto = 'mala' and r.creado > now() - make_interval(days => $1) order by r.creado desc limit 50`,
+        [dias],
+      );
+      return rows.map((r) => ({ mensaje: Number(r.mensaje), conversacion: Number(r.conversacion), texto: r.texto ?? "", nota: r.nota, creado: iso(r.creado)!, creado_por: r.creado_por ?? null }));
+    },
+
+    /** Cuántas se revisaron en los últimos `dias`. */
+    async revisadas(dias = 7): Promise<{ buenas: number; malas: number }> {
+      const { rows } = await db.query(
+        "select count(*) filter (where veredicto = 'buena')::int as buenas, count(*) filter (where veredicto = 'mala')::int as malas from revisiones where creado > now() - make_interval(days => $1)",
+        [dias],
+      );
+      return { buenas: Number(rows[0]?.buenas ?? 0), malas: Number(rows[0]?.malas ?? 0) };
+    },
+
+    /**
+     * Anota la revisión de una respuesta. Si es buena y viene el ejemplo, lo guarda en los ejemplos
+     * (activo: el asistente lo usa desde el próximo mensaje). False si ese mensaje no es del asistente.
+     */
+    async revisar(mensaje: number, r: { veredicto: Veredicto; nota: string; ejemplo: { titulo: string; conversacion: string } | null }, por: string): Promise<boolean> {
+      const { rows } = await db.query("select conversacion from mensajes where id = $1 and rol = 'bot'", [mensaje]);
+      if (!rows[0]) return false;
+      let ejemplo: number | null = null;
+      if (r.ejemplo) ejemplo = Number((await db.query("insert into ejemplos (titulo, conversacion) values ($1, $2) returning id", [r.ejemplo.titulo, r.ejemplo.conversacion])).rows[0].id);
+      await db.query(
+        `insert into revisiones (mensaje, conversacion, veredicto, nota, ejemplo, creado_por) values ($1, $2, $3, $4, $5, $6)
+         on conflict (mensaje) do update set veredicto = excluded.veredicto, nota = excluded.nota, ejemplo = coalesce(excluded.ejemplo, revisiones.ejemplo), creado = now(), creado_por = excluded.creado_por`,
+        [mensaje, rows[0].conversacion, r.veredicto, r.nota, ejemplo, por],
+      );
+      return true;
     },
 
     async conversacion(id: number): Promise<DetalleConversacion | null> {
