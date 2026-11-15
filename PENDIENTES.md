@@ -24,7 +24,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 **Líneas y flujos (15/11).** El asistente maneja las cuatro líneas que pidió Mindlin ([`docs/lineas.md`](docs/lineas.md)): 1 outreach frío, 2 equipo (facturas y outreach cálido), 3 y 4 leads entrantes. La 3 es la que ya andaba. Cada línea de leads se configura aparte: modo, instrucciones, proyectos, seguimientos y **flujos como los bots de Kommo** ([`docs/flujos.md`](docs/flujos.md)), que se arman en el hub con un editor de pasos.
 
 1. **Panel con Axel:** la QA en producción de las líneas y los flujos (tarea 12 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)). Después, cuando Axel tenga el chip o número de la línea 4, conectarla (tarea 11).
-2. **Claude:** la QA desde el código y, después, las conversaciones en el hub. Ver «Traspaso para la próxima sesión».
+2. **Claude:** hecho el 15/11: la QA desde el código y las mejoras 1 a 8 de Axel. Lo que queda para cada uno, en «Traspaso para la próxima sesión».
 3. **Mindlin:** armar en el hub el flujo de cada proyecto a partir de los modelos (los textos de Kommo) y probarlo en Probar. Los flujos arrancan apagados: se prenden de a uno.
 4. **Mindlin (pendiente de recibir):** qué tiene que tener el panel de **outreach frío** (línea 1). Hasta entonces la línea existe, pero el asistente no hace nada ahí.
 5. **Al final:** la línea 2, con lo que hoy hace el bot de Telegram (documento «Bot de Telegram: todo lo que hace», 14/11). Antes hay que decidir sus «Decisiones a tomar» (ver abajo).
@@ -96,20 +96,32 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 - [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. — Axel
 - [x] Probar el CRM con la planilla real (con la línea de prueba): el contacto quedó con proyecto `lerma-439`, origen WhatsApp y su etapa. Antes hubo que poner al día tres títulos de «CRM Contactos» (B decía «Proyecto» y faltaban «Hora próximo paso» y «Tags»); se cambiaron solo esas celdas de la fila 1, después de confirmar que el hub lee la planilla por posición. — Panel y Axel, 13/11
 
-## Traspaso para la próxima sesión (15/11, Claude)
+## Traspaso para la próxima sesión (15/11, Claude; al día al cierre)
 
-Las líneas y los flujos ya están en `main`: asistente #21 y hub matimindlin111/mindlinhub#86. Lo que sigue, en orden:
+**Hecho el 15/11:** la QA desde el código (hallazgos y arreglos en «QA de punta a punta», abajo) y las mejoras 1 a 8 de Axel, cada una con su PR en los dos repos (ver «Mejoras pedidas por Axel», al final). Lo que sigue, en orden:
 
-1. **QA en producción** (Panel con Axel): tarea 12 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md). Va primero porque desde una sesión de código no se llega a producción ni a WhatsApp.
-2. **QA desde el código** (la próxima IA de código):
-   - Recorrer las pantallas nuevas del hub (Comercial → Asistente de WhatsApp: tarjetas de líneas, Flujos, editor, Probar, Conexión) en la computadora y en el celular. Una forma: una página temporal sin sesión que muestre `<Asistente />`, con `page.route` de Playwright devolviendo datos inventados para `/api/comercial/asistente/**`. Las mismas formas de datos están en `components/asistente/Asistente.test.tsx`.
-   - En el asistente: `/panel/lineas` con Postgres local.
-   - Revisar el código mergeado (`lib/flujos/`, `lib/agente/charla.ts`, `lib/webhook.ts`, la migración `202611150011`) y anotar acá lo que salga, con dueño.
-   - Todo lo de la lista «QA de punta a punta», de abajo.
-3. **Conversaciones en el hub:** sección 12 de [`docs/arquitectura.md`](docs/arquitectura.md) y la lista «Conversaciones en el hub», más abajo. Se hace después de la QA.
-4. **Esperan a Mindlin:** el panel de outreach frío (línea 1) y las decisiones de la línea 2 (bot de Telegram).
+1. **Panel con Axel** ([`IA_DE_PANELES.md`](IA_DE_PANELES.md)), en este orden:
+   - tarea 12, la QA en producción (incluye probar «Pendiente»);
+   - tarea 13, `HUB_URL` para los avisos;
+   - tarea 14, el usuario «Hub» de Chatwoot para ver fotos y audios;
+   - después, la tarea 11 (la línea 4, con el chip).
+2. **Axel decide:**
+   - si el CRM del hub está en base de datos: el riesgo está en «Conexión con el CRM», y es lo más importante;
+   - con qué IA responde (mejora 9);
+   - Vercel Pro o un servicio externo para las esperas (mejora 10);
+   - a quién le llegan los avisos de leads sin responsable;
+   - activar los seguimientos.
+3. **Mindlin:**
+   - pasar sus campañas y el texto del primer mensaje de cada anuncio;
+   - armar los flujos de cada proyecto;
+   - revisar las respuestas una vez por semana (solapa Revisar);
+   - lo de outreach frío (línea 1) y la línea 2.
+4. **La próxima IA de código:**
+   - lo que salga de la tarea 12;
+   - si el CRM del hub está en la base, que el asistente escriba por la API del hub;
+   - la línea 2 cuando estén sus decisiones.
 
-Para trabajar: ramas `claude/…` y PR, `npm run verificar` antes del PR y Postgres local para las pruebas (`PRUEBA_DATABASE_URL`). Las ramas `claude/modest-bardeen-xcg21w` de los dos repos ya están mergeadas: si se reusan, hay que arrancarlas de nuevo desde `main`.
+Para trabajar: ramas `claude/…` y PR, `npm run verificar` antes del PR y Postgres local para las pruebas (`PRUEBA_DATABASE_URL`). Para ver las pantallas del hub sin sesión: una página temporal en `app/t/…` (queda fuera del login) que muestre `<Asistente />`, con `page.route` de Playwright mandando los pedidos al asistente en local. No se sube.
 
 ## QA de punta a punta (después del merge de las líneas y los flujos)
 
@@ -289,6 +301,11 @@ Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: C
 5. [x] **Ver en qué paso del flujo va cada persona, y sacarla o reiniciarla a mano** desde el hub (Flujos → «Quiénes van»). Hecho el 15/11 ([#30](https://github.com/axellaban/mindlin-asistente/pull/30) y matimindlin111/mindlinhub#93).
 6. [x] **Responder desde el hub.** Desde la ficha del lead, el texto sale por Chatwoot y el asistente se corre. Hecho el 15/11 ([#31](https://github.com/axellaban/mindlin-asistente/pull/31) y matimindlin111/mindlinhub#94). Solo texto: los archivos, desde Chatwoot.
 7. [x] **Revisar respuestas reales todas las semanas.** Hecho el 15/11 ([#32](https://github.com/axellaban/mindlin-asistente/pull/32) y matimindlin111/mindlinhub#95, [`docs/revisar.md`](docs/revisar.md)). Falta que **Mindlin** lo use una vez por semana (Asistente de WhatsApp → Revisar). En el hub, una lista de las respuestas del asistente para marcar las buenas (pasan a ejemplos) y las malas (con qué corregir en el tono o la ficha). Lo usa Mindlin.
-8. [ ] **Fotos y audios del lead adentro del hub.** Es la fase 2 de las conversaciones: se le piden a Chatwoot en el momento con un usuario «Hub». Hace falta un token nuevo en Vercel (Panel). (15/11: el asistente ya los lee, `GET /adjuntos`; falta mostrarlos en el hub y la tarea 14 de Panel.)
+8. [x] **Fotos y audios del lead adentro del hub.** Hecho el 15/11 ([#33](https://github.com/axellaban/mindlin-asistente/pull/33) y matimindlin111/mindlinhub#96): se ven en Conversaciones y en el chat del lead del CRM, directo desde Chatwoot. Para prenderlo, **Panel crea el usuario «Hub»** (tarea 14 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)).
 9. [ ] **Una sola IA.** Elegir Claude u OpenAI y dejarla fija en Vercel. Hoy responde OpenAI, por la prueba. — Axel
+   - No hace falta código: se elige con `ASISTENTE_PROVEEDOR` (`anthropic` u `openai`) en Vercel y se vuelve a publicar. La otra clave se puede dejar (OpenAI igual hace falta para transcribir los audios). Antes de dejarla fija, conviene probar la elegida en la pestaña Probar del hub con las conversaciones difíciles de la QA. Ver [`docs/asistente.md`](docs/asistente.md).
 10. [ ] **Esperas de los flujos a la hora justa** (al final, porque depende de si Mindlin pasa a Vercel Pro). Con Pro, el cron puede volver a correr cada 15 minutos (`CORRIDA` en `lib/seguimientos/reglas.ts` y `vercel.json`). Sin Pro, un servicio externo gratuito que llame al cron. Mientras tanto, las esperas salen en la corrida de las 10 del día siguiente. — Axel decide
+   - **Cuando decida, lo que cambia (Claude):**
+     - **Con Pro:** el cron de `vercel.json` vuelve a `*/15 * * * *`.
+     - **Con un servicio externo:** el de `vercel.json` queda una vez por día, como respaldo, y un servicio como cron-job.org llama a `https://mindlin-asistente.vercel.app/api/cron/seguimientos` cada 15 minutos con el encabezado `Authorization: Bearer <CRON_SECRET>`. Así lo hace ya el hub con sus avisos.
+     - **En los dos casos:** `CORRIDA` (`lib/seguimientos/reglas.ts`) baja a 15 minutos. Si no, el margen de medio día haría salir las esperas y los seguimientos antes de tiempo. Hay una prueba que controla que `CORRIDA` y `vercel.json` coincidan: con el servicio externo, esa prueba se ajusta.
