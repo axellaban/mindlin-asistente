@@ -127,7 +127,7 @@ Mindlin pidió cuatro líneas de WhatsApp: 1 outreach frío, 2 la del equipo (fa
 - **Las esperas largas las retoma el cron** (con Hobby, una vez por día). Las pausas cortas corren en la misma función (hasta 120 segundos por tramo).
 - **El bot de Telegram (línea 2) va al final y el outreach frío (línea 1) espera lo que pase Mindlin.** La línea existe para que el ruteo ya sea el correcto.
 
-## 12. Ver las conversaciones desde el hub (decidido el 15/11, falta hacerlo)
+## 12. Ver las conversaciones desde el hub (decidido el 15/11; la API está desde el 15/11, ver `api-hub.md`)
 
 Axel pidió ver en el hub las conversaciones de cada línea con cada persona, sin cargar Vercel.
 

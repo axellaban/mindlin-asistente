@@ -225,6 +225,20 @@ export function siguiente(posicion: Posicion): Posicion {
   return partes.join(".");
 }
 
+/**
+ * Dónde va una corrida, para leerlo: «Paso 4: Mensaje» o «Paso 12 › Si no responde › paso 2:
+ * Mensaje». Si la posición no existe en estos pasos (el flujo cambió), «posición X». Puro.
+ */
+export function describirPosicion(pasos: Paso[], posicion: Posicion): string {
+  if (!ubicar(pasos, posicion)) return `posición ${posicion}`;
+  const partes = posicion.split(".");
+  const tramos: string[] = [];
+  for (let i = 0; i < partes.length - 1; i += 2) tramos.push(`${i === 0 ? "Paso" : "paso"} ${Number(partes[i]) + 1}`, partes[i + 1] === "si" ? "Si responde" : "Si no responde");
+  const paso = pasoEn(pasos, posicion);
+  const ultimo = `${tramos.length ? "paso" : "Paso"} ${Number(partes.at(-1)) + 1}: ${paso ? tituloPaso(paso.tipo) : "fin del camino"}`;
+  return [...tramos, ultimo].join(" › ");
+}
+
 /** El primer paso de un camino de una espera. */
 export const rama = (posicion: Posicion, camino: "si" | "no"): Posicion => `${posicion}.${camino}.0`;
 

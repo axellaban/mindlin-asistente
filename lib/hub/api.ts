@@ -62,7 +62,25 @@ export interface DependenciasHub {
   probar?: ((estado: unknown, texto: string, o: { linea: string | null; vencer: boolean }) => Promise<RespuestaPrueba>) | null;
   /** Probar las conexiones de verdad (lib/chequeo.ts). */
   chequear?: (() => Promise<Chequeo>) | null;
+  /** El link a una conversación en Chatwoot (con CHATWOOT_URL y CHATWOOT_ACCOUNT_ID). Null si falta. */
+  enlaceChatwoot?: ((conversacion: number) => string | null) | null;
 }
+
+/**
+ * El link a una conversación en Chatwoot, para «Abrir en Chatwoot» (las fotos, los audios y las
+ * notas internas no están en la base del asistente). Null si falta CHATWOOT_URL o la cuenta.
+ */
+export function enlacesChatwoot(env: Record<string, string | undefined>): ((conversacion: number) => string | null) | null {
+  const url = env.CHATWOOT_URL?.trim().replace(/\/+$/, "");
+  const cuenta = env.CHATWOOT_ACCOUNT_ID?.trim();
+  if (!url || !/^https?:\/\//.test(url) || !cuenta || !/^\d+$/.test(cuenta)) return null;
+  return (conversacion) => `${url}/app/accounts/${cuenta}/conversations/${conversacion}`;
+}
+
+/** Cuántos mensajes de cada conversación se mandan al hub (los más nuevos). */
+export const MENSAJES_POR_CONVERSACION = 300;
+/** Cuántas conversaciones de un mismo contacto (puede haber escrito por más de una línea). */
+const CONVERSACIONES_POR_CONTACTO = 5;
 
 export interface RespuestaHub {
   status: number;
@@ -169,6 +187,45 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
         if (id && !(await datos.linea(id))) return error(404, "Esa línea no existe.");
         const [ultimos7Dias, registro] = await Promise.all([datos.resumen(7, id ?? null), datos.registro({ limite: 50, linea: id ?? null })]);
         return { status: 200, json: { ultimos_7_dias: ultimos7Dias, registro } };
+      }
+
+      case "conversaciones": {
+        // /conversaciones: las más recientes de todas las líneas; /conversaciones/linea-3: solo esa.
+        if (metodo !== "GET") return noSePuede();
+        if (id && !(await datos.linea(id))) return error(404, "Esa línea no existe.");
+        const conversaciones = await datos.conversacionesHub({ linea: id ?? null });
+        return { status: 200, json: { conversaciones: conversaciones.map((c) => ({ ...c, enlace: d.enlaceChatwoot?.(c.chatwoot_id) ?? null })) } };
+      }
+
+      case "conversacion": {
+        // Una conversación entera: los mensajes, lo anotado, el flujo y lo que hizo el asistente.
+        if (metodo !== "GET") return noSePuede();
+        const n = idDe(id);
+        if (!n) return noSePuede();
+        const [detalle, [resumen], mensajes, registro] = await Promise.all([
+          datos.conversacion(n),
+          datos.conversacionesHub({ conversacion: n, limite: 1 }),
+          datos.mensajes(n, MENSAJES_POR_CONVERSACION),
+          datos.registro({ conversacion: n, limite: 30 }),
+        ]);
+        if (!detalle) return error(404, "Esa conversación no existe.");
+        return {
+          status: 200,
+          json: { conversacion: { ...(resumen ?? {}), ...detalle, enlace: d.enlaceChatwoot?.(n) ?? null }, mensajes, registro },
+        };
+      }
+
+      case "contacto": {
+        // Las conversaciones de un contacto del CRM, con sus mensajes: por su ID o por su teléfono.
+        // Es una lectura, pero va por POST: el teléfono no viaja en la dirección.
+        if (metodo !== "POST" || id) return noSePuede();
+        const contacto = { id: typeof cuerpo.id === "string" ? cuerpo.id : null, telefono: typeof cuerpo.telefono === "string" ? cuerpo.telefono : null };
+        if (!contacto.id && !contacto.telefono) return error(400, "Mandá el «id» del contacto del CRM o su «telefono».");
+        const conversaciones = await datos.conversacionesHub({ contacto, limite: CONVERSACIONES_POR_CONTACTO });
+        const conMensajes = await Promise.all(
+          conversaciones.map(async (c) => ({ ...c, enlace: d.enlaceChatwoot?.(c.chatwoot_id) ?? null, historial: await datos.mensajes(c.chatwoot_id, MENSAJES_POR_CONVERSACION) })),
+        );
+        return { status: 200, json: { conversaciones: conMensajes } };
       }
 
       case "lineas": {

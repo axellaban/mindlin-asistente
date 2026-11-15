@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { probarConAlmacen } from "@/lib/agente/prueba";
 import { describirIA } from "@/lib/agente/proveedor";
 import { estadoConfig } from "@/lib/config";
-import { manejarHub } from "@/lib/hub/api";
+import { enlacesChatwoot, manejarHub } from "@/lib/hub/api";
 import { chequear, datos } from "@/lib/panel/servidor";
 import { conexionesDesdeEnv } from "@/lib/servicios";
 
@@ -32,6 +32,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       ia: describirIA(process.env),
       probar: almacen && modelo ? (estado, texto, o) => probarConAlmacen(almacen, modelo, estado, texto, o) : null,
       chequear: () => chequear(),
+      enlaceChatwoot: enlacesChatwoot(process.env),
     },
   );
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });

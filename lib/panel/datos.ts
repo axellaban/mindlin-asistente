@@ -5,12 +5,13 @@
 
 import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
-import type { Anotado, Ejemplo, ReglaSeguimiento, Tono, TipoRegistro } from "../datos/tipos";
+import { TIPOS_DEL_EQUIPO, type Anotado, type Ejemplo, type ReglaSeguimiento, type Tono, type TipoRegistro } from "../datos/tipos";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import { EVENTOS, type Evento } from "../etapas/reglas";
 import { COLUMNAS_LINEA, lineaDeFila } from "../datos/postgres";
 import type { Linea } from "../lineas";
-import { archivosDe, type Paso } from "../flujos/modelo";
+import { archivosDe, describirPosicion, type Paso } from "../flujos/modelo";
+import { claveTelefono } from "../crm/planilla";
 import type { FichaEditable, LineaEditable, ReglaNueva } from "./validar";
 
 type Db = Pick<pg.Pool, "query">;
@@ -47,6 +48,44 @@ export interface DetalleConversacion {
   paso_seguimiento: number;
   sin_seguimientos: boolean;
   ultimo_seguimiento: string | null;
+}
+
+/** El flujo de una conversación (la corrida más nueva): por dónde va o cómo terminó. */
+export interface FlujoDeConversacion {
+  nombre: string;
+  estado: "en_curso" | "esperando" | "terminado";
+  resultado: string | null;
+  /** «Paso 12 › Si no responde › paso 2: Mensaje». */
+  paso: string;
+  /** Hasta cuándo espera la respuesta (si está esperando). */
+  vence: string | null;
+  inicio: string;
+}
+
+/** Una conversación como la ve el hub (Conversaciones y el CRM). */
+export interface ConversacionHub {
+  chatwoot_id: number;
+  linea: string | null;
+  nombre: string | null;
+  telefono: string | null;
+  proyecto: string | null;
+  crm_contacto_id: string | null;
+  ultimo: string | null;
+  ultimo_texto: string | null;
+  ultimo_rol: MensajeHistorial["rol"] | null;
+  mensajes: number;
+  /** Quién la tiene, según lo último que pasó entre el asistente y el equipo (el registro). */
+  atiende: "asistente" | "equipo";
+  flujo: FlujoDeConversacion | null;
+}
+
+/** Para buscar conversaciones: de una línea, o de un contacto del CRM (por su ID o su teléfono). */
+export interface FiltroConversaciones {
+  linea?: string | null;
+  contacto?: { id?: string | null; telefono?: string | null } | null;
+  /** Una sola conversación (su id de Chatwoot). */
+  conversacion?: number | null;
+  limite?: number;
 }
 
 export interface ReglaEtapaPanel {
@@ -415,6 +454,61 @@ export function datosPanel(db: Db) {
         [limite],
       );
       return rows.map((r) => ({ ...r, chatwoot_id: Number(r.chatwoot_id), ultimo: iso(r.ultimo) }));
+    },
+
+    /**
+     * Las conversaciones para el hub, la más reciente primero: con su línea, el último mensaje,
+     * cuántos hay, quién la atiende y el flujo. Una consulta, sin pasar por Chatwoot.
+     */
+    async conversacionesHub({ linea = null, contacto = null, conversacion = null, limite = 200 }: FiltroConversaciones = {}): Promise<ConversacionHub[]> {
+      const id = contacto?.id?.trim() || null;
+      // Por teléfono: los últimos 10 números, como compara el CRM (claveTelefono).
+      const tel = contacto?.telefono ? claveTelefono(contacto.telefono) : "";
+      const telefono = tel.length >= 8 ? tel : null;
+      if (contacto && !id && !telefono) return [];
+      const { rows } = await db.query(
+        `select c.chatwoot_id, c.linea, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
+                m.fecha as ultimo, m.texto as ultimo_texto, m.rol as ultimo_rol,
+                (select count(*) from mensajes x where x.conversacion = c.chatwoot_id) as cantidad,
+                e.tipo as equipo,
+                f.nombre as flujo_nombre, f.estado as flujo_estado, f.resultado as flujo_resultado, f.posicion as flujo_posicion,
+                f.pasos as flujo_pasos, f.vence as flujo_vence, f.inicio as flujo_inicio
+         from conversaciones c
+         left join lateral (select fecha, texto, rol from mensajes where conversacion = c.chatwoot_id order by fecha desc, id desc limit 1) m on true
+         left join lateral (select tipo from registro where conversacion = c.chatwoot_id and tipo = any($5::text[]) order by fecha desc, id desc limit 1) e on true
+         left join lateral (select nombre, estado, resultado, posicion, pasos, vence, inicio from flujo_corridas where conversacion = c.chatwoot_id order by inicio desc, id desc limit 1) f on true
+         where ($2::text is null or c.linea = $2)
+           and ($3::text is null and $4::text is null
+                or c.crm_contacto_id = $3
+                or ($4::text is not null and right(regexp_replace(coalesce(c.telefono, ''), '[^0-9]', '', 'g'), 10) = $4))
+           and ($6::bigint is null or c.chatwoot_id = $6)
+         order by coalesce(m.fecha, c.actualizada) desc
+         limit $1`,
+        [Math.min(Math.max(limite, 1), 500), linea, id, telefono, TIPOS_DEL_EQUIPO, conversacion],
+      );
+      return rows.map((r) => ({
+        chatwoot_id: Number(r.chatwoot_id),
+        linea: r.linea ?? null,
+        nombre: r.nombre ?? null,
+        telefono: r.telefono ?? null,
+        proyecto: r.proyecto ?? null,
+        crm_contacto_id: r.crm_contacto_id ?? null,
+        ultimo: iso(r.ultimo),
+        ultimo_texto: r.ultimo_texto ?? null,
+        ultimo_rol: r.ultimo_rol ?? null,
+        mensajes: Number(r.cantidad ?? 0),
+        atiende: r.equipo === "paso_a_persona" || r.equipo === "la_tomo_una_persona" ? "equipo" : "asistente",
+        flujo: r.flujo_nombre
+          ? {
+              nombre: r.flujo_nombre,
+              estado: r.flujo_estado,
+              resultado: r.flujo_resultado ?? null,
+              paso: r.flujo_estado === "terminado" ? "Terminó" : describirPosicion(r.flujo_pasos ?? [], r.flujo_posicion),
+              vence: r.flujo_estado === "esperando" ? iso(r.flujo_vence) : null,
+              inicio: iso(r.flujo_inicio)!,
+            }
+          : null,
+      }));
     },
 
     async conversacion(id: number): Promise<DetalleConversacion | null> {

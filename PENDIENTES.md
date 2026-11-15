@@ -216,7 +216,7 @@ Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial compl
 
 Cómo se hace, en [`docs/arquitectura.md`](docs/arquitectura.md), sección 12: se leen de la base del asistente, solo cuando se abren, y Chatwoot se abre para los adjuntos.
 
-- [ ] API del asistente: listar las conversaciones (por línea, buscando por nombre o teléfono) y leer una (mensajes, lo anotado, el flujo y lo que hizo el asistente), y las de un contacto del CRM. — Claude
+- [x] API del asistente: listar las conversaciones (todas o por línea; el hub busca por nombre o teléfono en la lista) y leer una (mensajes, lo anotado, el flujo y lo que hizo el asistente), y las de un contacto del CRM por su ID o su teléfono, con el link a Chatwoot ([`docs/api-hub.md`](docs/api-hub.md), «Conversaciones»). — Claude, 15/11
 - [ ] Hub, CRM: sumar los mensajes de WhatsApp al Chat de la ficha y a la bandeja de Chats, con «Abrir en Chatwoot». — Claude
 - [ ] Hub, Asistente de WhatsApp: la solapa «Conversaciones» por línea. — Claude
 - [ ] Asignar el Agent Bot a las bandejas de las líneas 1 y 2 cuando estén, para que se guarden sus conversaciones. — Panel
