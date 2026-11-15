@@ -1,7 +1,8 @@
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
-import { limiteCandidatos, MAX_PASOS } from "../seguimientos/reglas";
-import type { Almacen, Conversacion, Ejemplo, Proyecto, ReglaSeguimiento, SeguimientoEnviado, Tono, TipoRegistro } from "./tipos";
+import { limiteCandidatos, MARGEN_MS, MAX_PASOS } from "../seguimientos/reglas";
+import { LINEAS_DE_FABRICA, type Linea } from "../lineas";
+import type { Almacen, Archivo, Conversacion, Corrida, Ejemplo, FlujoActivo, Proyecto, ReglaSeguimiento, SeguimientoEnviado, Tono, TipoRegistro } from "./tipos";
 
 /** Lo que el almacén en memoria sabe de cada conversación para los seguimientos (como las columnas de Postgres). */
 interface Seguimiento {
@@ -13,7 +14,20 @@ interface Seguimiento {
 }
 
 /** El almacén en memoria: para las pruebas. Se comporta como el de Postgres. */
-export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono; ejemplos?: Ejemplo[]; reglas?: ReglaSeguimiento[]; pausado?: boolean; etapas?: ReglasEtapa } = {}) {
+export function almacenEnMemoria(
+  inicial: {
+    proyectos?: Proyecto[];
+    tono?: Tono;
+    ejemplos?: Ejemplo[];
+    reglas?: ReglaSeguimiento[];
+    pausado?: boolean;
+    etapas?: ReglasEtapa;
+    /** Sin ellas, las cuatro de fábrica (la 3, con la bandeja 1). */
+    lineas?: Linea[];
+    flujos?: (FlujoActivo & { linea: string })[];
+    archivos?: Archivo[];
+  } = {},
+) {
   const estado = { pausado: inicial.pausado ?? false };
   const mensajes = new Map<number, MensajeHistorial>();
   const respondidos = new Set<number>();
@@ -21,6 +35,13 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
   const seguimiento = new Map<number, Seguimiento>();
   const enviados: (SeguimientoEnviado & { respondio: string | null })[] = [];
   const registro: { tipo: TipoRegistro; conversacion: number | null; detalle: string; datos?: unknown }[] = [];
+  const lineas = (inicial.lineas ?? LINEAS_DE_FABRICA).map((l) => ({ ...l }));
+  const flujos = inicial.flujos ?? [];
+  const corridas: (Corrida & { ocupado_hasta: string | null; respondio?: string })[] = [];
+  const copia = (c: Corrida & { ocupado_hasta?: string | null }): Corrida => {
+    const { ocupado_hasta: _o, respondio: _r, ...resto } = c as Corrida & { ocupado_hasta?: string | null; respondio?: string };
+    return structuredClone(resto);
+  };
   const reglas = inicial.reglas ?? [];
   const tono: Tono = inicial.tono ?? { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "" };
   const conv = (id: number): Conversacion => conversaciones.get(id) ?? { chatwoot_id: id, proyecto: null, crm_contacto_id: null, telefono: null, nombre: null, interesado: {} };
@@ -102,10 +123,25 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
         .map(([id, s]) => ({ id, s, salida: mayor(s.ultimo_mensaje_bot, s.ultimo_seguimiento) }))
         .filter(({ s, salida }) => !s.sin_seguimientos && s.ultimo_mensaje_interesado && s.paso_seguimiento <= MAX_PASOS && salida && salida > s.ultimo_mensaje_interesado)
         .filter(({ salida }) => Date.parse(salida!) < Date.parse(limiteCandidatos(new Date(ms))) && ms - Date.parse(salida!) < 120 * 86_400_000)
+        .filter(({ id }) => {
+          const l = lineas.find((x) => x.id === conv(id).linea);
+          return !l || (!l.pausada && l.tipo === "entrada");
+        })
+        .filter(({ id }) => !corridas.some((c) => c.conversacion === id && (c.estado !== "terminado" || c.resultado === "fin")))
         .sort((a, b) => a.salida!.localeCompare(b.salida!))
         .map(({ id, s, salida }) => {
           const c = conv(id);
-          return { chatwoot_id: id, nombre: c.nombre, nombre_anotado: c.interesado?.nombre ?? null, telefono: c.telefono, proyecto: c.proyecto, crm_contacto_id: c.crm_contacto_id, paso_seguimiento: s.paso_seguimiento, ultima_salida: salida! };
+          return {
+            chatwoot_id: id,
+            nombre: c.nombre,
+            nombre_anotado: c.interesado?.nombre ?? null,
+            telefono: c.telefono,
+            proyecto: c.proyecto,
+            crm_contacto_id: c.crm_contacto_id,
+            paso_seguimiento: s.paso_seguimiento,
+            ultima_salida: salida!,
+            linea: c.linea ?? null,
+          };
         });
     },
     async reglasEtapa() {
@@ -124,6 +160,69 @@ export function almacenEnMemoria(inicial: { proyectos?: Proyecto[]; tono?: Tono;
     async anotarSeguimiento(x) {
       enviados.push({ ...x, respondio: null });
     },
+    async lineas() {
+      return lineas.map((l) => ({ ...l }));
+    },
+    async flujosActivos(linea) {
+      return flujos.filter((f) => f.linea === linea).map(({ linea: _l, ...f }) => structuredClone(f));
+    },
+    async archivo(id) {
+      return inicial.archivos?.find((a) => a.id === id) ?? null;
+    },
+    async corridaViva(conversacion) {
+      const c = corridas.find((x) => x.conversacion === conversacion && x.estado !== "terminado");
+      return c ? copia(c) : null;
+    },
+    async ultimaCorrida(conversacion) {
+      const c = corridas.filter((x) => x.conversacion === conversacion).at(-1);
+      return c ? copia(c) : null;
+    },
+    async iniciarCorrida(c) {
+      if (corridas.some((x) => x.conversacion === c.conversacion && x.estado !== "terminado")) return null;
+      const nueva = {
+        id: corridas.length + 1,
+        conversacion: c.conversacion,
+        linea: c.linea,
+        flujo: c.flujo,
+        nombre: c.nombre,
+        pasos: structuredClone(c.pasos),
+        posicion: "0",
+        estado: "en_curso" as const,
+        resultado: null,
+        espera_desde: null,
+        vence: null,
+        inicio: c.ahora,
+        ocupado_hasta: new Date(Date.parse(c.ahora) + 6 * 60_000).toISOString(),
+      };
+      corridas.push(nueva);
+      return copia(nueva);
+    },
+    async reclamarCorrida(id, como, cuando) {
+      const c = corridas.find((x) => x.id === id);
+      if (!c || c.estado !== como.estado || c.posicion !== como.posicion) return false;
+      if (c.estado === "en_curso" && c.ocupado_hasta && c.ocupado_hasta >= cuando) return false;
+      c.estado = "en_curso";
+      c.ocupado_hasta = new Date(Date.parse(cuando) + 6 * 60_000).toISOString();
+      return true;
+    },
+    async guardarCorrida(id, cambios, cuando) {
+      const c = corridas.find((x) => x.id === id);
+      if (!c) return;
+      const { respondio, ...resto } = cambios;
+      Object.assign(c, resto);
+      if (respondio && !c.respondio) c.respondio = respondio;
+      c.ocupado_hasta = c.estado === "en_curso" ? new Date(Date.parse(cuando) + 6 * 60_000).toISOString() : null;
+    },
+    async cancelarCorridas(conversacion, resultado = "cancelado") {
+      for (const c of corridas) if (c.conversacion === conversacion && c.estado !== "terminado") Object.assign(c, { estado: "terminado", resultado, ocupado_hasta: null });
+    },
+    async corridasParaRetomar(cuando) {
+      const limite = new Date(Date.parse(cuando) + MARGEN_MS).toISOString();
+      return corridas
+        .filter((c) => !lineas.find((l) => l.id === c.linea)?.pausada)
+        .filter((c) => (c.estado === "esperando" && c.vence && c.vence <= limite) || (c.estado === "en_curso" && c.ocupado_hasta && c.ocupado_hasta < cuando))
+        .map(copia);
+    },
   };
-  return { almacen, mensajes, conversaciones, seguimiento, enviados, registro, estado };
+  return { almacen, mensajes, conversaciones, seguimiento, enviados, registro, estado, lineas, corridas };
 }

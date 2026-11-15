@@ -4,6 +4,7 @@ import { salir } from "./acciones";
 const SECCIONES = [
   ["/panel", "Resumen"],
   ["/panel/conversaciones", "Conversaciones"],
+  ["/panel/lineas", "Líneas"],
   ["/panel/proyectos", "Fichas"],
   ["/panel/tono", "Tono y ejemplos"],
   ["/panel/seguimientos", "Seguimientos"],

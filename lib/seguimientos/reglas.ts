@@ -5,6 +5,8 @@
  * - De 9 a 20, hora de Buenos Aires.
  * - Una regla por etapa del CRM y paso (1.º, 2.º… seguimiento), con «días sin respuesta».
  *   Si hay una regla para el proyecto de la conversación, va esa; si no, la general.
+ * - Línea: una regla puede valer para una sola línea (si no, vale para todas). Va primero la de la
+ *   línea y, dentro de cada una, la del proyecto.
  * - Versiones: si para la misma etapa y paso hay varias (la activa y las «a prueba»), a cada
  *   conversación le toca siempre la misma, repartidas por partes iguales. Así se compara cuál
  *   consigue más respuestas.
@@ -45,12 +47,19 @@ export function enHorario(ahora: Date): boolean {
 }
 
 /** La regla que le toca a esta conversación para el paso siguiente, o null si no hay. */
-export function elegirRegla(reglas: ReglaSeguimiento[], c: { etapa: string; paso: number; proyecto: string | null; conversacion: number }): ReglaSeguimiento | null {
+export function elegirRegla(reglas: ReglaSeguimiento[], c: { etapa: string; paso: number; proyecto: string | null; conversacion: number; linea?: string | null }): ReglaSeguimiento | null {
   if (c.paso > MAX_PASOS) return null;
   const etapa = normalizar(c.etapa);
   const vigentes = reglas.filter((r) => r.estado !== "archivada" && r.paso === c.paso && normalizar(r.etapa) === etapa);
-  const delProyecto = c.proyecto ? vigentes.filter((r) => r.proyecto === c.proyecto) : [];
-  const opciones = (delProyecto.length ? delProyecto : vigentes.filter((r) => !r.proyecto)).sort((a, b) => a.version - b.version || a.id - b.id);
+  // De la más puntual a la más general: la de esta línea y este proyecto, la de esta línea, la de
+  // este proyecto (para todas las líneas) y la general. Las de otra línea no cuentan.
+  const grupos = [
+    (r: ReglaSeguimiento) => !!r.linea && r.linea === c.linea && !!c.proyecto && r.proyecto === c.proyecto,
+    (r: ReglaSeguimiento) => !!r.linea && r.linea === c.linea && !r.proyecto,
+    (r: ReglaSeguimiento) => !r.linea && !!c.proyecto && r.proyecto === c.proyecto,
+    (r: ReglaSeguimiento) => !r.linea && !r.proyecto,
+  ];
+  const opciones = (grupos.map((g) => vigentes.filter(g)).find((x) => x.length) ?? []).sort((a, b) => a.version - b.version || a.id - b.id);
   if (!opciones.length) return null;
   return opciones[Math.abs(c.conversacion) % opciones.length];
 }

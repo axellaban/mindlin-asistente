@@ -8,7 +8,10 @@ import type { MensajeHistorial } from "../chatwoot/evento";
 import type { Anotado, Ejemplo, ReglaSeguimiento, Tono, TipoRegistro } from "../datos/tipos";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import { EVENTOS, type Evento } from "../etapas/reglas";
-import type { FichaEditable, ReglaNueva } from "./validar";
+import { COLUMNAS_LINEA, lineaDeFila } from "../datos/postgres";
+import type { Linea } from "../lineas";
+import { archivosDe, type Paso } from "../flujos/modelo";
+import type { FichaEditable, LineaEditable, ReglaNueva } from "./validar";
 
 type Db = Pick<pg.Pool, "query">;
 
@@ -55,6 +58,48 @@ export interface ReglaEtapaPanel {
   actualizado_por: string | null;
   /** Cuántos leads movió esta regla en los últimos 30 días. */
   movidos_30_dias: number;
+}
+
+export interface LineaPanel extends Linea {
+  actualizado: string | null;
+  actualizado_por: string | null;
+  /** Personas que escribieron por esta línea en los últimos 7 días. */
+  conversaciones_7_dias: number;
+}
+
+export interface FlujoPanel {
+  id: number;
+  linea: string;
+  nombre: string;
+  /** Null: el flujo general de la línea. */
+  proyecto: string | null;
+  activo: boolean;
+  pasos: Paso[];
+  actualizado: string | null;
+  actualizado_por: string | null;
+  /** Con cuántas personas arrancó, cuántas respondieron, cuántas esperan ahora y cuántas pasaron al equipo. */
+  corridas: number;
+  respondieron: number;
+  esperando: number;
+  al_equipo: number;
+}
+
+export interface FlujoNuevo {
+  linea: string;
+  nombre: string;
+  proyecto: string | null;
+  pasos: Paso[];
+}
+
+export interface ArchivoPanel {
+  id: number;
+  nombre: string;
+  tipo: string;
+  tamano: number;
+  creado: string | null;
+  creado_por: string | null;
+  /** En qué flujos se usa (no se puede borrar mientras se use). */
+  en_uso: number[];
 }
 
 export interface RegistroPanel {
@@ -200,11 +245,11 @@ export function datosPanel(db: Db) {
     /** Las reglas con cuántos seguimientos salieron y cuántos respondieron. */
     async reglas(): Promise<ReglaPanel[]> {
       const { rows } = await db.query(
-        `select r.id, r.etapa, r.paso, r.dias_sin_respuesta, r.version, r.estado, r.proyecto, r.mensaje,
+        `select r.id, r.etapa, r.paso, r.dias_sin_respuesta, r.version, r.estado, r.proyecto, r.mensaje, r.linea,
                 count(s.id)::int as enviados, count(s.respondio)::int as respondieron
          from reglas_seguimiento r left join seguimientos_enviados s on s.regla = r.id
          group by r.id
-         order by (r.estado = 'archivada'), r.etapa, r.paso, r.proyecto nulls first, r.version`,
+         order by (r.estado = 'archivada'), r.etapa, r.paso, r.linea nulls first, r.proyecto nulls first, r.version`,
       );
       return rows.map((r) => ({ ...r, id: Number(r.id) }));
     },
@@ -212,11 +257,11 @@ export function datosPanel(db: Db) {
     /** Una regla nueva. La versión es la siguiente a las que ya hay para esa etapa, paso y proyecto. */
     async agregarRegla(r: ReglaNueva): Promise<number> {
       const { rows } = await db.query(
-        `insert into reglas_seguimiento (etapa, paso, dias_sin_respuesta, proyecto, mensaje, estado, version)
-         select $1, $2, $3, $4, $5, $6, coalesce(max(version), 0) + 1
-         from reglas_seguimiento where etapa = $1 and paso = $2 and proyecto is not distinct from $4
+        `insert into reglas_seguimiento (etapa, paso, dias_sin_respuesta, proyecto, mensaje, estado, linea, version)
+         select $1, $2, $3, $4, $5, $6, $7, coalesce(max(version), 0) + 1
+         from reglas_seguimiento where etapa = $1 and paso = $2 and proyecto is not distinct from $4 and linea is not distinct from $7
          returning id`,
-        [r.etapa, r.paso, r.dias_sin_respuesta, r.proyecto, r.mensaje, r.estado],
+        [r.etapa, r.paso, r.dias_sin_respuesta, r.proyecto, r.mensaje, r.estado, r.linea ?? null],
       );
       return Number(rows[0].id);
     },
@@ -228,6 +273,135 @@ export function datosPanel(db: Db) {
     /** Solo se borran las que nunca se mandaron (si no, se pierde la medición): las demás se archivan. */
     async borrarRegla(id: number): Promise<boolean> {
       const { rowCount } = await db.query("delete from reglas_seguimiento r where id = $1 and not exists (select 1 from seguimientos_enviados s where s.regla = r.id)", [id]);
+      return rowCount === 1;
+    },
+
+    async lineas(): Promise<LineaPanel[]> {
+      const { rows } = await db.query(
+        `select ${COLUMNAS_LINEA.split(", ").map((c) => `l.${c}`).join(", ")}, l.actualizado, l.actualizado_por,
+                (select count(distinct m.conversacion)::int from mensajes m join conversaciones c on c.chatwoot_id = m.conversacion
+                 where c.linea = l.id and m.rol = 'interesado' and m.fecha > now() - interval '7 days') as conversaciones_7_dias
+         from lineas l order by l.orden`,
+      );
+      return rows.map((r) => ({ ...lineaDeFila(r), actualizado: iso(r.actualizado), actualizado_por: r.actualizado_por ?? null, conversaciones_7_dias: Number(r.conversaciones_7_dias ?? 0) }));
+    },
+
+    async linea(id: string): Promise<LineaPanel | null> {
+      return (await this.lineas()).find((l) => l.id === id) ?? null;
+    },
+
+    /**
+     * Cambia lo que se configura de una línea (no su tipo ni su número de orden). Si la bandeja ya es
+     * de otra línea, falla con «23505» (la base no deja dos líneas en la misma bandeja).
+     */
+    async guardarLinea(id: string, l: LineaEditable, por: string): Promise<void> {
+      await db.query(
+        `update lineas set nombre = $2, descripcion = $3, telefono = $4, bandeja = $5, pausada = $6, pasar_al_responder = $7, instrucciones = $8, proyectos = $9,
+                actualizado = now(), actualizado_por = $10
+         where id = $1`,
+        [id, l.nombre, l.descripcion, l.telefono, l.bandeja, l.pausada, l.pasar_al_responder, l.instrucciones, l.proyectos, por],
+      );
+    },
+
+    async flujos(linea?: string | null): Promise<FlujoPanel[]> {
+      const { rows } = await db.query(
+        `select f.id, f.linea, f.nombre, f.proyecto, f.activo, f.pasos, f.actualizado, f.actualizado_por,
+                count(c.id)::int as corridas, count(c.respondio)::int as respondieron,
+                count(c.id) filter (where c.estado = 'esperando')::int as esperando,
+                count(c.id) filter (where c.resultado = 'equipo')::int as al_equipo
+         from flujos f left join flujo_corridas c on c.flujo = f.id
+         where ($1::text is null or f.linea = $1)
+         group by f.id
+         order by f.linea, f.activo desc, f.proyecto nulls first, f.nombre`,
+        [linea ?? null],
+      );
+      return rows.map((r) => ({ ...r, id: Number(r.id), proyecto: r.proyecto ?? null, actualizado: iso(r.actualizado) }));
+    },
+
+    async flujo(id: number): Promise<FlujoPanel | null> {
+      return (await this.flujos()).find((f) => f.id === id) ?? null;
+    },
+
+    /** Un flujo nuevo (apagado: se prende aparte, para revisarlo antes). Devuelve su id. */
+    async agregarFlujo(f: FlujoNuevo, por: string): Promise<number> {
+      const { rows } = await db.query("insert into flujos (linea, nombre, proyecto, pasos, actualizado_por) values ($1, $2, $3, $4, $5) returning id", [
+        f.linea,
+        f.nombre,
+        f.proyecto,
+        JSON.stringify(f.pasos),
+        por,
+      ]);
+      return Number(rows[0].id);
+    },
+
+    /** Cambia un flujo. Las conversaciones que ya lo empezaron siguen con los pasos que tenía. */
+    async guardarFlujo(id: number, f: Omit<FlujoNuevo, "linea">, por: string): Promise<boolean> {
+      const { rowCount } = await db.query("update flujos set nombre = $2, proyecto = $3, pasos = $4, actualizado = now(), actualizado_por = $5 where id = $1", [
+        id,
+        f.nombre,
+        f.proyecto,
+        JSON.stringify(f.pasos),
+        por,
+      ]);
+      return rowCount === 1;
+    },
+
+    /**
+     * Prende o apaga un flujo. Al prenderlo se apaga el que estaba activo para lo mismo (la misma
+     * línea y el mismo proyecto, o el general): hay uno solo activo por vez.
+     */
+    async activarFlujo(id: number, activo: boolean, por: string): Promise<boolean> {
+      if (activo) {
+        await db.query(
+          `update flujos o set activo = false, actualizado = now(), actualizado_por = $2
+           from flujos f where f.id = $1 and o.id <> f.id and o.activo and o.linea = f.linea and coalesce(o.proyecto, '') = coalesce(f.proyecto, '')`,
+          [id, por],
+        );
+      }
+      const { rowCount } = await db.query("update flujos set activo = $2, actualizado = now(), actualizado_por = $3 where id = $1", [id, activo, por]);
+      return rowCount === 1;
+    },
+
+    async borrarFlujo(id: number): Promise<boolean> {
+      const { rowCount } = await db.query("delete from flujos where id = $1", [id]);
+      return rowCount === 1;
+    },
+
+    async archivos(): Promise<ArchivoPanel[]> {
+      const [{ rows }, flujos] = await Promise.all([db.query("select id, nombre, tipo, tamano, creado, creado_por from archivos order by id desc"), db.query("select id, pasos from flujos")]);
+      return rows.map((r) => ({
+        id: Number(r.id),
+        nombre: r.nombre,
+        tipo: r.tipo,
+        tamano: Number(r.tamano),
+        creado: iso(r.creado),
+        creado_por: r.creado_por ?? null,
+        en_uso: flujos.rows.filter((f) => archivosDe(f.pasos ?? []).includes(Number(r.id))).map((f) => Number(f.id)),
+      }));
+    },
+
+    /** El archivo con su contenido en base64 (para escucharlo o verlo en el hub). */
+    async archivoConDatos(id: number): Promise<(Omit<ArchivoPanel, "en_uso"> & { datos: string }) | null> {
+      const { rows } = await db.query("select id, nombre, tipo, tamano, creado, creado_por, encode(datos, 'base64') as datos from archivos where id = $1", [id]);
+      const r = rows[0];
+      return r ? { id: Number(r.id), nombre: r.nombre, tipo: r.tipo, tamano: Number(r.tamano), creado: iso(r.creado), creado_por: r.creado_por ?? null, datos: r.datos.replace(/\s+/g, "") } : null;
+    },
+
+    async subirArchivo(a: { nombre: string; tipo: string; datos: Uint8Array }, por: string): Promise<number> {
+      const { rows } = await db.query("insert into archivos (nombre, tipo, tamano, datos, creado_por) values ($1, $2, $3, $4, $5) returning id", [
+        a.nombre,
+        a.tipo,
+        a.datos.byteLength,
+        Buffer.from(a.datos),
+        por,
+      ]);
+      return Number(rows[0].id);
+    },
+
+    /** Solo si ningún flujo lo usa. */
+    async borrarArchivo(id: number): Promise<boolean> {
+      if ((await this.archivos()).find((a) => a.id === id)?.en_uso.length) return false;
+      const { rowCount } = await db.query("delete from archivos where id = $1", [id]);
       return rowCount === 1;
     },
 
@@ -260,10 +434,14 @@ export function datosPanel(db: Db) {
       return rows.map((r) => ({ id: Number(r.id), conversacion: Number(r.conversacion), rol: r.rol, texto: r.texto, fecha: iso(r.fecha)! }));
     },
 
-    async registro({ conversacion, limite = 100 }: { conversacion?: number; limite?: number } = {}): Promise<RegistroPanel[]> {
+    /** Lo que hizo el asistente, lo último primero. Con `linea`, solo lo de las conversaciones de esa línea. */
+    async registro({ conversacion, limite = 100, linea }: { conversacion?: number; limite?: number; linea?: string | null } = {}): Promise<RegistroPanel[]> {
       const { rows } = await db.query(
-        `select fecha, conversacion, tipo, detalle from registro where ($1::bigint is null or conversacion = $1) order by fecha desc, id desc limit $2`,
-        [conversacion ?? null, limite],
+        `select r.fecha, r.conversacion, r.tipo, r.detalle from registro r
+         where ($1::bigint is null or r.conversacion = $1)
+           and ($3::text is null or exists (select 1 from conversaciones c where c.chatwoot_id = r.conversacion and c.linea = $3))
+         order by r.fecha desc, r.id desc limit $2`,
+        [conversacion ?? null, limite, linea ?? null],
       );
       return rows.map((r) => ({ ...r, fecha: iso(r.fecha)!, conversacion: r.conversacion == null ? null : Number(r.conversacion) }));
     },
@@ -301,14 +479,19 @@ export function datosPanel(db: Db) {
     },
 
     /** Lo que hizo el bot en los últimos días, por tipo. */
-    async resumen(dias = 7): Promise<Record<TipoRegistro, number> & { conversaciones: number }> {
+    async resumen(dias = 7, linea: string | null = null): Promise<Record<TipoRegistro, number> & { conversaciones: number }> {
       const { rows } = await db.query(
-        `select tipo, count(*)::int as n from registro where fecha > now() - make_interval(days => $1) group by tipo
+        `select r.tipo, count(*)::int as n from registro r
+         where r.fecha > now() - make_interval(days => $1)
+           and ($2::text is null or exists (select 1 from conversaciones c where c.chatwoot_id = r.conversacion and c.linea = $2))
+         group by r.tipo
          union all
-         select 'conversaciones', count(distinct conversacion)::int from mensajes where fecha > now() - make_interval(days => $1) and rol = 'interesado'`,
-        [dias],
+         select 'conversaciones', count(distinct m.conversacion)::int from mensajes m
+         where m.fecha > now() - make_interval(days => $1) and m.rol = 'interesado'
+           and ($2::text is null or exists (select 1 from conversaciones c where c.chatwoot_id = m.conversacion and c.linea = $2))`,
+        [dias, linea],
       );
-      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, etapa: 0, pausa: 0, error: 0, conversaciones: 0 };
+      const base = { respuesta: 0, paso_a_persona: 0, la_tomo_una_persona: 0, volvio_al_bot: 0, seguimiento: 0, crm: 0, etapa: 0, pausa: 0, flujo: 0, error: 0, conversaciones: 0 };
       for (const r of rows) base[r.tipo as keyof typeof base] = r.n;
       return base;
     },

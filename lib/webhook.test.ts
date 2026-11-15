@@ -17,6 +17,10 @@ function armar({ modelo = (async () => respuesta([{ type: "text", text: "¡Hola!
       hechos.push(`enviar ${c}: ${t}`);
       return 1;
     },
+    async enviarArchivo(c, t, a) {
+      hechos.push(`archivo ${c}: ${a.nombre} ${t}`.trim());
+      return 600;
+    },
     async notaInterna(c, t) {
       hechos.push(`nota ${c}: ${t}`);
     },
@@ -129,5 +133,65 @@ describe("webhook del Agent Bot", () => {
     const r = await a.llamar(evento({ conversation: { id: 1, status: "pending", meta: { sender: { identifier: "whatsapp.integration" } } } }));
     expect(r.json).toEqual({ accion: "ignorar", motivo: "es la conversación de avisos de WAHA" });
     expect(a.datos.mensajes.size).toBe(0);
+  });
+});
+
+describe("webhook: cada línea en su bandeja", () => {
+  it("la bandeja 1 es la línea 3 (leads entrantes): contesta el asistente y la conversación queda con su línea", async () => {
+    const a = armar();
+    const r = await a.llamar(evento());
+    expect(r.json).toEqual({ accion: "responder", linea: "linea-3" });
+    expect(await r.tarea!()).toBe("respondió");
+    expect(a.datos.conversaciones.get(2)).toMatchObject({ linea: "linea-3", bandeja: 1 });
+  });
+
+  it("una bandeja que no es de ninguna línea: no contesta la IA, pasa al equipo con una nota que dice cómo asignarla", async () => {
+    let llamadas = 0;
+    const a = armar({ modelo: async () => (llamadas++, respuesta([{ type: "text", text: "x" }])) });
+    const r = await a.llamar(evento({ inbox: { id: 9, name: "Otra" } }));
+    expect(r.json).toEqual({ accion: "pasar_a_persona", motivo: "la bandeja 9 no es de ninguna línea" });
+    expect(await r.tarea!()).toBe("pasó al equipo: la bandeja 9 no es de ninguna línea");
+    expect(a.hechos[0]).toContain("entró por la bandeja 9, que no está asignada a ninguna línea");
+    expect(a.hechos[1]).toBe("abrir 2");
+    expect(llamadas).toBe(0);
+  });
+
+  it("en la línea de outreach frío o la del equipo, el asistente de ventas no contesta", async () => {
+    const a = armar();
+    a.datos.lineas[0].bandeja = 5;
+    a.datos.lineas[1].bandeja = 6;
+    const outreach = await a.llamar(evento({ inbox: { id: 5 } }));
+    expect(outreach.json).toEqual({ accion: "pasar_a_persona", motivo: "la línea «Outreach frío» no la atiende el asistente de ventas" });
+    await outreach.tarea!();
+    expect(a.hechos[0]).toBe("nota 2: 🙋 Respuesta en la línea «Outreach frío» (outreach frío): el asistente de ventas no atiende esta línea, sigue el equipo.");
+    const equipo = await a.llamar(evento({ id: 30, inbox: { id: 6 }, conversation: { id: 3, status: "pending", meta: { sender: { name: "Tadeo" } } } }));
+    await equipo.tarea!();
+    expect(a.hechos.at(-2)).toContain("la línea «Equipo: facturas y outreach cálido» (la del equipo)");
+  });
+
+  it("una línea pausada pasa al equipo; las otras siguen atendiendo", async () => {
+    const a = armar();
+    a.datos.lineas[2].pausada = true;
+    a.datos.lineas[3].bandeja = 2;
+    const r = await a.llamar(evento());
+    expect(r.json).toEqual({ accion: "pasar_a_persona", motivo: "la línea «Leads entrantes» está pausada" });
+    await r.tarea!();
+    expect(a.hechos).toEqual(["nota 2: ⏸️ La línea «Leads entrantes» está pausada (se reactiva desde el hub): atiende el equipo.", "abrir 2"]);
+    const otra = await a.llamar(evento({ id: 31, inbox: { id: 2 }, conversation: { id: 4, status: "pending", meta: { sender: { name: "Beto" } } } }));
+    expect(otra.json).toEqual({ accion: "responder", linea: "linea-4" });
+  });
+
+  it("si el equipo resuelve la conversación, se corta el flujo que estaba esperando", async () => {
+    const a = armar();
+    await a.datos.almacen.iniciarCorrida({ conversacion: 2, linea: "linea-3", flujo: 1, nombre: "Presentación", pasos: [{ tipo: "fin" }], ahora: new Date(AHORA).toISOString() });
+    await a.llamar({ event: "conversation_resolved", id: 2, status: "resolved", meta: { sender: { name: "Ana Prueba" } } });
+    expect(a.datos.corridas[0]).toMatchObject({ estado: "terminado", resultado: "cancelado" });
+  });
+
+  it("el eco de un archivo que mandó un flujo tampoco cuenta como que lo tomó una persona", async () => {
+    const a = armar();
+    await a.llamar(evento({ id: 40, message_type: "outgoing", sender: { type: "agent_bot" }, content: "Te dejo el brochure", attachments: [{ file_type: "file" }] }));
+    const r = await a.llamar(evento({ id: 41, message_type: "outgoing", sender: { type: "user" }, content: "Te dejo el brochure", attachments: [{ file_type: "image" }] }));
+    expect(r.json).toEqual({ accion: "ignorar", motivo: "es el eco de un mensaje del bot" });
   });
 });

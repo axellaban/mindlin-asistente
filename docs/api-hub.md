@@ -1,6 +1,6 @@
 # API para el hub
 
-Todo lo que se configura del asistente (fichas, tono y criterios comerciales, lo que sabe de la empresa, objeciones, ejemplos, reglas de seguimiento, etapas automáticas, pausa) se puede **leer y cambiar desde el hub de Mindlin**. El hub arma sus pantallas y habla con esta API; el asistente usa los cambios desde el mensaje siguiente.
+Todo lo que se configura del asistente (fichas, tono y criterios comerciales, lo que sabe de la empresa, objeciones, ejemplos, reglas de seguimiento, etapas automáticas, pausa, las líneas de WhatsApp y sus flujos) se puede **leer y cambiar desde el hub de Mindlin**. El hub arma sus pantallas y habla con esta API; el asistente usa los cambios desde el mensaje siguiente.
 
 Es la misma configuración que muestra el panel del asistente (`/panel`): no hay dos copias. Lo que se cambia en un lado se ve en el otro.
 
@@ -19,7 +19,7 @@ Es la misma configuración que muestra el panel del asistente (`/panel`): no hay
 | 400 | Lo que se mandó no pasa la revisión; `error` dice qué corregir. |
 | 401 | Falta la clave o es incorrecta. |
 | 404 / 405 | Esa dirección no existe, o no admite esa operación. |
-| 409 | No se puede (por ejemplo, borrar una regla que ya se mandó). |
+| 409 | No se puede (por ejemplo, borrar una regla que ya se mandó, poner en una línea una bandeja que ya es de otra o borrar un archivo que usa un flujo). |
 | 503 | Falta configurar algo en Vercel (`HUB_CLAVE`, la base o la clave de la IA). |
 
 ## Leer todo: `GET /api/hub/config`
@@ -35,6 +35,9 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
   "etapas": [{ "evento": "respondio", "titulo": "La persona respondió y la conversación sigue", "etapa": "Seguimiento", "actualizado": null, "actualizado_por": null, "movidos_30_dias": 4 }],
   "estado": { "pausado": false, "cambiado": null, "cambiado_por": null },
   "falta": [{ "listo": false, "texto": "A la ficha de Lerma 439 le falta: precios.", "link": "/panel/proyectos/lerma-439" }],
+  "lineas": [{ "id": "linea-3", "orden": 3, "nombre": "Leads entrantes", "tipo": "entrada", "descripcion": "…", "telefono": "", "bandeja": 1, "por_defecto": true, "pausada": false, "pasar_al_responder": false, "instrucciones": "", "proyectos": [], "actualizado": null, "actualizado_por": null, "conversaciones_7_dias": 9 }],
+  "flujos": [{ "id": 4, "linea": "linea-3", "nombre": "Presentación", "proyecto": null, "activo": true, "pasos": [{ "tipo": "mensaje", "texto": "¡Hola!", "archivo": null }], "corridas": 20, "respondieron": 7, "esperando": 3, "al_equipo": 6, "actualizado": "…", "actualizado_por": "Tadeo" }],
+  "archivos": [{ "id": 2, "nombre": "audio de Mati.ogg", "tipo": "audio/ogg", "tamano": 48213, "creado": "…", "creado_por": "Mati", "en_uso": [4] }],
   "ia": { "proveedor": "anthropic", "modelo": "claude-opus-5-5", "audios": false },
   "opciones": {
     "campos_ficha": [{ "campo": "presentacion", "titulo": "Presentación (lo primero que cuenta del proyecto)" }],
@@ -47,7 +50,14 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
     "variables_del_mensaje": ["{{nombre}}", "{{proyecto}}"],
     "horario_seguimientos": { "desde": 9, "hasta": 20, "tope_por_corrida": 20, "corre": "una vez por día, a las 10" },
     "horario_equipo": { "dias": [1, 2, 3, 4, 5], "desde": 9, "hasta": 20 },
-    "dias_semana": ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
+    "dias_semana": ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+    "tipos_linea": [{ "tipo": "entrada", "titulo": "Leads entrantes", "ayuda": "…" }],
+    "tipos_de_paso": [{ "tipo": "mensaje", "titulo": "Mensaje", "ayuda": "…" }],
+    "limites_flujo": { "pasos": 60, "segundos_pausa": 60, "pausa_por_tramo": 120, "ia_por_tramo": 3, "horas_min": 1, "horas_max": 720, "…": "…" },
+    "variables_flujo": ["{{nombre}}", "{{proyecto}}"],
+    "plantillas_flujo": [{ "id": "presentacion-y-seguimiento", "nombre": "…", "descripcion": "…", "pasos": [] }],
+    "tipos_archivo": ["image/jpeg", "image/png", "image/webp", "audio/ogg", "audio/mpeg", "audio/mp4", "application/pdf", "video/mp4"],
+    "max_archivo_bytes": 2621440
   }
 }
 ```
@@ -56,6 +66,8 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
 - `falta` es la misma lista que muestra el Resumen del panel («para que atienda bien, falta…»).
 - En cada regla, `enviados` y `respondieron` dicen cuántos seguimientos salieron con esa regla y cuántos tuvieron respuesta: con eso se comparan versiones.
 - `opciones.horario_seguimientos.corre` dice cada cuánto sale la tanda de seguimientos, para mostrarlo tal cual (hoy, «una vez por día, a las 10»; ver [`seguimientos.md`](seguimientos.md)).
+- `lineas`: las cuatro líneas ([`lineas.md`](lineas.md)); `flujos`: todos los flujos de todas las líneas, con sus números; `archivos`: los que se subieron para los flujos (`en_uso`: qué flujos los usan).
+- `tono.pasar_al_responder` ya no se usa (15/11): el modo «presenta y pasa» es de cada línea (`lineas[].pasar_al_responder`).
 - `tono.horario_equipo` es el horario del equipo comercial que vale hoy; `opciones.horario_equipo`, el de fábrica. Días: 0 es domingo … 6 sábado (`opciones.dias_semana`); horas enteras de Buenos Aires, de `desde` a `hasta`.
 
 ## Cambiar
@@ -76,8 +88,18 @@ En las fichas y en el tono **solo cambia lo que se manda**: lo demás queda como
 | Activar, poner a prueba o archivar una regla | `PATCH /api/hub/reglas/{id}` | `{ "estado": "archivada" }` |
 | Borrar una regla | `DELETE /api/hub/reglas/{id}` | —. Solo si nunca se mandó (si no, 409: se archiva, para no perder la medición). |
 | Pausar o reactivar el asistente entero | `PUT /api/hub/estado` | `{ "pausado": true }` |
+| Cambiar una línea | `PUT /api/hub/lineas/{id}` | Lo que cambia: `nombre`, `descripcion`, `telefono`, `bandeja` (el número de la bandeja de Chatwoot, o `null`), `pausada`, `pasar_al_responder`, `instrucciones`, `proyectos` (lista de ids; vacía: todos). El tipo y el orden no cambian. Si la bandeja ya es de otra línea, 409. |
+| Crear un flujo | `POST /api/hub/flujos` | `{ "linea": "linea-3", "nombre": "Presentación", "proyecto": null, "pasos": [ … ], "activo": false }`. Solo en líneas de leads. Los pasos, como en [`flujos.md`](flujos.md); si algo no pasa la revisión, 400 con el paso que está mal. |
+| Cambiar un flujo | `PUT /api/hub/flujos/{id}` | `nombre`, `proyecto` o `pasos` (lo que no viene queda). Las conversaciones que ya lo empezaron siguen con los pasos de antes. |
+| Prender o apagar un flujo | `PATCH /api/hub/flujos/{id}` | `{ "activo": true }`. Al prenderlo, se apaga el que estaba activo para lo mismo (misma línea y mismo proyecto, o el general). |
+| Borrar un flujo | `DELETE /api/hub/flujos/{id}` | — |
+| Subir un archivo para los flujos | `POST /api/hub/archivos` | `{ "nombre": "audio.ogg", "tipo": "audio/ogg", "datos": "<base64>" }`. Hasta 2,5 MB; tipos en `opciones.tipos_archivo`. |
+| Ver (o escuchar) un archivo | `GET /api/hub/archivos/{id}` | Devuelve `{ "archivo": { …, "datos": "<base64>" } }`. |
+| Borrar un archivo | `DELETE /api/hub/archivos/{id}` | Solo si ningún flujo lo usa (si no, 409). |
 
-Cada respuesta devuelve cómo quedó lo que se tocó (`proyecto`, `tono`, `ejemplos`, `reglas` o `estado`), así la pantalla se actualiza sin volver a leer todo.
+Cada respuesta devuelve cómo quedó lo que se tocó (`proyecto`, `tono`, `ejemplos`, `reglas`, `estado`, `linea` y `lineas`, `flujos` o `archivos`), así la pantalla se actualiza sin volver a leer todo.
+
+Una regla de seguimiento puede llevar `"linea": "linea-4"` para valer solo en esa línea (sin línea, vale para todas).
 
 El texto de un mensaje de regla solo admite las variables `{{nombre}}` y `{{proyecto}}`.
 
@@ -90,6 +112,8 @@ Para chatear con el asistente desde el hub como si fueras un interesado. Usa el 
 - Mensajes siguientes: mandar de vuelta el `estado` que vino, con el `texto` nuevo: `{ "estado": {…}, "texto": "Para invertir" }`. La charla la guarda el hub; el asistente no guarda nada de las pruebas.
 - `acciones` es lo que haría además de contestar (anotar en el CRM, elegir un proyecto, pasar al equipo). `pasada: true` quiere decir que en una conversación real ya la habría pasado al equipo.
 - Cada mensaje usa la IA de verdad: tiene costo y puede tardar unos segundos.
+- **Con una línea** (`"linea": "linea-3"` en el primer mensaje): prueba como esa línea (sus proyectos, sus instrucciones, su modo) y, si tiene un flujo activo, lo corre con el mismo motor que en WhatsApp. Los mensajes fijos salen en la charla y las pausas y los cambios de etapa van en `acciones`. `estado.flujo` dice por dónde va: si está esperando, el próximo mensaje sigue por «Si responde».
+- **Simular que no respondió:** `{ "estado": {…}, "vencer": true }` (sin texto) sigue por «Si no responde». Si no hay un flujo esperando, 400.
 
 ## Probar las conexiones: `GET /api/hub/chequeo`
 
@@ -105,9 +129,9 @@ Prueba de verdad cada pieza (no solo que las variables existan): Chatwoot con el
 - `estado`: `ok` (anda), `aviso` (revisar: por ejemplo, el asistente está pausado o todavía no llegó ningún mensaje) o `falla` (no anda). `ok` es `true` si ninguna falla.
 - Tarda unos segundos (espera a la IA) y cada vez cuesta una fracción de centavo: llamarlo solo cuando alguien toca el botón.
 
-## Números: `GET /api/hub/resumen`
+## Números: `GET /api/hub/resumen` (o `/resumen/{línea}`)
 
-`{ "ultimos_7_dias": { "conversaciones": 12, "respuesta": 40, "paso_a_persona": 5, "la_tomo_una_persona": 2, "seguimiento": 8, "error": 0, … }, "registro": [{ "fecha": "…", "conversacion": 7, "tipo": "respuesta", "detalle": "…" }] }`. Lo mismo que muestra el Resumen del panel.
+Con una línea (`/resumen/linea-3`), solo lo de las conversaciones de esa línea. `{ "ultimos_7_dias": { "conversaciones": 12, "respuesta": 40, "paso_a_persona": 5, "la_tomo_una_persona": 2, "seguimiento": 8, "error": 0, … }, "registro": [{ "fecha": "…", "conversacion": 7, "tipo": "respuesta", "detalle": "…" }] }`. Lo mismo que muestra el Resumen del panel.
 
 ## Lo que la API no hace (todavía)
 

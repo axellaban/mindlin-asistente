@@ -13,6 +13,8 @@ import type { Almacen } from "../datos/tipos";
 import { moverEtapa } from "../etapas/mover";
 import type { ReglasEtapa } from "../etapas/reglas";
 import { elegirRegla, enHorario, nombreDePila, pasaronLosDias, textoSeguimiento } from "./reglas";
+import type { Modelo } from "../agente/agente";
+import { retomarFlujos } from "../flujos/servicio";
 
 /** Cuántos seguimientos como mucho por corrida: WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. */
 export const TOPE_POR_CORRIDA = 20;
@@ -24,6 +26,8 @@ export interface ResultadoCorrida {
   errores: number;
   /** Leads que cambiaron de etapa en el CRM en esta corrida (lib/etapas/reglas.ts). */
   movidos: number;
+  /** Flujos que siguieron porque venció una espera (o se habían cortado). Cuentan para el tope. */
+  flujos: number;
 }
 
 const detalle = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -34,16 +38,34 @@ export async function correrSeguimientos({
   crm,
   ahora = new Date(),
   tope = TOPE_POR_CORRIDA,
+  modelo = null,
+  dormir,
 }: {
   almacen: Almacen;
   chatwoot: Chatwoot;
   crm: CRM | null;
   ahora?: Date;
   tope?: number;
+  /** Para los pasos «La IA escribe» de los flujos. Sin ella, esos flujos pasan al equipo. */
+  modelo?: Modelo | null;
+  dormir?: (ms: number) => Promise<void>;
 }): Promise<ResultadoCorrida> {
-  const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0, movidos: 0 };
+  const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0, movidos: 0, flujos: 0 };
   if (!enHorario(ahora)) return { ...resultado, estado: "fuera de horario" };
   if (await almacen.pausado()) return { ...resultado, estado: "pausado" };
+
+  // Primero los flujos con esperas vencidas: son parte de una secuencia que ya arrancó.
+  const sinIA: Modelo = async () => {
+    throw new Error("Falta la clave de la IA en Vercel.");
+  };
+  const f = await retomarFlujos({ almacen, chatwoot, crm, modelo: modelo ?? sinIA, ahora: () => ahora, dormir }, { tope }).catch(async (e) => {
+    await almacen.registrar({ tipo: "error", conversacion: null, detalle: `Flujos (cron): ${detalle(e)}` }).catch(() => {});
+    return { revisadas: 0, retomadas: 0, errores: 1 };
+  });
+  resultado.flujos = f.retomadas;
+  resultado.errores += f.errores;
+  tope = Math.max(0, tope - f.retomadas - f.errores);
+
   const reglas = await almacen.reglasVigentes();
   if (!reglas.length) return { ...resultado, estado: "sin reglas" };
   const [candidatos, proyectos, reglasEtapa] = await Promise.all([
@@ -73,7 +95,7 @@ export async function correrSeguimientos({
     const contacto = (c.crm_contacto_id && porId.get(c.crm_contacto_id)) || (c.telefono && porTelefono.get(claveTelefono(c.telefono))) || null;
     const etapa = contacto?.etapa ?? "Nuevo";
     const paso = c.paso_seguimiento + 1;
-    const regla = elegirRegla(reglas, { etapa, paso, proyecto: c.proyecto, conversacion: c.chatwoot_id });
+    const regla = elegirRegla(reglas, { etapa, paso, proyecto: c.proyecto, conversacion: c.chatwoot_id, linea: c.linea });
     if (!regla) {
       // Ya recibió seguimientos, no hay un paso más y desde el último pasó al menos una corrida
       // (los candidatos son los callados desde la corrida anterior): «no respondió a ningún seguimiento».

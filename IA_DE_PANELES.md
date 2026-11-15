@@ -172,3 +172,16 @@ Para confirmar que el asistente contesta de verdad. Hace falta que esté publica
 
 Anotá todo en `docs/estado-paneles.md`, sección «Chatwoot», como «Prueba de punta a punta (Easypanel)». La fila de prueba del CRM no la borres: avisale a Axel cuál es, así decide si se borra o se pasa a «Descartado».
 
+
+### Tarea 11 · Sumar la línea 4 (leads entrantes 2)
+
+Desde el 15/11 el asistente maneja varias líneas ([`docs/lineas.md`](docs/lineas.md)). La 3 es la que ya anda (bandeja 1). La 4 es otra línea de leads entrantes. Hace falta el **chip o número nuevo**: pedíselo a Axel. No arranques sin él.
+
+1. **WAHA y Chatwoot.** En la consola del servidor (Easypanel), `bash servidor.sh conectar linea4 "WhatsApp Leads 2"`. Crea la sesión, la bandeja y la conexión WAHA → Chatwoot. Axel escanea el QR con el teléfono de la línea 4. Anotá el **número de la bandeja nueva** (en Chatwoot: Configuración → Bandejas; la dirección termina en `/inboxes/<número>`).
+2. **El Agent Bot.** **No corras `servidor.sh bot`**: crea un bot nuevo con otro token y la línea 3 dejaría de andar. En Chatwoot, en la bandeja nueva → Configuración → **Bot**, elegí el que ya existe, «Asistente Mindlin», y guardá.
+3. **El hub.** HQ → Comercial → Asistente de WhatsApp → elegí «Leads entrantes 2» → **Conexión**. Cargá el número de bandeja y el teléfono de la línea, y guardá.
+4. **Probar.** En el Resumen, «Probar las conexiones»: «Líneas» tiene que decir que atiende en las dos bandejas. Mandale un WhatsApp de prueba a la línea 4 desde un número que nunca le escribió: tiene que contestar el asistente. En Chatwoot, la conversación queda en la bandeja nueva.
+
+Las líneas 1 (outreach frío) y 2 (equipo y facturas) **todavía no se conectan**: su trabajo se suma más adelante. Si se conectan antes, el asistente no contesta ahí (pasa al equipo con una nota).
+
+Anotá en `docs/estado-paneles.md`, sección «Chatwoot», cómo quedó: sesión, bandeja, si el bot quedó asignado y el resultado de la prueba (sin números de teléfono).

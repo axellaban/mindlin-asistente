@@ -26,6 +26,25 @@ describe("cliente de Chatwoot", () => {
     ]);
   });
 
+  it("manda un archivo como formulario, con el texto de epígrafe y el mismo token", async () => {
+    const recibido: { url: string; autorizacion: string | null; tipo: string | null; cuerpo: FormData | null }[] = [];
+    const pedir = (async (url: string, init: RequestInit) => {
+      recibido.push({ url, autorizacion: new Headers(init.headers).get("Authorization"), tipo: new Headers(init.headers).get("Content-Type"), cuerpo: init.body as FormData });
+      return new Response(JSON.stringify({ id: 120 }), { status: 200 });
+    }) as typeof fetch;
+    const cw = crearChatwoot(cfg, pedir);
+    expect(await cw.enviarArchivo(7, "El brochure", { nombre: "brochure.pdf", tipo: "application/pdf", datos: new Uint8Array([37, 80, 68, 70]) })).toBe(120);
+    const [r] = recibido;
+    expect(r).toMatchObject({ url: "https://chat.ejemplo.com/api/v1/accounts/2/conversations/7/messages", autorizacion: "Bearer token-del-bot", tipo: null });
+    expect(r.cuerpo!.get("content")).toBe("El brochure");
+    expect(r.cuerpo!.get("message_type")).toBe("outgoing");
+    const archivo = r.cuerpo!.get("attachments[]") as File;
+    expect([archivo.name, archivo.type, archivo.size]).toEqual(["brochure.pdf", "application/pdf", 4]);
+    // Si Chatwoot no lo acepta, el error dice qué pasó.
+    const mal = crearChatwoot(cfg, (async () => new Response("muy grande", { status: 413 })) as typeof fetch);
+    await expect(mal.enviarArchivo(7, "", { nombre: "a.ogg", tipo: "audio/ogg", datos: new Uint8Array([1]) })).rejects.toThrow("Chatwoot respondió 413 en /7/messages (archivo): muy grande");
+  });
+
   it("si Chatwoot rechaza, avisa con el código", async () => {
     await expect(crearChatwoot(cfg, chatwootFalso(401).pedir).enviar(7, "x")).rejects.toBeInstanceOf(ErrorChatwoot);
   });

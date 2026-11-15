@@ -20,7 +20,9 @@ export default async function Seguimientos({ searchParams }: { searchParams: Avi
       </Marco>
     );
   }
-  const [reglas, proyectos] = await Promise.all([d.reglas(), d.proyectos()]);
+  const [reglas, proyectos, lineas] = await Promise.all([d.reglas(), d.proyectos(), d.lineas()]);
+  const deLeads = lineas.filter((l) => l.tipo === "entrada");
+  const nombreLinea = (id: string | null | undefined) => (id ? (lineas.find((l) => l.id === id)?.nombre ?? id) : "Todas");
   const nombreProyecto = (id: string | null) => (id ? (proyectos.find((p) => p.id === id)?.nombre ?? id) : "Todos");
   const cron = Boolean(process.env.CRON_SECRET?.trim());
   return (
@@ -35,13 +37,14 @@ export default async function Seguimientos({ searchParams }: { searchParams: Avi
         <div className="tabla">
           <table>
             <thead>
-              <tr><th>Etapa · paso</th><th>Días</th><th>Proyecto</th><th>Mensaje</th><th>Versión</th><th>Enviados</th><th>Respondieron</th><th></th></tr>
+              <tr><th>Etapa · paso</th><th>Días</th><th>Línea</th><th>Proyecto</th><th>Mensaje</th><th>Versión</th><th>Enviados</th><th>Respondieron</th><th></th></tr>
             </thead>
             <tbody>
               {reglas.map((r) => (
                 <tr key={r.id}>
                   <td>{r.etapa} · {r.paso}.º</td>
                   <td className="num">{r.dias_sin_respuesta}</td>
+                  <td>{nombreLinea(r.linea)}</td>
                   <td>{nombreProyecto(r.proyecto)}</td>
                   <td>
                     {r.mensaje}
@@ -106,6 +109,13 @@ export default async function Seguimientos({ searchParams }: { searchParams: Avi
               <select id="proyecto" name="proyecto" defaultValue="">
                 <option value="">Todos</option>
                 {proyectos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="linea">Línea</label>
+              <select id="linea" name="linea" defaultValue="">
+                <option value="">Todas</option>
+                {deLeads.map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
               </select>
             </div>
             <div>

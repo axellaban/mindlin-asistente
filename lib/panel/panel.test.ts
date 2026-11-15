@@ -74,7 +74,7 @@ describe("validaciones del panel", () => {
     const base = { etapa: "Nuevo", paso: "1", dias_sin_respuesta: "2", proyecto: "", mensaje: "Hola {{nombre}}, ¿viste lo de {{ proyecto }}?" };
     expect(validarRegla(form(base), ["lerma-439"])).toEqual({
       ok: true,
-      valor: { etapa: "Nuevo", paso: 1, dias_sin_respuesta: 2, proyecto: null, mensaje: "Hola {{nombre}}, ¿viste lo de {{ proyecto }}?", estado: "activa" },
+      valor: { etapa: "Nuevo", paso: 1, dias_sin_respuesta: 2, proyecto: null, mensaje: "Hola {{nombre}}, ¿viste lo de {{ proyecto }}?", estado: "activa", linea: null },
     });
     expect(validarRegla(form({ ...base, proyecto: "lerma-439", estado: "a_prueba" }), ["lerma-439"])).toMatchObject({ valor: { proyecto: "lerma-439", estado: "a_prueba" } });
     expect(validarRegla(form({ ...base, etapa: "Vendido" }), [])).toEqual({ ok: false, error: "Elegí una etapa del CRM." });

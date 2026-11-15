@@ -9,6 +9,7 @@
 
 import type { ContactoCRM } from "../crm/planilla";
 import type { Anotado, Ejemplo, Proyecto, Tono } from "../datos/tipos";
+import type { Linea } from "../lineas";
 import { describirAnotado } from "./anotado";
 import { equipoTrabajando, HORARIO_EQUIPO_DE_FABRICA, textoHorario, type HorarioEquipo } from "./horario";
 
@@ -53,12 +54,26 @@ const REGLAS = `- Usá solo la información de la ficha del proyecto de esta con
 - Los audios llegan transcriptos así: [audio: «lo que dijo»]. Respondé a lo que dice, por escrito, sin aclarar que era un audio.
 - Si aparece solo [audio] (no se pudo transcribir) o una [foto] o un [archivo] que no podés ver, pedile con amabilidad que te lo escriba, o ofrecé que la llame alguien del equipo.`;
 
-export function instrucciones({ tono, proyectos, proyecto, ejemplos }: { tono: Tono; proyectos: Proyecto[]; proyecto: Proyecto | null; ejemplos: Ejemplo[] }): string {
+export function instrucciones({
+  tono,
+  proyectos,
+  proyecto,
+  ejemplos,
+  linea = null,
+}: {
+  tono: Tono;
+  proyectos: Proyecto[];
+  proyecto: Proyecto | null;
+  ejemplos: Ejemplo[];
+  /** La línea de WhatsApp de la conversación: si tiene instrucciones propias, van después de las generales. */
+  linea?: Pick<Linea, "nombre" | "instrucciones"> | null;
+}): string {
   const partes = [
     `# Quién sos\n\n${tono.instrucciones.trim() || "Sos parte del equipo comercial de Mindlin Developers y atendés consultas por WhatsApp."}`,
     `# Criterios comerciales\n\n${tono.criterios_comerciales.trim() || "Entendé qué busca la persona antes de ofrecer."}`,
     ...(tono.sobre_la_empresa?.trim() ? [`# Sobre Mindlin Developers (vale para todos los proyectos)\n\n${tono.sobre_la_empresa.trim()}`] : []),
     ...(tono.objeciones?.trim() ? [`# Objeciones, perfiles y señales\n\nUsalo como guía para conversar, con tus palabras. Si choca con las reglas de abajo, valen las reglas.\n\n${tono.objeciones.trim()}`] : []),
+    ...(linea?.instrucciones.trim() ? [`# Esta línea de WhatsApp («${linea.nombre}»)\n\nLo que tenés que saber de esta línea, además de lo de arriba:\n\n${linea.instrucciones.trim()}`] : []),
     `# Reglas que no se rompen\n\n${REGLAS}`,
     `# Cuándo pasar la conversación a una persona\n\nUsá la herramienta pasar_a_persona cuando: ${tono.cuando_pasar_a_persona.trim() || "la persona lo pida o la consulta no esté en la ficha"}. Antes, en tu mensaje, avisale que alguien del equipo le va a escribir.`,
   ];

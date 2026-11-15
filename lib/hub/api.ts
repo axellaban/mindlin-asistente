@@ -17,7 +17,25 @@ import { bearerCorrecto } from "../cron";
 import type { DatosPanel } from "../panel/datos";
 import { queFalta } from "../panel/listo";
 import { limpiarNombre } from "../panel/sesion";
-import { CAMPOS_FICHA, ESTADOS_REGLA, ETAPAS_SEGUIMIENTO, MAX_CAMPO_FICHA, validarEjemplo, validarProyecto, validarRegla, validarReglaEtapa, validarTono } from "../panel/validar";
+import {
+  CAMPOS_FICHA,
+  ESTADOS_REGLA,
+  ETAPAS_SEGUIMIENTO,
+  MAX_ARCHIVO_BYTES,
+  MAX_CAMPO_FICHA,
+  TIPOS_ARCHIVO,
+  validarArchivo,
+  validarEjemplo,
+  validarFlujo,
+  validarLinea,
+  validarProyecto,
+  validarRegla,
+  validarReglaEtapa,
+  validarTono,
+} from "../panel/validar";
+import { LIMITES, TIPOS_DE_PASO, VARIABLES_FLUJO } from "../flujos/modelo";
+import { PLANTILLAS } from "../flujos/plantillas";
+import { TIPOS_LINEA } from "../lineas";
 import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
 import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
@@ -40,8 +58,8 @@ export interface DependenciasHub {
   /** Variables que faltan en Vercel y qué IA responde: para el resumen de «qué falta». */
   faltan?: string[];
   ia?: unknown;
-  /** Probar el asistente (lib/agente/prueba.ts). Null si falta la clave de la IA. */
-  probar?: ((estado: unknown, texto: string) => Promise<RespuestaPrueba>) | null;
+  /** Probar el asistente (lib/agente/prueba.ts), con una línea y sus flujos. Null si falta la clave de la IA. */
+  probar?: ((estado: unknown, texto: string, o: { linea: string | null; vencer: boolean }) => Promise<RespuestaPrueba>) | null;
   /** Probar las conexiones de verdad (lib/chequeo.ts). */
   chequear?: (() => Promise<Chequeo>) | null;
 }
@@ -83,6 +101,9 @@ const idDe = (t: string | undefined) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 
+/** La base rechazó un valor repetido (por ejemplo, dos líneas con la misma bandeja). */
+const repetido = (e: unknown) => (e as { code?: string } | null)?.code === "23505";
+
 /** Lo que el hub necesita para dibujar sus formularios sin copiar las reglas. */
 export const OPCIONES = {
   campos_ficha: CAMPOS_FICHA.map(([campo, titulo]) => ({ campo, titulo })),
@@ -99,6 +120,15 @@ export const OPCIONES = {
   /** El horario del equipo de fábrica (el que vale está en `tono.horario_equipo`) y los nombres de los días: 0 es domingo. */
   horario_equipo: HORARIO_EQUIPO_DE_FABRICA,
   dias_semana: NOMBRES_DIAS,
+  /** Las líneas: para qué es cada tipo. */
+  tipos_linea: TIPOS_LINEA.map(([tipo, titulo, ayuda]) => ({ tipo, titulo, ayuda })),
+  /** Los flujos: los pasos que se pueden usar, sus límites, las variables y los modelos para arrancar. */
+  tipos_de_paso: TIPOS_DE_PASO.map(([tipo, titulo, ayuda]) => ({ tipo, titulo, ayuda })),
+  limites_flujo: LIMITES,
+  variables_flujo: VARIABLES_FLUJO,
+  plantillas_flujo: PLANTILLAS,
+  tipos_archivo: TIPOS_ARCHIVO,
+  max_archivo_bytes: MAX_ARCHIVO_BYTES,
 } as const;
 
 export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<RespuestaHub> {
@@ -118,15 +148,109 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
     switch (recurso) {
       case "config": {
         if (metodo !== "GET" || id) return noSePuede();
-        const [proyectos, tono, ejemplos, reglas, estado, etapas] = await Promise.all([datos.proyectos(), datos.tono(), datos.ejemplos(), datos.reglas(), datos.estado(), datos.etapas()]);
+        const [proyectos, tono, ejemplos, reglas, estado, etapas, lineas, flujos, archivos] = await Promise.all([
+          datos.proyectos(),
+          datos.tono(),
+          datos.ejemplos(),
+          datos.reglas(),
+          datos.estado(),
+          datos.etapas(),
+          datos.lineas(),
+          datos.flujos(),
+          datos.archivos(),
+        ]);
         const falta = queFalta({ tono, proyectos, reglas: reglas.filter((r) => r.estado !== "archivada").length, archivadas: reglas.filter((r) => r.estado === "archivada").length, faltan: d.faltan ?? [] });
-        return { status: 200, json: { proyectos, tono, ejemplos, reglas, etapas, estado, falta, ia: d.ia ?? null, opciones: OPCIONES } };
+        return { status: 200, json: { proyectos, tono, ejemplos, reglas, etapas, estado, falta, lineas, flujos, archivos, ia: d.ia ?? null, opciones: OPCIONES } };
       }
 
       case "resumen": {
-        if (metodo !== "GET" || id) return noSePuede();
-        const [ultimos7Dias, registro] = await Promise.all([datos.resumen(7), datos.registro({ limite: 50 })]);
+        // /resumen: todas las líneas; /resumen/linea-3: solo esa.
+        if (metodo !== "GET") return noSePuede();
+        if (id && !(await datos.linea(id))) return error(404, "Esa línea no existe.");
+        const [ultimos7Dias, registro] = await Promise.all([datos.resumen(7, id ?? null), datos.registro({ limite: 50, linea: id ?? null })]);
         return { status: 200, json: { ultimos_7_dias: ultimos7Dias, registro } };
+      }
+
+      case "lineas": {
+        if (metodo === "GET" && !id) return { status: 200, json: { lineas: await datos.lineas() } };
+        if (metodo !== "PUT" || !id) return noSePuede();
+        const actual = await datos.linea(id);
+        if (!actual) return error(404, "Esa línea no existe.");
+        // Solo cambia lo que viene: lo demás queda como estaba.
+        const r = validarLinea(formulario({ ...actual, ...cuerpo }), (await datos.proyectos()).map((p) => p.id));
+        if (!r.ok) return error(400, r.error);
+        try {
+          await datos.guardarLinea(id, r.valor, por);
+        } catch (e) {
+          if (!repetido(e)) throw e;
+          const otra = (await datos.lineas()).find((l) => l.bandeja === r.valor.bandeja);
+          return error(409, `La bandeja ${r.valor.bandeja} ya es de la línea «${otra?.nombre ?? "otra"}». Cada línea tiene su propia bandeja en Chatwoot.`);
+        }
+        return { status: 200, json: { linea: await datos.linea(id), lineas: await datos.lineas() } };
+      }
+
+      case "flujos": {
+        const proyectos = async () => (await datos.proyectos()).map((p) => p.id);
+        const archivos = async () => new Set((await datos.archivos()).map((a) => a.id));
+        const listo = async (status = 200, extra: Objeto = {}) => ({ status, json: { ...extra, flujos: await datos.flujos() } });
+        if (metodo === "GET" && !id) return listo();
+        if (metodo === "POST" && !id) {
+          const linea = await datos.linea(String(cuerpo.linea ?? ""));
+          if (!linea) return error(400, "Elegí una línea que exista («linea»: linea-3).");
+          if (linea.tipo !== "entrada") return error(400, `La línea «${linea.nombre}» no es de leads entrantes: los flujos son para esas líneas.`);
+          const r = validarFlujo(cuerpo, { proyectos: await proyectos(), archivos: await archivos() });
+          if (!r.ok) return error(400, r.error);
+          const nuevo = await datos.agregarFlujo({ ...r.valor, linea: linea.id }, por);
+          if (cuerpo.activo === true) await datos.activarFlujo(nuevo, true, por);
+          return listo(201, { id: nuevo });
+        }
+        const n = idDe(id);
+        if (!n) return noSePuede();
+        const actual = await datos.flujo(n);
+        if (!actual) return error(404, "Ese flujo no existe.");
+        if (metodo === "PUT") {
+          const r = validarFlujo({ nombre: actual.nombre, proyecto: actual.proyecto, pasos: actual.pasos, ...cuerpo }, { proyectos: await proyectos(), archivos: await archivos() });
+          if (!r.ok) return error(400, r.error);
+          try {
+            await datos.guardarFlujo(n, r.valor, por);
+          } catch (e) {
+            if (!repetido(e)) throw e;
+            return error(409, "Ya hay un flujo activo para ese proyecto en esta línea: apagá uno de los dos antes.");
+          }
+          return listo();
+        }
+        if (metodo === "PATCH") {
+          if (typeof cuerpo.activo !== "boolean") return error(400, "Mandá «activo»: true o false.");
+          await datos.activarFlujo(n, cuerpo.activo, por);
+          return listo();
+        }
+        if (metodo === "DELETE") {
+          await datos.borrarFlujo(n);
+          return listo();
+        }
+        return noSePuede();
+      }
+
+      case "archivos": {
+        if (metodo === "GET" && !id) return { status: 200, json: { archivos: await datos.archivos() } };
+        if (metodo === "POST" && !id) {
+          const r = validarArchivo(cuerpo);
+          if (!r.ok) return error(400, r.error);
+          const nuevo = await datos.subirArchivo(r.valor, por);
+          const archivos = await datos.archivos();
+          return { status: 201, json: { archivo: archivos.find((a) => a.id === nuevo), archivos } };
+        }
+        const n = idDe(id);
+        if (!n) return noSePuede();
+        if (metodo === "GET") {
+          const a = await datos.archivoConDatos(n);
+          return a ? { status: 200, json: { archivo: a } } : error(404, "Ese archivo no existe.");
+        }
+        if (metodo === "DELETE") {
+          if (!(await datos.borrarArchivo(n))) return error(409, "Ese archivo lo usa un flujo (o ya no existe): sacalo del flujo antes de borrarlo.");
+          return { status: 200, json: { archivos: await datos.archivos() } };
+        }
+        return noSePuede();
       }
 
       case "proyectos": {
@@ -169,7 +293,11 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
 
       case "reglas": {
         if (metodo === "POST" && !id) {
-          const r = validarRegla(formulario(cuerpo), (await datos.proyectos()).map((x) => x.id));
+          const r = validarRegla(
+            formulario(cuerpo),
+            (await datos.proyectos()).map((x) => x.id),
+            (await datos.lineas()).map((l) => l.id),
+          );
           if (!r.ok) return error(400, r.error);
           const nueva = await datos.agregarRegla(r.valor);
           return { status: 201, json: { id: nueva, reglas: await datos.reglas() } };
@@ -204,10 +332,19 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
       case "probar": {
         if (metodo !== "POST" || id) return noSePuede();
         if (!d.probar) return error(503, "Falta la clave de la IA (ANTHROPIC_API_KEY) en Vercel.");
+        const vencer = cuerpo.vencer === true;
         const texto = String(cuerpo.texto ?? "").trim();
-        if (!texto) return error(400, "Mandá «texto»: el mensaje del interesado.");
-        const estado: EstadoPrueba | unknown = cuerpo.estado ?? estadoInicial(typeof cuerpo.proyecto === "string" ? cuerpo.proyecto : null);
-        return { status: 200, json: { ...(await d.probar(estado, texto)) } };
+        if (!texto && !vencer) return error(400, "Mandá «texto»: el mensaje del interesado.");
+        const linea = typeof cuerpo.linea === "string" && cuerpo.linea ? cuerpo.linea : null;
+        if (linea && !(await datos.linea(linea))) return error(404, "Esa línea no existe.");
+        const estado: EstadoPrueba | unknown = cuerpo.estado ?? estadoInicial(typeof cuerpo.proyecto === "string" ? cuerpo.proyecto : null, linea);
+        try {
+          return { status: 200, json: { ...(await d.probar(estado, texto, { linea, vencer })) } };
+        } catch (e) {
+          // Por ejemplo, «Simular que no respondió» sin un flujo esperando.
+          if (vencer) return error(400, e instanceof Error ? e.message : String(e));
+          throw e;
+        }
       }
 
       case "chequeo": {

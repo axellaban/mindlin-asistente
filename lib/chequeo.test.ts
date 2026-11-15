@@ -3,6 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { chequearConexiones, type DependenciasChequeo } from "./chequeo";
 import { COLUMNAS_ACTIVIDAD, COLUMNAS_CONTACTOS, type Hoja } from "./crm/planilla";
 import type { Modelo } from "./agente/agente";
+import { LINEAS_DE_FABRICA } from "./lineas";
 
 const CW = { url: "https://chat.ejemplo.test", cuenta: "1", token: "token-de-prueba" };
 
@@ -168,4 +169,26 @@ describe("chequeo de conexiones", () => {
     expect(detalle(c, "IA")).toBe("OpenAI (gpt-6.1-sol) no respondió: 401 invalid x-api-key");
     expect(estados(await chequearConexiones(deps({ modelo: async () => respuestaIA("") }))).IA).toBe("aviso");
   });
+
+  it("Líneas: dónde atiende y con qué flujo; avisa las pausadas y falla si no atiende en ninguna", async () => {
+    const conLineas = (cambios: Partial<(typeof LINEAS_DE_FABRICA)[number]>[] = []) => ({
+      ...datosFalsos()!,
+      async lineas() {
+        return LINEAS_DE_FABRICA.map((l, i) => ({ ...l, ...(cambios[i] ?? {}), actualizado: null, actualizado_por: null, conversaciones_7_dias: 0 }));
+      },
+      async flujos() {
+        return [{ id: 1, linea: "linea-3", nombre: "Presentación", proyecto: null, activo: true, pasos: [], actualizado: null, actualizado_por: null, corridas: 0, respondieron: 0, esperando: 0, al_equipo: 0 }];
+      },
+    });
+    const ok = await chequearConexiones(deps({ datos: conLineas() }));
+    expect(estados(ok).Líneas).toBe("ok");
+    expect(detalle(ok, "Líneas")).toBe("Atiende en «Leads entrantes» (bandeja 1, con el flujo «Presentación»). «Leads entrantes 2» todavía no está conectada (le falta la bandeja).");
+    const pausada = await chequearConexiones(deps({ datos: conLineas([{}, {}, {}, { bandeja: 2, pausada: true }]) }));
+    expect(estados(pausada).Líneas).toBe("aviso");
+    expect(detalle(pausada, "Líneas")).toContain("«Leads entrantes 2» está pausada.");
+    const ninguna = await chequearConexiones(deps({ datos: conLineas([{}, {}, { bandeja: null }]) }));
+    expect(estados(ninguna).Líneas).toBe("falla");
+    expect(ninguna.ok).toBe(false);
+  });
 });
+
