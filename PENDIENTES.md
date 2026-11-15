@@ -6,7 +6,7 @@ Dueños:
 - **Claude:** el código.
 - **Panel:** la IA con computer use, o Axel. Sus tareas están en [`IA_DE_PANELES.md`](IA_DE_PANELES.md) y anota los resultados en [`docs/estado-paneles.md`](docs/estado-paneles.md).
 - **Axel.**
-- **Mindlin:** el cliente.
+- **Mindlin:** el cliente (Mati y su equipo).
 
 Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesita saber (sin claves).
 
@@ -23,34 +23,94 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 
 **Líneas y flujos (15/11).** El asistente maneja las cuatro líneas que pidió Mindlin ([`docs/lineas.md`](docs/lineas.md)): 1 outreach frío, 2 equipo (facturas y outreach cálido), 3 y 4 leads entrantes. La 3 es la que ya andaba. Cada línea de leads se configura aparte: modo, instrucciones, proyectos, seguimientos y **flujos como los bots de Kommo** ([`docs/flujos.md`](docs/flujos.md)), que se arman en el hub con un editor de pasos.
 
-1. **Panel con Axel:** la QA en producción de las líneas y los flujos (tarea 12 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)), las variables de los avisos y de las fotos (tareas 13 y 14) y la prueba en producción de todo lo del 15/11 (tarea 15). Después, cuando Axel tenga el chip o número de la línea 4, conectarla (tarea 11).
-2. **Claude:** hecho el 15/11: la QA desde el código y las mejoras 1 a 8 de Axel. Lo que queda para cada uno, en «Traspaso para la próxima sesión».
-3. **Mindlin:** armar en el hub el flujo de cada proyecto a partir de los modelos (los textos de Kommo) y probarlo en Probar. Los flujos arrancan apagados: se prenden de a uno.
-4. **Mindlin (pendiente de recibir):** qué tiene que tener el panel de **outreach frío** (línea 1). Hasta entonces la línea existe, pero el asistente no hace nada ahí.
-5. **Al final:** la línea 2, con lo que hoy hace el bot de Telegram (documento «Bot de Telegram: todo lo que hace», 14/11). Antes hay que decidir sus «Decisiones a tomar» (ver abajo).
-6. **Axel:** las decisiones que destraban el piloto: activar los seguimientos con Mindlin (hoy hay 6 reglas cargadas y todas archivadas: no sale ninguno), qué hacer con el contacto de prueba del CRM y con qué IA responde. Ver «Decisiones abiertas».
-7. **Mindlin:** revisar los borradores que se cargaron desde Kommo ([`docs/kommo.md`](docs/kommo.md)): la ficha de Lerma 439 y las cinco apagadas, el modo de cada línea («presenta y pasa» o conversar), el horario del equipo, los seguimientos y las etapas automáticas. Probarlo desde el hub (pestaña Probar).
-8. **Axel y Panel:** el equipo en Chatwoot y la app del celular (tarea 7), que depende del correo de Chatwoot.
-9. **Todos:** pruebas internas con el equipo y, después, consultas reales en la línea de Lerma 439.
-10. **Claude con Axel:** revisar las respuestas de las primeras conversaciones y ajustar el tono con el material de Mindlin.
+**En qué orden sigue:**
 
-## Decisiones abiertas
+1. La IA de paneles prueba todo en producción (tareas 12 a 15).
+2. Axel decide lo suyo y Mati carga lo de Mindlin (ver «Qué falta, por persona», abajo).
+3. Se activan los seguimientos y los flujos.
+4. Pruebas internas con el equipo.
+5. Consultas reales en la línea de Lerma 439.
 
-- [ ] Correo para Chatwoot (invitaciones a agentes y avisos; también hace falta para el email más adelante). Opciones: Zoho (donde están los correos de Mindlin), Google Workspace o un servicio como Brevo. — Axel
-- [x] ~~Los contactos que da de alta el asistente, ¿entran en «Nuevo» o en «Contacto inicial»?~~ Desde el 11/11 entran en **«Contacto inicial»**, la etapa del evento «El asistente le respondió por primera vez», así no disparan la alarma «nuevo sin contactar en 2 h». Si Mindlin prefiere que entren en «Nuevo», se cambia ese evento a «No mover» en Etapas automáticas. — Claude, 13/11
-- [ ] Seguimientos: quedaron cargados y **archivados** los de Kommo (6 reglas, uno por proyecto, a las 24 h). Falta revisarlos, pasarlos a «Activa» (hub → Seguimientos, o `/panel/seguimientos`) y decidir si se suman más pasos. Sin reglas activas no sale ninguno. — Axel con Mindlin
-- [ ] El contacto de prueba del CRM (`cmwb5wcob9uz6`, «Juan Prueba», hoy en «Visita / reunión»): ¿se borra o se pasa a «Descartado»? Lo crearon las pruebas del 10/11 y del 13/11. — Axel
-- [ ] Modo de atención de cada línea de leads: ¿«presenta y pasa» (como Kommo: cuando la persona responde, sigue el equipo), que el asistente siga la conversación (como está hoy) o un flujo? Desde el 15/11 se elige por línea en el hub (la línea → Inteligencia comercial y Flujos). La 3 conservó el modo que tenía el tono. — Mindlin
-- [ ] Para qué es la línea 4 (otra campaña, otra zona, otros proyectos) y qué proyectos atiende. — Mindlin
-- [ ] Línea 2 (bot de Telegram a WhatsApp), antes de empezarla: ¿el mismo número que el asistente comercial o uno aparte? (el documento recomienda uno aparte, que es la línea 2); ¿qué avisos siguen por WhatsApp? (con WAHA no hay plantillas pagas, pero escribirle a alguien que no habló en 24 h tiene riesgo de bloqueo); ¿convivencia con Telegram unas semanas o corte? — Mindlin con Axel
-- [ ] Etapas automáticas: revisar las de fábrica (Comercial → Asistente de WhatsApp → Etapas automáticas). Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve. — Mindlin
-- [ ] VIA 53 y Torre Cuatro Vientos: los dos documentos de Mindlin tienen datos distintos (precios, entrega, forma de pago, el semipiso). Confirmar cuáles valen antes de activarlos (está en las notas internas de cada ficha). — Mindlin
-- [ ] Con qué IA responde. Acá quedó decidido Claude (10/11), pero en producción responde OpenAI (`gpt-6.1-sol`, cargado por Panel el 10/11 para la prueba de la línea; con ese anduvo la prueba de punta a punta del 13/11). Los dos andan; hay que elegir uno y dejarlo en Vercel. — Axel
-- [ ] Horario del equipo comercial: hoy es de lunes a viernes de 9 a 20 (fuera de eso, si pasa la conversación avisa que le escriben apenas vuelvan). ¿Es así? Desde el 13/11 se cambia en el hub: Inteligencia comercial → Horario del equipo comercial (o en el panel, Tono). — Mindlin
-- [ ] Plan de Vercel: seguir en Hobby (seguimientos una vez por día y repo público) o pasar a Pro. Con Pro, el proyecto sigue en la cuenta de Mindlin, el repo puede volver a privado (que era el objetivo) y los seguimientos pueden volver a cada 15 minutos. Con Pro también se destraban las esperas cortas de los flujos: con Hobby, una espera de «2 horas» sale en la corrida del día siguiente a las 10. Con Hobby anda: los seguimientos tienen un margen para que «1 día» sea «mañana a las 10». — Axel
-- [ ] Cuando la cuenta de GitHub de Mindlin vuelva: transferirles este repo. — Axel
+## Qué falta, por persona (al 15/11)
 
-Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindlin (`mindlindevelopers.ia`, plan Hobby), con el repo público para que publique (Axel); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11), con Easypanel (Axel, 13/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11); el asistente mueve a los leads de etapa y se configura desde el hub, que arma Claude (Axel, 11/11); lotes y correos quedan afuera por ahora (Axel, 11/11); audios: se transcriben con OpenAI, clave cargada (11/11).
+Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
+
+### Axel: decide
+
+1. **Seguimientos:** revisar con Mati las 6 reglas que vinieron de Kommo (una por proyecto, a las 24 h) y pasarlas a «Activa». Hoy están archivadas y **no sale ningún seguimiento**. Se hace en el hub → Asistente de WhatsApp → Seguimientos.
+2. **Con qué IA responde: Claude u OpenAI.** Hoy responde OpenAI (`gpt-6.1-sol`).
+   - Se elige con `ASISTENTE_PROVEEDOR` en Vercel y se vuelve a publicar.
+   - Conviene probarla antes en «Probar» con las conversaciones difíciles.
+   - Si es Claude, falta probarlo de verdad: Claude con Axel.
+3. **Plan de Vercel:** seguir en Hobby o pasar a Pro.
+   - **Con Hobby:** los seguimientos y las esperas de los flujos salen una vez por día, a las 10, y el repo queda público.
+   - **Con Pro**, o con un servicio gratis que llame al cron cada 15 minutos: salen a la hora justa y el repo puede volver a ser privado. Lo que cambia en el código está en la mejora 10.
+4. **Correo para Chatwoot:** Zoho, Google Workspace o Brevo. Sin él no se puede invitar al equipo a Chatwoot ni usar su app del celular (tarea 7).
+5. **A quién le llegan los avisos de los leads sin responsable** (`ASISTENTE_AVISAR_SIN_RESPONSABLE` en el hub, por ejemplo `Mati,Tade`; tarea 13).
+6. **El mail del usuario «Hub» de Chatwoot**, que sirve para ver fotos y audios en el hub (tarea 14).
+7. **Las filas de prueba del CRM:** «Juan Prueba» (`cmwb5wcob9uz6`) y las que liste la tarea 15. ¿Se borran o pasan a «Descartado»?
+
+### Axel: hace
+
+8. Pasarle a la IA de paneles las tareas 12 a 15 (y estar para el teléfono de prueba y los códigos).
+9. Conseguir el chip o número de la línea 4 (tarea 11).
+10. Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas del CRM sin avisar.
+11. Hostinger: delegar el acceso Admin a su cuenta.
+12. Cuando vuelva la cuenta de GitHub de Mindlin, transferirles este repo.
+
+### Mati (Mindlin): define
+
+1. **Cómo atiende cada línea de leads:**
+   - «presenta y pasa» (cuando la persona responde, sigue el equipo);
+   - que el asistente converse, como hoy;
+   - o un flujo.
+
+   Se elige por línea en el hub.
+2. **Para qué es la línea 4** y qué proyectos atiende.
+3. **Línea 2**, lo del bot de Telegram por WhatsApp. Lo define con Axel:
+   - ¿un número aparte o el mismo?;
+   - ¿qué avisos pasan a WhatsApp?;
+   - ¿conviven unas semanas con Telegram o se corta?
+4. **Línea 1 (outreach frío):** qué tiene que tener su panel.
+5. **Etapas automáticas:** revisar las de fábrica. Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve.
+6. **VIA 53 y Torre Cuatro Vientos:** sus dos documentos tienen datos distintos (precios, entrega, forma de pago, el semipiso). ¿Cuáles valen?
+7. **Horario del equipo comercial:** hoy es de lunes a viernes de 9 a 20.
+8. **Formularios:** si usan formularios (de la web o de Meta) para juntar leads, avisar, así entran solos al CRM.
+
+### Mati (Mindlin): carga, en el hub
+
+9. **Fichas de cada proyecto:**
+   - revisar y completar precios, disponibilidad, avance de obra y links;
+   - prender las cinco que están apagadas, si corresponde.
+10. **Tono:** revisar el borrador y sumar 10 a 20 conversaciones reales de ejemplo, sin datos personales.
+11. **Campañas:** las de Meta, con el texto del primer mensaje de cada anuncio (línea → Inteligencia comercial → Campañas). Así se sabe de qué anuncio viene cada lead.
+12. **Flujos de cada proyecto:** armarlos desde los modelos de Kommo (textos, brochure, foto de obra) y probarlos en «Probar» antes de prenderlos.
+13. **Respuestas rápidas del chat:** cómo llegar, horarios, formas de pago, link al brochure (CRM → un chat → ⚡). El hub no trae ninguna inventada.
+14. **Una vez por semana:** revisar respuestas reales del asistente (Asistente de WhatsApp → Revisar).
+15. **Después:** pruebas internas con el equipo y consultas reales en la línea de Lerma 439.
+
+### La IA de paneles (computer use), con Axel
+
+Las tareas de [`IA_DE_PANELES.md`](IA_DE_PANELES.md), en este orden:
+
+- **12:** QA de líneas y flujos en producción.
+- **13:** avisos al responsable.
+- **14:** usuario «Hub» de Chatwoot.
+- **15:** prueba en producción de todo lo del 15/11, más la revisión de la planilla del CRM.
+- **11:** la línea 4, con el chip.
+- **7:** el equipo en Chatwoot, cuando esté el correo.
+
+### Claude (código)
+
+Nada abierto. Se retoma con:
+
+- lo que salga de las tareas 12 y 15;
+- la línea 2, cuando Mati y Axel la definan;
+- el panel de outreach frío, cuando Mindlin pase qué quiere;
+- los formularios, si los usan;
+- probar Claude de verdad, si se elige Claude.
+
+Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindlin (`mindlindevelopers.ia`, plan Hobby), con el repo público para que publique (Axel); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11), con Easypanel (Axel, 13/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11), y es la misma que usa el CRM del hub en producción (confirmado el 15/11); el asistente mueve a los leads de etapa y se configura desde el hub, que arma Claude (Axel, 11/11); lotes y correos quedan afuera por ahora (Axel, 11/11); audios: se transcriben con OpenAI, clave cargada (11/11).
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
@@ -98,28 +158,15 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 
 ## Traspaso para la próxima sesión (15/11, Claude; al día al cierre)
 
-**Hecho el 15/11:** la QA desde el código (hallazgos y arreglos en «QA de punta a punta», abajo), las mejoras 1 a 8 de Axel y las ideas traídas de DeskcommCRM, cada una con su PR (ver las dos listas al final). Del lado del código no queda nada abierto: lo que sigue son pruebas en producción y decisiones. En orden:
+**Hecho el 15/11:**
 
-1. **Panel con Axel** ([`IA_DE_PANELES.md`](IA_DE_PANELES.md)), en este orden:
-   - tarea 12, la QA en producción de las líneas y los flujos (incluye probar «Pendiente»);
-   - tarea 13, `HUB_URL` para los avisos;
-   - tarea 14, el usuario «Hub» de Chatwoot para ver fotos y audios;
-   - tarea 15, la prueba en producción de todo lo del 15/11 (mejoras 1 a 8 y las ideas de DeskcommCRM), con la revisión de que el hub y el asistente usan la misma planilla del CRM;
-   - después, la tarea 11 (la línea 4, con el chip).
-2. **Axel decide** (lo del CRM ya está: es la planilla de Google, confirmado el 15/11):
-   - con qué IA responde (mejora 9);
-   - Vercel Pro o un servicio externo para las esperas (mejora 10);
-   - a quién le llegan los avisos de leads sin responsable;
-   - activar los seguimientos.
-3. **Mindlin:**
-   - pasar sus campañas y el texto del primer mensaje de cada anuncio;
-   - armar los flujos de cada proyecto;
-   - revisar las respuestas una vez por semana (solapa Revisar);
-   - lo de outreach frío (línea 1) y la línea 2.
-4. **La próxima IA de código:**
-   - lo que salga de la tarea 12;
-   - lo que salga de la tarea 15;
-   - la línea 2 cuando estén sus decisiones.
+- la QA desde el código (abajo);
+- las mejoras 1 a 8 de Axel;
+- las ideas traídas de DeskcommCRM;
+- el control del contenido de los archivos;
+- las líneas en una fila que se desliza en el celular.
+
+Cada cosa salió en su PR (ver las listas al final). **Del lado del código no queda nada abierto.** Lo que falta, y de quién es, está arriba, en «Qué falta, por persona». La próxima IA de código retoma con lo que salga de las tareas 12 y 15 de la IA de paneles.
 
 Para trabajar: ramas `claude/…` y PR, `npm run verificar` antes del PR y Postgres local para las pruebas (`PRUEBA_DATABASE_URL`). Para ver las pantallas del hub sin sesión: una página temporal en `app/t/…` (queda fuera del login) que muestre `<Asistente />`, con `page.route` de Playwright mandando los pedidos al asistente en local. No se sube.
 
@@ -135,10 +182,18 @@ Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial compl
 - [ ] Probar en producción que «Pendiente» le devuelve la conversación al asistente: el paso 7 de la tarea 10 no figura en la prueba del 13/11. Quedó sumado a la tarea 12. — Panel con Axel
 - [x] **Pantallas del hub** (recorridas en la computadora y en el celular contra el asistente en local, con su base y datos inventados): sin errores de consola, sin pedidos fallidos y nada corrido de costado. El editor de flujos se desarmaba con una espera adentro de otra (la trae el modelo «Presentación, brochure y un seguimiento»): las tarjetas se salían de su camino y, en el celular, la flecha tapaba el título. Arreglado en el hub ([#87](https://github.com/matimindlin111/mindlinhub/pull/87)), junto con la pastilla «General» estirada y las tarjetas de las líneas: la 4, sin bandeja, decía «atiende la IA» y ahora dice «Falta conectarla». — Claude, 15/11
 - [x] `/panel/lineas` del asistente, en la computadora y en el celular: anda bien. — Claude, 15/11
-- [ ] Sugerencia: en el celular, las cuatro tarjetas de las líneas y la cabecera ocupan la primera pantalla y hay que bajar para llegar a las solapas. Se podría mostrar las líneas en una fila que se desliza. — Mindlin decide, después Claude
+- [x] En el celular, las cuatro tarjetas de las líneas ocupaban la primera pantalla y había que bajar para llegar a las solapas. Ahora van en una fila que se desliza y la elegida queda a la vista (matimindlin111/mindlinhub#101). — Claude, 15/11
 - [x] Subir archivos por la API del hub, en local: una foto entra; un tipo que no se permite y uno de más de 2,5 MB se rechazan con un mensaje claro. — Claude, 15/11
 - [ ] «Probar» con la IA de verdad no se pudo ver en local (sin clave de IA), ni cómo llega un archivo a WhatsApp: los cubre la tarea 12. — Panel con Axel
 - [x] Menor: el tipo de un archivo subido era el que declaraba el navegador. Desde el 15/11 también se mira el contenido (las primeras letras del archivo): un programa renombrado como foto no entra (`coincideElContenido`, `lib/panel/validar.ts`). — Claude, 15/11
+
+**Del lado del código, revisado el 15/11 (Claude).** Cada punto de abajo está cubierto por pruebas automáticas, que corren en cada PR. Esas pruebas cubren tres cosas:
+
+- **El webhook:** responde en su línea, pasa al equipo una bandeja sin línea o una línea pausada, se corre si escribe el equipo, vuelve con «Pendiente» y reconoce el eco de texto y de archivos.
+- **Los flujos y el CRM:** los flujos de punta a punta; el CRM, que no toca Reserva ni Vendido y no repite contactos (tampoco la misma persona por dos líneas, prueba sumada hoy).
+- **Los seguimientos:** por línea y generales, nunca a quien lleva un flujo, con tope y espaciados.
+
+Seguridad y arquitectura quedan marcadas abajo. Lo que sigue sin tilde se ve **en producción**: lo prueba la IA de paneles en las tareas 12 y 15.
 
 **1. Bugs, arreglos, base de datos y arquitectura**
 
@@ -171,17 +226,20 @@ Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial compl
   - en Vercel, que el webhook y el cron terminen bien lejos de los 300 segundos;
   - el tamaño de la base en Neon;
   - las funciones por día (plan Hobby).
-- [ ] **Seguridad:**
-  - ninguna clave en el repo ni en los logs;
-  - el permiso del módulo en el hub;
-  - los archivos solo de los tipos permitidos y hasta 2,5 MB;
-  - los datos personales solo para quien tiene Comercial.
-- [ ] **Arquitectura:**
-  - revisar las decisiones de las secciones 11 y 12 de [`docs/arquitectura.md`](docs/arquitectura.md);
-  - los límites del plan Hobby (esperas que se revisan una vez por día);
-  - qué falta para la línea 4.
+- [x] **Seguridad** (revisado en el código el 15/11):
+  - **ninguna clave en el repo:** se buscaron claves de Anthropic, OpenAI, GitHub, Google y AWS en todos los archivos, y no hay;
+  - **los logs de Vercel** muestran solo qué hizo el asistente y cuántos mensajes mandó el cron, sin claves;
+  - **el permiso del módulo en el hub:** la ruta que habla con el asistente pide el permiso de Asistente de WhatsApp, y las del CRM, el de Comercial;
+  - **los archivos:** solo de los tipos permitidos, hasta 2,5 MB, y ahora también con el contenido revisado;
+  - **los datos personales** solo se ven desde el hub, con esos permisos. — Claude
+- [x] **Arquitectura** (revisado el 15/11):
+  - las decisiones de las secciones 11 a 14 de [`docs/arquitectura.md`](docs/arquitectura.md) siguen valiendo;
+  - los límites del plan Hobby están escritos donde corresponde: esperas y seguimientos una vez por día, y la corrida dentro de los 300 segundos aun con los mensajes espaciados;
+  - a la línea 4 solo le falta el chip (tarea 11). — Claude
 
 **2. Flujos comerciales, reglas, marketing y la base de conocimiento de cada proyecto**
+
+Esto lo carga y lo decide Mindlin: está resumido arriba, en «Qué falta, por persona».
 
 - [ ] **Fichas:**
   - en cada proyecto, presentación, precios, financiación, disponibilidad, tipologías y links al día;

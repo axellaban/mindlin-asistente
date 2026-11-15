@@ -393,6 +393,15 @@ Abrí el hub desde el celular y mirá:
 
 Anotá todo lo que se vea mal o confunda, con una captura sin datos de personas.
 
+#### 16. Registro, tiempos y límites
+
+- **En el panel del asistente** (`/panel`, el registro): ¿hubo errores en estos días? Copiá los que haya, sin teléfonos.
+- **En Vercel → `mindlin-asistente` → Logs:**
+  - el webhook y el cron de las 10 tienen que terminar bien;
+  - el cron tiene que tardar menos de 300 segundos (anotá cuánto tardó).
+- **En Vercel → Usage** (plan Hobby): cuántas ejecuciones de funciones van en el mes y si alguna cifra está cerca del límite.
+- **En Neon** (desde Vercel → Storage): cuánto ocupa la base del asistente.
+
 #### Cómo reportarlo
 
 En `docs/estado-paneles.md`, una sección nueva: «QA del 15/11 (mejoras y DeskcommCRM)».
