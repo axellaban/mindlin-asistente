@@ -331,6 +331,9 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
     ]);
     const porTelefono = await hub("POST", "contacto", { id: "otro-id", telefono: "11 5555-0002" });
     expect((porTelefono.json.conversaciones as { chatwoot_id: number }[]).map((x) => x.chatwoot_id)).toEqual([502]);
+    // Escrito a la antigua, con el 15: igual coincide (los últimos 8 números, como el CRM del hub).
+    const conQuince = await hub("POST", "contacto", { telefono: "011 15 5555-0002" });
+    expect((conQuince.json.conversaciones as { chatwoot_id: number }[]).map((x) => x.chatwoot_id)).toEqual([502]);
     expect((await hub("POST", "contacto", { telefono: "123" })).json.conversaciones).toEqual([]);
     expect((await hub("POST", "contacto", {})).status).toBe(400);
     expect((await hub("GET", "contacto")).status).toBe(405);

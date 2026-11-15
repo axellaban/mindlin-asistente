@@ -11,7 +11,6 @@ import { EVENTOS, type Evento } from "../etapas/reglas";
 import { COLUMNAS_LINEA, lineaDeFila } from "../datos/postgres";
 import type { Linea } from "../lineas";
 import { archivosDe, describirPosicion, type Paso } from "../flujos/modelo";
-import { claveTelefono } from "../crm/planilla";
 import type { FichaEditable, LineaEditable, ReglaNueva } from "./validar";
 
 type Db = Pick<pg.Pool, "query">;
@@ -464,9 +463,10 @@ export function datosPanel(db: Db) {
      */
     async conversacionesHub({ linea = null, contacto = null, conversacion = null, limite = 200 }: FiltroConversaciones = {}): Promise<ConversacionHub[]> {
       const id = contacto?.id?.trim() || null;
-      // Por teléfono: los últimos 10 números, como compara el CRM (claveTelefono).
-      const tel = contacto?.telefono ? claveTelefono(contacto.telefono) : "";
-      const telefono = tel.length >= 8 ? tel : null;
+      // Por teléfono: los últimos 8 números, como compara el CRM del hub. Así coincide aunque esté
+      // escrito distinto («+54 9 11 5555-1234», «011 15 5555-1234»).
+      const tel = (contacto?.telefono ?? "").replace(/\D/g, "");
+      const telefono = tel.length >= 8 ? tel.slice(-8) : null;
       if (contacto && !id && !telefono) return [];
       const { rows } = await db.query(
         `select c.chatwoot_id, c.linea, l.nombre as linea_nombre, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
@@ -483,7 +483,7 @@ export function datosPanel(db: Db) {
          where ($2::text is null or c.linea = $2)
            and ($3::text is null and $4::text is null
                 or c.crm_contacto_id = $3
-                or ($4::text is not null and right(regexp_replace(coalesce(c.telefono, ''), '[^0-9]', '', 'g'), 10) = $4))
+                or ($4::text is not null and right(regexp_replace(coalesce(c.telefono, ''), '[^0-9]', '', 'g'), 8) = $4))
            and ($6::bigint is null or c.chatwoot_id = $6)
          order by coalesce(m.fecha, c.actualizada) desc
          limit $1`,
