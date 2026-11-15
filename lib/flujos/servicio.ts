@@ -154,6 +154,12 @@ export async function retomarFlujos(s: Servicios, { tope }: { tope: number }): P
         const linea: Linea | null = lineas.find((l) => l.id === c.linea) ?? null;
         const historial = await s.almacen.historial(c.conversacion, LARGO_HISTORIAL);
         const ch = await prepararCharla(s, { conv: c.conversacion, linea, historial });
+        // Pidió que no le escriban (lib/baja.ts): el flujo se corta acá, sin mandar nada.
+        if (ch.guardada?.pidio_baja) {
+          await s.almacen.cancelarCorridas(c.conversacion);
+          await s.almacen.registrar({ tipo: "flujo", conversacion: c.conversacion, detalle: `Flujo «${c.nombre}»: se cortó porque la persona pidió que no le escriban más.`, datos: { corrida: c.id } });
+          return;
+        }
         let disparo: Disparo = c.estado === "en_curso" ? "reanudar" : "vencio";
         if (c.estado === "esperando" && c.espera_desde && historial.some((m) => m.rol === "interesado" && m.fecha > c.espera_desde!)) disparo = "respuesta";
         const que = await correrTramo(s, ch, c, disparo);

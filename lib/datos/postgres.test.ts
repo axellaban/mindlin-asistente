@@ -85,7 +85,7 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await a.guardarConversacion({ chatwoot_id: 19, telefono: "5491155550000", nombre: "Ana" });
     await a.guardarConversacion({ chatwoot_id: 19, proyecto: "lerma-439" });
     await a.guardarConversacion({ chatwoot_id: 19, crm_contacto_id: "c1" });
-    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null, linea: null, bandeja: null, campania: null, campania_por: null });
+    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null, linea: null, bandeja: null, campania: null, campania_por: null, pidio_baja: null });
     // La campaña va y vuelve con su motivo (y no borra lo demás).
     await a.guardarConversacion({ chatwoot_id: 19, campania: "Meta Lerma", campania_por: "frase" });
     expect(await a.conversacion(19)).toMatchObject({ proyecto: "lerma-439", campania: "Meta Lerma", campania_por: "frase" });
@@ -168,6 +168,17 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     expect(await a.volvioAlBot(40)).toBe(true);
     expect(await a.volvioAlBot(40)).toBe(false);
     expect((await a.candidatosSeguimiento("2026-11-20T14:00:00.000Z"))[0]).toMatchObject({ chatwoot_id: 40, paso_seguimiento: 0 });
+
+    // Pide la baja (lib/baja.ts): deja de ser candidata y no vuelve aunque el equipo se la devuelva.
+    expect(await a.pidioBaja(40, "2026-11-20T15:00:00.000Z")).toBe(true);
+    expect(await a.pidioBaja(40, "2026-11-21T15:00:00.000Z")).toBe(false);
+    expect((await a.conversacion(40))?.pidio_baja).toBe("2026-11-20T15:00:00.000Z");
+    expect(await a.candidatosSeguimiento("2026-11-25T14:00:00.000Z")).toEqual([]);
+    expect(await a.volvioAlBot(40)).toBe(false);
+    expect(await a.candidatosSeguimiento("2026-11-25T14:00:00.000Z")).toEqual([]);
+    // También si todavía no había fila de la conversación.
+    expect(await a.pidioBaja(41, "2026-11-20T15:00:00.000Z")).toBe(true);
+    expect((await pool.query("select sin_seguimientos from conversaciones where chatwoot_id = 41")).rows[0].sin_seguimientos).toBe(true);
   });
 
   it("líneas y flujos: las cuatro líneas de fábrica, las corridas con su reclamo y lo que retoma el cron", async () => {

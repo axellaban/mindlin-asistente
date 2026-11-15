@@ -153,6 +153,47 @@ describe("flujos en una conversación de verdad", () => {
     expect(await x.escribe("¿Y cuándo se entrega?")).toBe("respondió");
   });
 
+  it("«no me escriban más» mientras el flujo espera: se corta, no sigue por «Si responde» y la IA confirma una vez", async () => {
+    const x = armar();
+    await x.escribe("Hola, quiero info de Lerma");
+    await x.ecoDelBot("¡Hola Ana! Te escribimos desde Mindlin Developers.");
+    x.pasar(3);
+    x.respuestas.push(respuesta([{ type: "text", text: "Entendido, no te escribimos más. Si algún día querés info, escribinos por acá." }]));
+    expect(await x.escribe("No me escriban más, gracias")).toBe("respondió");
+    // Ni «Seguimiento» ni pase al equipo (lo que hacía «Si responde»): solo la respuesta corta de la IA.
+    expect(x.hechos.slice(2)).toEqual(["enviar 7: Entendido, no te escribimos más. Si algún día querés info, escribinos por acá."]);
+    expect(JSON.stringify(x.pedidos[0])).toContain("no le vamos a escribir más");
+    expect(x.datos.corridas[0]).toMatchObject({ estado: "terminado", resultado: "cancelado" });
+    expect(x.pestanias["CRM Contactos"][0][ETAPA]).toBe("Contacto inicial");
+    expect(x.pestanias["CRM Actividad"].at(-1)![5]).toMatch(/^Pidió que no le escriban más por WhatsApp/);
+    expect(x.datos.registro.filter((r) => r.tipo === "pidio_baja")).toHaveLength(1);
+    expect(x.datos.conversaciones.get(7)?.pidio_baja).toBe(hora(3).toISOString());
+
+    // Al día siguiente el cron no le manda nada.
+    x.pasar(24);
+    expect(await correrSeguimientos({ ...x.s, ahora: hora(24) })).toMatchObject({ flujos: 0, enviados: 0 });
+    expect(x.hechos).toHaveLength(3);
+    // Si vuelve a escribir, le contesta la IA como siempre (sin la consigna) y la baja sigue.
+    x.pasar(30);
+    x.respuestas.push(respuesta([{ type: "text", text: "¡Hola Ana! Sí, sigue disponible." }]));
+    expect(await x.escribe("Hola, ¿sigue disponible la 2C?")).toBe("respondió");
+    expect(JSON.stringify(x.pedidos[1])).not.toContain("no le vamos a escribir más");
+    expect(x.datos.registro.some((r) => r.tipo === "volvio_al_bot")).toBe(false);
+    expect(x.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+  });
+
+  it("si la baja llegó mientras el flujo esperaba (la marcó la IA), el cron corta el flujo sin mandar nada", async () => {
+    const x = armar();
+    await x.escribe("Hola, quiero info de Lerma");
+    await x.ecoDelBot("¡Hola Ana! Te escribimos desde Mindlin Developers.");
+    await x.datos.almacen.pidioBaja(7, hora(1).toISOString());
+    x.pasar(24);
+    expect(await correrSeguimientos({ ...x.s, ahora: hora(24) })).toMatchObject({ flujos: 0, enviados: 0 });
+    expect(x.hechos).toHaveLength(2);
+    expect(x.datos.corridas[0]).toMatchObject({ estado: "terminado", resultado: "cancelado" });
+    expect(x.datos.registro.at(-1)?.detalle).toBe("Flujo «Presentación»: se cortó porque la persona pidió que no le escriban más.");
+  });
+
   it("una espera corta no vence antes de tiempo: el margen del cron no pasa de la mitad de la espera", async () => {
     const corta: Paso[] = [
       { tipo: "mensaje", texto: "¡Hola! Te cuento de {{proyecto}}.", archivo: null },

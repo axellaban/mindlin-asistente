@@ -370,6 +370,22 @@ describe("atender un mensaje", () => {
     await atender(p.s(no, respuesta([{ type: "text", text: "Entendido, ¡gracias por avisar!" }])), accion(3, "No me interesa, no me escriban más"));
     expect([fila()[COLUMNAS_CONTACTOS.indexOf("Etapa")], fila()[COLUMNAS_CONTACTOS.indexOf("Motivo de pérdida")]]).toEqual(["Descartado", "Otro"]);
     expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+    expect(p.datos.conversaciones.get(7)?.pidio_baja).toBeTruthy();
+
+    // Vuelve a escribir: antes eso «devolvía» la conversación al bot y volvían los seguimientos.
+    void p.datos.almacen.guardarMensaje(msg(4, "bot", "Entendido, ¡gracias por avisar!"));
+    void p.datos.almacen.guardarMensaje(msg(5, "interesado", "Gracias a vos"));
+    await atender(p.s(respuesta([{ type: "text", text: "¡Que andes bien!" }])), accion(5, "Gracias a vos"));
+    expect(p.datos.seguimiento.get(7)?.sin_seguimientos).toBe(true);
+    expect(p.datos.registro.some((r) => r.tipo === "volvio_al_bot")).toBe(false);
+  });
+
+  it("un «no me interesa» suelto lo decide la IA con su señal: también queda la baja", async () => {
+    const p = conEtapas({ historial: [msg(1, "interesado", "Hola"), msg(2, "bot", "¡Hola!"), msg(3, "interesado", "No me interesa")] });
+    const no = respuesta([{ type: "tool_use", id: "t1", name: "marcar_senal", input: { senal: "no_le_interesa", detalle: "no le interesa" } }]);
+    await atender(p.s(no, respuesta([{ type: "text", text: "¡Gracias por avisar!" }])), accion(3, "No me interesa"));
+    expect(p.datos.conversaciones.get(7)?.pidio_baja).toBeTruthy();
+    expect(p.datos.registro.filter((r) => r.tipo === "pidio_baja").map((r) => r.detalle)).toEqual([expect.stringMatching(/^La IA marcó que no le interesa/)]);
   });
 
   it("etapas automáticas: a quien el equipo tiene en Negociación o Reserva no lo toca; sin reglas, tampoco mueve a nadie", async () => {

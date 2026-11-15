@@ -15,6 +15,7 @@
  */
 
 import type { Accion, MensajeHistorial } from "../chatwoot/evento";
+import { CONSIGNA_BAJA, NOTA_BAJA, pidioNoEscribir } from "../baja";
 import type { Evento } from "../etapas/reglas";
 import { conFlujo } from "../flujos/servicio";
 import type { Linea } from "../lineas";
@@ -76,9 +77,23 @@ export async function atender(s: Servicios, a: Responder, linea: Linea | null = 
 
     const ch = await prepararCharla(s, { conv, linea, historial, contacto: a.contacto, bandeja: a.bandeja, eventoPara: (g) => eventoDelMensaje(historial, g?.ultimo_seguimiento) });
 
+    // «No me escriban más» (lib/baja.ts): ni flujo ni seguimientos, para siempre en esta conversación.
+    // La IA le contesta una vez, corto; si después vuelve a escribir, le contesta como siempre.
+    // Si ya la había pedido, cuenta solo lo que escribió después (el eco de la respuesta puede no haber llegado).
+    const desde = ch.guardada?.pidio_baja ?? null;
+    const pide = mensajesNuevos(historial).some((m) => (!desde || m.fecha > desde) && pidioNoEscribir(m.texto));
+    const baja = pide || !!ch.guardada?.pidio_baja;
+    if (baja) await s.almacen.cancelarCorridas(conv).catch(() => {});
+    // Pedir la baja no es «respondió»: no avanza de etapa (si la IA marca «no le interesa», lo descarta).
+    if (pide) ch.eventos.length = 0;
+    if (pide && (await s.almacen.pidioBaja(conv, ahora().toISOString()))) {
+      await s.almacen.registrar({ tipo: "pidio_baja", conversacion: conv, detalle: NOTA_BAJA });
+      if (s.crm && ch.contacto) await s.crm.anotarActividad({ contacto: ch.contacto, detalle: NOTA_BAJA, ahora: ahora().toISOString() }).catch(() => {});
+    }
+
     // Un flujo (como los bots de Kommo) para esta persona, si la línea tiene uno.
     let pasoPorFlujo = false;
-    if (!devuelta) {
+    if (!devuelta && !baja) {
       const f = await conFlujo(s, ch);
       if ("hecho" in f) return f.hecho;
       pasoPorFlujo = f.ia;
@@ -88,13 +103,13 @@ export async function atender(s: Servicios, a: Responder, linea: Linea | null = 
     // respondió → sigue el equipo. Si el equipo se la devolvió a propósito, o la conversación ya
     // pasó por un flujo (que decidió que siga la IA), responde.
     const presentaYPasa = linea ? linea.pasar_al_responder : ch.tono.pasar_al_responder === true;
-    if (presentaYPasa && !devuelta && !pasoPorFlujo && historial.some((m) => m.rol === "bot")) {
+    if (presentaYPasa && !devuelta && !pasoPorFlujo && !pide && historial.some((m) => m.rol === "bot")) {
       await ch.mover(["paso_al_equipo"]);
       await ch.pasarAlEquipo({ motivo: "La persona respondió después de la presentación (modo «presenta y pasa»).", resumen: ch.anotado.resumen ?? "" });
       return "pasó al equipo: respondió después de la presentación";
     }
 
-    const { pasar } = await ch.turnoIA();
+    const { pasar } = await ch.turnoIA(pide ? { consigna: CONSIGNA_BAJA } : undefined);
     await ch.mover(pasar ? ["paso_al_equipo"] : []);
     if (pasar) {
       await ch.pasarAlEquipo(pasar);
@@ -106,6 +121,13 @@ export async function atender(s: Servicios, a: Responder, linea: Linea | null = 
     await pasarAPersona(s, conv, { motivo: "El asistente tuvo un error y no pudo responder.", resumen: detalle(e).slice(0, 300) }, null, ahora).catch(() => {});
     return `error: ${detalle(e)}`;
   }
+}
+
+/** Lo que escribió la persona desde lo último que le mandamos (puede ser más de un mensaje). Puro. */
+export function mensajesNuevos<M extends { rol: string }>(historial: M[]): M[] {
+  let i = historial.length;
+  while (i > 0 && historial[i - 1].rol === "interesado") i--;
+  return historial.slice(i);
 }
 
 /**

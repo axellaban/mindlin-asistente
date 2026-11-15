@@ -20,7 +20,7 @@
    - La IA responde (`lib/agente/agente.ts`), con Claude u OpenAI (ver «Modelo»). Puede usar tres herramientas:
      - `registrar_interesado`: lo guarda en la conversación (`conversaciones.interesado`) y da de alta en el CRM del hub si no existe; si ya existe, suma actividad **solo con lo que cambió** (si no hay nada nuevo, no escribe).
      - `pasar_a_persona`.
-     - `marcar_senal`: avisa que pidió una visita, mostró una señal de compra o dijo que no le interesa (esta última, además, frena los seguimientos). Sirve para las etapas automáticas.
+     - `marcar_senal`: avisa que pidió una visita, mostró una señal de compra o dijo que no le interesa (esta última, además, frena para siempre los seguimientos y los flujos: ver [`baja.md`](baja.md)). Sirve para las etapas automáticas.
      - `elegir_proyecto`: solo si hay más de un proyecto activo. Con un proyecto ya elegido, ve los nombres de los otros (sin sus datos) para poder cambiar si preguntan por otro.
    - Manda la respuesta por Chatwoot, con el formato de WhatsApp (`lib/agente/whatsapp.ts`: `**negrita**` → `*negrita*`, sin `#` ni `[links](…)`).
    - **Si pasa a una persona:** deja una nota interna con el motivo y el resumen, abre la conversación y lo anota en el CRM.
