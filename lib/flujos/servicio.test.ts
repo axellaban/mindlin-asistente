@@ -7,6 +7,7 @@ import { COLUMNAS_CONTACTOS, crearCRM, type Hoja } from "../crm/planilla";
 import { almacenEnMemoria } from "../datos/memoria";
 import type { Modelo } from "../agente/agente";
 import { atender } from "../agente/servicio";
+import type { Servicios } from "../agente/charla";
 import { LINEAS_DE_FABRICA, type Linea } from "../lineas";
 import { REGLAS_POR_DEFECTO } from "../etapas/reglas";
 import { correrSeguimientos } from "../seguimientos/correr";
@@ -79,7 +80,7 @@ function armar({ flujos = [{ id: 1, nombre: "Presentación", proyecto: null, pas
     if (!r) throw new Error("la IA no tenía que contestar acá");
     return r;
   };
-  const s = { almacen: datos.almacen, chatwoot, crm, modelo, dormir: async () => {}, ahora: () => reloj };
+  const s: Servicios = { almacen: datos.almacen, chatwoot, crm, modelo, dormir: async () => {}, ahora: () => reloj };
   let id = 0;
   /** La persona escribe: queda en el historial (como lo guarda el webhook) y la atiende el asistente. */
   const escribe = async (texto: string, conversacion = 7, linea: Linea | null = LINEA_3) => {
@@ -276,6 +277,41 @@ describe("de qué campaña viene cada lead", () => {
     await x.escribe("Quiero más información sobre Lerma", 7, lineas[2]);
     expect(x.datos.conversaciones.get(7)?.campania).toBe("Leads 3");
     expect(x.pestanias["CRM Actividad"]).toHaveLength(1);
+  });
+});
+
+describe("aviso al responsable cuando pasa al equipo", () => {
+  it("el aviso al hub lleva quién es, el motivo, el responsable del CRM, la línea y el proyecto; si el hub no responde, queda en el registro", async () => {
+    const x = armar();
+    const avisos: unknown[] = [];
+    x.s.avisarAlEquipo = async (a) => void avisos.push(a);
+    await x.escribe("Hola, quiero info de Lerma");
+    await x.ecoDelBot("¡Hola Ana! Te escribimos desde Mindlin Developers.");
+    x.pasar(3);
+    expect(await x.escribe("¡Gracias! ¿Tienen 2 ambientes?")).toBe("flujo «Presentación»: pasó al equipo");
+    const id = x.pestanias["CRM Contactos"][0][0];
+    expect(avisos).toEqual([
+      {
+        conversacion: 7,
+        nombre: "Ana Prueba",
+        telefono: "5491155550000",
+        motivo: "El flujo «Presentación» pasó la conversación al equipo.",
+        resumen: "Respondió a la presentación.",
+        responsable: "Tadeo",
+        contacto: id,
+        proyecto: "lerma-439",
+        linea: "Leads entrantes",
+      },
+    ]);
+
+    const y = armar();
+    y.s.avisarAlEquipo = async () => {
+      throw new Error("el hub respondió 502");
+    };
+    await y.escribe("Hola, quiero info de Lerma");
+    y.pasar(3);
+    expect(await y.escribe("Sí, quiero ver el showroom")).toBe("flujo «Presentación»: pasó al equipo");
+    expect(y.datos.registro.find((r) => r.tipo === "error")?.detalle).toBe("Aviso al hub: el hub respondió 502");
   });
 });
 
