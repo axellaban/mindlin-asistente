@@ -23,7 +23,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 
 **Líneas y flujos (15/11).** El asistente maneja las cuatro líneas que pidió Mindlin ([`docs/lineas.md`](docs/lineas.md)): 1 outreach frío, 2 equipo (facturas y outreach cálido), 3 y 4 leads entrantes. La 3 es la que ya andaba. Cada línea de leads se configura aparte: modo, instrucciones, proyectos, seguimientos y **flujos como los bots de Kommo** ([`docs/flujos.md`](docs/flujos.md)), que se arman en el hub con un editor de pasos.
 
-1. **Panel con Axel:** la QA en producción de las líneas y los flujos (tarea 12 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)). Después, cuando Axel tenga el chip o número de la línea 4, conectarla (tarea 11).
+1. **Panel con Axel:** la QA en producción de las líneas y los flujos (tarea 12 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)), las variables de los avisos y de las fotos (tareas 13 y 14) y la prueba en producción de todo lo del 15/11 (tarea 15). Después, cuando Axel tenga el chip o número de la línea 4, conectarla (tarea 11).
 2. **Claude:** hecho el 15/11: la QA desde el código y las mejoras 1 a 8 de Axel. Lo que queda para cada uno, en «Traspaso para la próxima sesión».
 3. **Mindlin:** armar en el hub el flujo de cada proyecto a partir de los modelos (los textos de Kommo) y probarlo en Probar. Los flujos arrancan apagados: se prenden de a uno.
 4. **Mindlin (pendiente de recibir):** qué tiene que tener el panel de **outreach frío** (línea 1). Hasta entonces la línea existe, pero el asistente no hace nada ahí.
@@ -90,23 +90,23 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 - [x] Planilla compartida con la cuenta de servicio y `CRM_SHEET_ID` en Vercel. — Panel, 09/11
 - [x] El acuerdo de integración: qué lee y escribe, y qué tiene que cuidar Mindlin ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 10/11
 - [x] Decidido: el CRM es una planilla de Google, que es lo que el asistente ya usa. Mindlin no tiene que construir nada para la integración. — Axel, 10/11
-- [ ] Confirmar si es la planilla del CRM del hub (la que ya está en `CRM_SHEET_ID`) u otra. Si es otra: mismas pestañas y columnas, compartirla con la cuenta de servicio y cambiar `CRM_SHEET_ID` (`docs/integracion-crm.md`). — Axel
-- [ ] **Importante (visto el 15/11):** si el hub de producción tiene el CRM en **base de datos** (`DATABASE_URL` del hub; ver su `docs/crm.md`, «Con base de datos»), el hub lee y escribe en la base y la planilla queda como una copia de una sola vez. El asistente escribe en la planilla: sus leads nuevos, sus cambios de etapa y sus etiquetas de campaña **no aparecerían en el CRM del hub**, y los números de «qué vende» se medirían contra la planilla. Hay que confirmar dónde está el CRM del hub en producción; si está en la base, Claude suma al asistente la escritura por la API del hub. — Axel, después Claude
+- [x] **Confirmado (15/11): el CRM del hub en producción es la planilla de Google**, no la base de datos. El asistente y el hub trabajan sobre la misma planilla: lo que escribe el asistente (leads nuevos, cambios de etapa, etiquetas de campaña) se ve en el CRM del hub, y «qué vende» se mide contra el mismo CRM. No hace falta que el asistente escriba por la API del hub. — Axel, 15/11
+- [ ] Comprobarlo en los paneles: que el hub de producción no tenga `DATABASE_URL` y que `CRM_SHEET_ID` del asistente sea la misma planilla que lee el hub (`CRM_CONTACTOS_SHEET_ID` del hub o, si no está, su `CRM_SHEET_ID`). Si alguna de las dos no se cumple, frenar y avisar a Axel. — Panel, tarea 15 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
 - [ ] Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas sin avisar. — Axel
-- [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. — Axel
+- [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. Lo revisa la tarea 15. — Axel
 - [x] Probar el CRM con la planilla real (con la línea de prueba): el contacto quedó con proyecto `lerma-439`, origen WhatsApp y su etapa. Antes hubo que poner al día tres títulos de «CRM Contactos» (B decía «Proyecto» y faltaban «Hora próximo paso» y «Tags»); se cambiaron solo esas celdas de la fila 1, después de confirmar que el hub lee la planilla por posición. — Panel y Axel, 13/11
 
 ## Traspaso para la próxima sesión (15/11, Claude; al día al cierre)
 
-**Hecho el 15/11:** la QA desde el código (hallazgos y arreglos en «QA de punta a punta», abajo) y las mejoras 1 a 8 de Axel, cada una con su PR en los dos repos (ver «Mejoras pedidas por Axel», al final). Lo que sigue, en orden:
+**Hecho el 15/11:** la QA desde el código (hallazgos y arreglos en «QA de punta a punta», abajo), las mejoras 1 a 8 de Axel y las ideas traídas de DeskcommCRM, cada una con su PR (ver las dos listas al final). Del lado del código no queda nada abierto: lo que sigue son pruebas en producción y decisiones. En orden:
 
 1. **Panel con Axel** ([`IA_DE_PANELES.md`](IA_DE_PANELES.md)), en este orden:
-   - tarea 12, la QA en producción (incluye probar «Pendiente»);
+   - tarea 12, la QA en producción de las líneas y los flujos (incluye probar «Pendiente»);
    - tarea 13, `HUB_URL` para los avisos;
    - tarea 14, el usuario «Hub» de Chatwoot para ver fotos y audios;
+   - tarea 15, la prueba en producción de todo lo del 15/11 (mejoras 1 a 8 y las ideas de DeskcommCRM), con la revisión de que el hub y el asistente usan la misma planilla del CRM;
    - después, la tarea 11 (la línea 4, con el chip).
-2. **Axel decide:**
-   - si el CRM del hub está en base de datos: el riesgo está en «Conexión con el CRM», y es lo más importante;
+2. **Axel decide** (lo del CRM ya está: es la planilla de Google, confirmado el 15/11):
    - con qué IA responde (mejora 9);
    - Vercel Pro o un servicio externo para las esperas (mejora 10);
    - a quién le llegan los avisos de leads sin responsable;
@@ -118,7 +118,7 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
    - lo de outreach frío (línea 1) y la línea 2.
 4. **La próxima IA de código:**
    - lo que salga de la tarea 12;
-   - si el CRM del hub está en la base, que el asistente escriba por la API del hub;
+   - lo que salga de la tarea 15;
    - la línea 2 cuando estén sus decisiones.
 
 Para trabajar: ramas `claude/…` y PR, `npm run verificar` antes del PR y Postgres local para las pruebas (`PRUEBA_DATABASE_URL`). Para ver las pantallas del hub sin sesión: una página temporal en `app/t/…` (queda fuera del login) que muestre `<Asistente />`, con `page.route` de Playwright mandando los pedidos al asistente en local. No se sube.
@@ -296,7 +296,7 @@ Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: C
 
 1. [x] **Conversaciones en el CRM del hub.** Hecho el 15/11: API del asistente ([#26](https://github.com/axellaban/mindlin-asistente/pull/26)) y pantallas del hub (matimindlin111/mindlinhub#88). Falta ver las conversaciones reales en producción (tarea 12). Se leen de la base del asistente cuando alguien las abre, y se ven en la ficha del lead → Chat, en la bandeja de Chats y en una solapa «Conversaciones» por línea. Para los adjuntos, «Abrir en Chatwoot». Cómo se arma: [`docs/arquitectura.md`](docs/arquitectura.md), sección 12, y la lista «Conversaciones en el hub».
 2. [x] **Saber de qué campaña viene cada lead.** Hecho el 15/11 ([#27](https://github.com/axellaban/mindlin-asistente/pull/27) y matimindlin111/mindlinhub#89, [`docs/campanias.md`](docs/campanias.md)). Falta que **Mindlin pase sus campañas y el texto del primer mensaje de cada anuncio**, para cargarlas en el hub (la línea → Inteligencia comercial → Campañas). Por la línea y por el primer mensaje del anuncio (el texto que arma Meta, o palabras configurables por campaña). Se guarda en el CRM como origen o etiqueta. Mindlin dice qué campañas tiene.
-3. [x] **Medir qué flujo vende, no solo cuál responde.** Hecho el 15/11 ([#28](https://github.com/axellaban/mindlin-asistente/pull/28) y matimindlin111/mindlinhub#91, [`docs/resultados.md`](docs/resultados.md)). Se mide contra la planilla del CRM: ver el riesgo de la base de datos del hub, en «Conexión con el CRM». Cruzar cada flujo y cada versión de seguimiento con la etapa a la que llegó el lead en el CRM (visita, negociación, reserva) y mostrarlo en el hub, junto a los números de cada flujo y cada regla.
+3. [x] **Medir qué flujo vende, no solo cuál responde.** Hecho el 15/11 ([#28](https://github.com/axellaban/mindlin-asistente/pull/28) y matimindlin111/mindlinhub#91, [`docs/resultados.md`](docs/resultados.md)). Se mide contra la planilla del CRM, que es el CRM del hub (confirmado el 15/11). Cruzar cada flujo y cada versión de seguimiento con la etapa a la que llegó el lead en el CRM (visita, negociación, reserva) y mostrarlo en el hub, junto a los números de cada flujo y cada regla.
 4. [x] **Avisar al responsable cuando el asistente pasa la conversación al equipo.** Hecho el 15/11 ([#29](https://github.com/axellaban/mindlin-asistente/pull/29) y matimindlin111/mindlinhub#92, [`docs/avisos.md`](docs/avisos.md)). Para prenderlo, **Panel carga `HUB_URL`** en el Vercel del asistente (tarea 13 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)); y **Axel decide** a quién le llegan los avisos de leads sin responsable (`ASISTENTE_AVISAR_SIN_RESPONSABLE` en el hub). Un aviso en el hub (la campanita y el celular, como los demás avisos del hub), con el resumen y el link a la conversación.
 5. [x] **Ver en qué paso del flujo va cada persona, y sacarla o reiniciarla a mano** desde el hub (Flujos → «Quiénes van»). Hecho el 15/11 ([#30](https://github.com/axellaban/mindlin-asistente/pull/30) y matimindlin111/mindlinhub#93).
 6. [x] **Responder desde el hub.** Desde la ficha del lead, el texto sale por Chatwoot y el asistente se corre. Hecho el 15/11 ([#31](https://github.com/axellaban/mindlin-asistente/pull/31) y matimindlin111/mindlinhub#94). Solo texto: los archivos, desde Chatwoot.
