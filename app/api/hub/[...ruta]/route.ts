@@ -22,7 +22,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       return NextResponse.json({ error: "El cuerpo no es JSON." }, { status: 400 });
     }
   }
-  const { almacen, modelo } = conexionesDesdeEnv();
+  const { almacen, modelo, crm } = conexionesDesdeEnv();
   const r = await manejarHub(
     { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: nombreDelEncabezado(req.headers.get("x-hub-usuario")) },
     {
@@ -33,6 +33,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       probar: almacen && modelo ? (estado, texto, o) => probarConAlmacen(almacen, modelo, estado, texto, o) : null,
       chequear: () => chequear(),
       enlaceChatwoot: enlacesChatwoot(process.env),
+      contactosCRM: crm ? () => crm.contactos() : null,
     },
   );
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });

@@ -37,6 +37,8 @@ import { LIMITES, TIPOS_DE_PASO, VARIABLES_FLUJO } from "../flujos/modelo";
 import { PLANTILLAS } from "../flujos/plantillas";
 import { TIPOS_LINEA } from "../lineas";
 import { MAX_FRASE, MAX_FRASES, MAX_NOMBRE_CAMPANIA, MIN_FRASE, validarCampania } from "../campanias";
+import { resultadosPor } from "../resultados";
+import type { ContactoCRM } from "../crm/planilla";
 import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
 import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
@@ -65,7 +67,12 @@ export interface DependenciasHub {
   chequear?: (() => Promise<Chequeo>) | null;
   /** El link a una conversación en Chatwoot (con CHATWOOT_URL y CHATWOOT_ACCOUNT_ID). Null si falta. */
   enlaceChatwoot?: ((conversacion: number) => string | null) | null;
+  /** Los contactos del CRM, para medir qué vende (lib/resultados.ts). Null si el CRM no está conectado. */
+  contactosCRM?: (() => Promise<ContactoCRM[]>) | null;
 }
+
+/** Cuántos días para atrás se mide qué vende cada flujo y cada seguimiento. */
+export const DIAS_RESULTADOS = 90;
 
 /**
  * El link a una conversación en Chatwoot, para «Abrir en Chatwoot» (las fotos, los audios y las
@@ -230,6 +237,30 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
           conversaciones.map(async (c) => ({ ...c, enlace: d.enlaceChatwoot?.(c.chatwoot_id) ?? null, historial: await datos.mensajes(c.chatwoot_id, MENSAJES_POR_CONVERSACION) })),
         );
         return { status: 200, json: { conversaciones: conMensajes } };
+      }
+
+      case "resultados": {
+        // Qué flujo y qué seguimiento venden: a cuántos les tocó y cuántos llegaron a visita,
+        // negociación y reserva en el CRM. Lee el CRM entero: se pide cuando se abre la solapa.
+        if (metodo !== "GET" || id) return noSePuede();
+        const vacio = { dias: DIAS_RESULTADOS, flujos: [], seguimientos: [] };
+        if (!d.contactosCRM) return { status: 200, json: { ...vacio, crm: false, error: "El CRM no está conectado (falta la planilla o la cuenta de Google en Vercel): no se puede saber a qué etapa llegó cada lead." } };
+        const [leads, contactos] = await Promise.all([datos.leadsDeResultados(DIAS_RESULTADOS), d.contactosCRM().catch((e: unknown) => (e instanceof Error ? e : new Error(String(e))))]);
+        if (contactos instanceof Error) return { status: 200, json: { ...vacio, crm: false, error: `No se pudo leer el CRM: ${contactos.message}` } };
+        const flujos = resultadosPor(leads.flujos.map((l) => ({ ...l, clave: String(l.flujo) })), contactos);
+        const seguimientos = resultadosPor(leads.seguimientos.map((l) => ({ ...l, clave: `${l.regla}-${l.version}` })), contactos);
+        return {
+          status: 200,
+          json: {
+            dias: DIAS_RESULTADOS,
+            crm: true,
+            flujos: [...flujos].map(([k, v]) => ({ flujo: Number(k), ...v })),
+            seguimientos: [...seguimientos].map(([k, v]) => {
+              const [regla, version] = k.split("-").map(Number);
+              return { regla, version, ...v };
+            }),
+          },
+        };
       }
 
       case "campanias": {

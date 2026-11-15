@@ -381,6 +381,40 @@ describe.skipIf(!url)("API del hub (Postgres real)", () => {
 
     expect((await hub("DELETE", `campanias/${id}`)).json.campanias).toEqual([]);
   });
+
+  it("resultados: cuántos llegaron a visita, negociación y reserva por flujo y por versión de seguimiento; sin CRM, lo dice", async () => {
+    const a = crearAlmacen(pool);
+    const pasos = [{ tipo: "mensaje", texto: "Hola", archivo: null }, { tipo: "fin" }];
+    const { rows } = await pool.query("insert into flujos (linea, nombre, activo, pasos) values ('linea-3', 'Para medir', false, $1) returning id", [JSON.stringify(pasos)]);
+    const flujo = Number(rows[0].id);
+    const ahora = new Date().toISOString();
+    // Ana (en el CRM, hoy en Negociación) y Beto (lo movió el asistente a Visita y después lo descartaron).
+    await a.guardarConversacion({ chatwoot_id: 701, crm_contacto_id: "cmedir1", telefono: "5491166660001", linea: "linea-3" });
+    await a.guardarConversacion({ chatwoot_id: 702, telefono: "5491166660002", linea: "linea-3" });
+    for (const conv of [701, 702]) {
+      const c = await a.iniciarCorrida({ conversacion: conv, linea: "linea-3", flujo, nombre: "Para medir", pasos: pasos as never, ahora });
+      await a.guardarCorrida(c!.id, { estado: "terminado", resultado: "fin" }, ahora);
+    }
+    await a.registrar({ tipo: "etapa", conversacion: 702, detalle: "Seguimiento → Visita / reunión: pidió visita.", datos: { etapa: "Visita / reunión" } });
+    const { rows: regla } = await pool.query("insert into reglas_seguimiento (etapa, paso, dias_sin_respuesta, version, estado, mensaje) values ('Nuevo', 1, 1, 2, 'activa', 'Hola') returning id");
+    await pool.query("insert into seguimientos_enviados (conversacion, regla, etapa, paso, version, texto) values (701, $1, 'Nuevo', 1, 2, 'Hola')", [regla[0].id]);
+    const crm = [
+      { id: "cmedir1", nombre: "Ana", telefono: "+54 9 11 6666-0001", etapa: "Negociación" },
+      { id: "cmedir2", nombre: "Beto", telefono: "011 15 6666-0002", etapa: "Descartado" },
+    ] as never[];
+    deps = { ...deps, contactosCRM: async () => crm };
+    const r = await hub("GET", "resultados");
+    expect(r.json).toMatchObject({ dias: 90, crm: true });
+    expect((r.json.flujos as { flujo: number }[]).find((f) => f.flujo === flujo)).toEqual({ flujo, leads: 2, visita: 2, negociacion: 1, reserva: 0 });
+    expect((r.json.seguimientos as { regla: number }[]).find((x) => x.regla === Number(regla[0].id))).toEqual({ regla: Number(regla[0].id), version: 2, leads: 1, visita: 1, negociacion: 1, reserva: 0 });
+
+    // Sin CRM, o si el CRM falla, lo dice (no muestra ceros como si nadie hubiera llegado).
+    deps = { ...deps, contactosCRM: null };
+    expect((await hub("GET", "resultados")).json).toMatchObject({ crm: false, flujos: [], error: expect.stringMatching(/^El CRM no está conectado/) });
+    deps = { ...deps, contactosCRM: async () => { throw new Error("cuota de Google"); } };
+    expect((await hub("GET", "resultados")).json).toMatchObject({ crm: false, error: "No se pudo leer el CRM: cuota de Google" });
+    expect((await hub("POST", "resultados")).status).toBe(405);
+  });
 });
 
 const MIGRAR_EN_ESQUEMA = `
