@@ -39,12 +39,12 @@ Reglas de forma (`lib/flujos/modelo.ts`, `validarPasos`):
 - **Antes de hacer cada paso** anota que pasó al siguiente. Si la función se corta a la mitad, sigue desde el paso de después: mejor un mensaje menos que uno repetido.
 - **Si la persona escribe mientras sale la presentación**, al llegar a «Esperar respuesta» ya cuenta como que respondió y sigue por «Si responde».
 - **Si responde a una espera**, el webhook sigue por «Si responde» enseguida.
-- **Si no responde**, la retoma el cron (una vez por día, a las 10) por «Si no responde». Como en los seguimientos, la espera vence media corrida antes: «24 horas» quiere decir «en la corrida de mañana a las 10». Con Vercel Pro se puede correr más seguido.
+- **Si no responde**, la retoma el cron (una vez por día, a las 10) por «Si no responde». Como en los seguimientos, la espera vence media corrida antes: «24 horas» quiere decir «en la corrida de mañana a las 10». Pero el margen nunca pasa de la mitad de la espera: una de «2 horas» que arranca a las 9:59 no sale en la corrida de las 10, sino en la del día siguiente (`margenDeEspera`, 15/11). Con Vercel Pro se puede correr más seguido.
 - **Una sola corrida a la vez por conversación.** Dos avisos a la vez, o el cron y un aviso, no la corren los dos: cada uno la «reclama» y la base deja uno solo. Mientras corre queda ocupada 6 minutos, más que lo que dura una función. Si se cortó, el cron la retoma.
 - **Nadie queda sin respuesta:** si la persona respondió y el camino termina sin decirle nada, pasa al equipo. Si escribe después de un «Terminar», también.
 - **Si algo falla** (Chatwoot, la IA), la conversación pasa al equipo con una nota y el error queda en el registro.
 - **Si el archivo no sale**, sale el texto solo y queda el error anotado.
-- **Se corta solo** si el equipo toma la conversación (escribe, la abre o la resuelve), si se pausa la línea o el asistente, o si el equipo se la devuelve al asistente. En ese último caso conversa la IA.
+- **Se corta solo** si el equipo toma la conversación (escribe, la abre o la resuelve), si se pausa la línea o el asistente, o si el equipo se la devuelve al asistente. En ese último caso conversa la IA, también si el flujo había terminado con «Terminar».
 - **Los seguimientos por reglas** no le escriben a quien lleva un flujo: el flujo tiene sus propias esperas. Si el flujo terminó en «Que siga la IA», vuelven a valer las reglas.
 - **El cron:** primero los flujos con esperas vencidas y después los seguimientos, con el mismo tope (20 por corrida) y en el mismo horario (de 9 a 20).
 

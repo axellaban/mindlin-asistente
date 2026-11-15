@@ -219,7 +219,27 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     const { rows: respondio } = await pool.query("select respondio from flujo_corridas where id = $1", [c!.id]);
     expect(new Date(respondio[0].respondio).toISOString()).toBe("2026-11-17T13:00:00.000Z");
     // Ahora sí puede arrancar otra.
-    expect(await a.iniciarCorrida({ conversacion: 60, linea: "linea-3", flujo, nombre: "Presentación", pasos: pasos as never, ahora: inicio })).not.toBeNull();
+    const otra = await a.iniciarCorrida({ conversacion: 60, linea: "linea-3", flujo, nombre: "Presentación", pasos: pasos as never, ahora: inicio });
+    expect(otra).not.toBeNull();
+
+    // Una espera corta (2 horas) que arrancó a las 9:59 no vence en la corrida de las 10: el margen
+    // nunca pasa de la mitad de la espera.
+    await a.guardarCorrida(otra!.id, { estado: "esperando", posicion: "1", espera_desde: "2026-11-16T12:59:00.000Z", vence: "2026-11-16T14:59:00.000Z" }, inicio);
+    expect(await a.corridasParaRetomar("2026-11-16T13:00:00.000Z")).toEqual([]);
+    expect((await a.corridasParaRetomar("2026-11-16T13:59:00.000Z")).map((x) => x.id)).toEqual([otra!.id]);
+  });
+
+  it("sabe si el equipo le devolvió la conversación al asistente (hasta que vuelva a pasar al equipo)", async () => {
+    const a = crearAlmacen(pool);
+    expect(await a.laDevolvioElEquipo(70)).toBe(false);
+    await a.registrar({ tipo: "paso_a_persona", conversacion: 70, detalle: "Pidió una visita." });
+    expect(await a.laDevolvioElEquipo(70)).toBe(false);
+    await a.registrar({ tipo: "volvio_al_bot", conversacion: 70, detalle: "La puso pendiente." });
+    await a.registrar({ tipo: "respuesta", conversacion: 70, detalle: "Hola" });
+    expect(await a.laDevolvioElEquipo(70)).toBe(true);
+    expect(await a.laDevolvioElEquipo(71)).toBe(false);
+    await a.registrar({ tipo: "la_tomo_una_persona", conversacion: 70, detalle: "Escribió Mati." });
+    expect(await a.laDevolvioElEquipo(70)).toBe(false);
   });
 
   it("la conversación guarda su línea y su bandeja, y los seguimientos por reglas no le escriben a quien lleva un flujo", async () => {

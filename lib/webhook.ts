@@ -18,6 +18,12 @@ export interface Salida {
 
 /** Un mensaje del bot que vuelve a entrar como si lo hubiera escrito una persona (eco), dentro de este margen. */
 export const MARGEN_ECO_MS = 3 * 60_000;
+/**
+ * Cuántos mensajes recientes se miran para reconocer el eco. Un flujo puede mandar varios de
+ * corrido y el eco del primero llegar después de los demás: con 10, uno de 12 mensajes abría la
+ * conversación como si la hubiera tomado una persona.
+ */
+export const MENSAJES_PARA_ECO = 30;
 
 export async function manejarWebhook(
   cuerpo: string,
@@ -123,7 +129,7 @@ export async function manejarWebhook(
 const sinAdjuntos = (t: string) => t.replace(/\[(foto|audio|archivo|video|ubicación|contacto)\]/g, "").replace(/\s+/g, " ").trim();
 
 async function esEcoDelBot(almacen: NonNullable<Conexiones["almacen"]>, conversacion: number, texto: string, ahoraMs: number): Promise<boolean> {
-  const recientes = await almacen.historial(conversacion, 10);
+  const recientes = await almacen.historial(conversacion, MENSAJES_PARA_ECO);
   return recientes.some((m) => {
     if (m.rol !== "bot" || ahoraMs - Date.parse(m.fecha) >= MARGEN_ECO_MS) return false;
     if (m.texto.trim() === texto.trim()) return true;

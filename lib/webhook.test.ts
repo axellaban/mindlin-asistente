@@ -4,13 +4,14 @@ import type { Chatwoot } from "./chatwoot/api";
 import { firmar } from "./chatwoot/firma";
 import { almacenEnMemoria } from "./datos/memoria";
 import type { Modelo } from "./agente/agente";
+import { LINEAS_DE_FABRICA, type Linea } from "./lineas";
 import { manejarWebhook } from "./webhook";
 
 const AHORA = Date.parse("2026-11-07T21:05:00Z");
 const CLAVE = "clave-del-bot";
 
-function armar({ modelo = (async () => respuesta([{ type: "text", text: "¡Hola! ¿En qué te ayudo?" }])) as Modelo | null } = {}) {
-  const datos = almacenEnMemoria({ proyectos: [lerma()], tono });
+function armar({ modelo = (async () => respuesta([{ type: "text", text: "¡Hola! ¿En qué te ayudo?" }])) as Modelo | null, lineas = undefined as Linea[] | undefined } = {}) {
+  const datos = almacenEnMemoria({ proyectos: [lerma()], tono, ...(lineas ? { lineas } : {}) });
   const hechos: string[] = [];
   const chatwoot: Chatwoot = {
     async enviar(c, t) {
@@ -93,6 +94,15 @@ describe("webhook del Agent Bot", () => {
     expect(a.datos.mensajes.has(24)).toBe(false);
   });
 
+  it("reconoce el eco aunque un flujo haya mandado muchos mensajes seguidos", async () => {
+    const a = armar();
+    for (let i = 0; i < 12; i++) {
+      await a.llamar(evento({ id: 100 + i, message_type: "outgoing", sender: { type: "agent_bot" }, content: `Mensaje ${i + 1} del flujo`, created_at: `2026-11-07T21:04:${String(30 + i).padStart(2, "0")}.000Z` }));
+    }
+    const r = await a.llamar(evento({ id: 200, message_type: "outgoing", sender: { type: "user" }, content: "Mensaje 1 del flujo" }));
+    expect(r.json).toEqual({ accion: "ignorar", motivo: "es el eco de un mensaje del bot" });
+  });
+
   it("sin la IA configurada, pasa la conversación al equipo con una nota", async () => {
     const a = armar({ modelo: null });
     const r = await a.llamar(evento());
@@ -126,6 +136,19 @@ describe("webhook del Agent Bot", () => {
     expect(a.datos.registro.map((r) => r.tipo)).toEqual(["volvio_al_bot"]);
     // Ningún cambio de estado hace responder a la IA ni toca Chatwoot.
     expect(a.hechos).toEqual([]);
+  });
+
+  it("«presenta y pasa»: si el equipo se la devuelve (pendiente), el asistente vuelve a contestar y no la pasa de nuevo", async () => {
+    const lineas = LINEAS_DE_FABRICA.map((l) => (l.id === "linea-3" ? { ...l, pasar_al_responder: true } : l));
+    const a = armar({ lineas });
+    // Se presenta y la persona responde: sigue el equipo.
+    await (await a.llamar(evento())).tarea!();
+    await a.llamar(evento({ id: 22, message_type: "outgoing", sender: { type: "agent_bot" }, content: "¡Hola! ¿En qué te ayudo?", created_at: "2026-11-07T21:04:55.000Z" }));
+    expect(await (await a.llamar(evento({ id: 23, content: "Busco 2 ambientes", created_at: "2026-11-07T21:04:57.000Z" }))).tarea!()).toBe("pasó al equipo: respondió después de la presentación");
+    // El equipo la vuelve a poner pendiente: el aviso del estado llega antes que el mensaje.
+    await a.llamar({ event: "conversation_status_changed", id: 2, status: "pending", meta: { sender: { name: "Ana Prueba" } } });
+    expect(await (await a.llamar(evento({ id: 24, content: "¿Siguen ahí?", created_at: "2026-11-07T21:04:59.000Z" }))).tarea!()).toBe("respondió");
+    expect(a.hechos.at(-1)).toBe("enviar 2: ¡Hola! ¿En qué te ayudo?");
   });
 
   it("ignora la conversación de avisos de WAHA y no la guarda", async () => {

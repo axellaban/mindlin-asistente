@@ -226,7 +226,8 @@ Con todo publicado (asistente #21 y hub #86), revisar en producción lo que una 
    - Respondé: pasa al equipo (nota interna, conversación abierta) y la etapa en el CRM pasa a «Seguimiento».
    - Con un tercer número, no respondas: al día siguiente a las 10 tiene que salir el seguimiento.
    - Apagá el flujo al terminar.
-5. **Pausar la línea 3** desde el hub: un mensaje nuevo pasa al equipo con la nota «La línea … está pausada». Reactivala.
-6. **Pantallas:** anotá lo que se vea mal o confunda en la computadora y en el celular. En el editor de flujos del celular, arrastrar puede no andar: se usan las flechas.
+5. **Devolvérsela al asistente:** en una de las conversaciones que pasaron al equipo, en Chatwoot, poné **Pendiente** (sin escribir nada). Mandá otro mensaje desde ese número: tiene que contestar la IA y no volver a pasarla al equipo. Hasta el 15/11 eso fallaba después de un flujo que terminó; se arregló, pero falta verlo en producción.
+6. **Pausar la línea 3** desde el hub: un mensaje nuevo pasa al equipo con la nota «La línea … está pausada». Reactivala.
+7. **Pantallas:** anotá lo que se vea mal o confunda en la computadora y en el celular. En el editor de flujos del celular, arrastrar puede no andar: se usan las flechas.
 
 Anotá todo en `docs/estado-paneles.md`, sección «Chatwoot», como «QA de líneas y flujos», sin teléfonos ni claves.

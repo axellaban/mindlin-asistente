@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lerma, otroProyecto } from "../../test/fixtures";
-import { archivosDe, describirPasos, elegirFlujo, pasoEn, proyectoNombrado, rama, siguiente, textoHoras, ubicar, validarPasos, type Paso } from "./modelo";
+import { archivosDe, describirPasos, elegirFlujo, margenDeEspera, pasoEn, proyectoNombrado, rama, siguiente, textoHoras, ubicar, validarPasos, type Paso } from "./modelo";
 import { PLANTILLAS } from "./plantillas";
 
 /** El bot de Kommo de «17 y 43», resumido: presenta, espera 24 h y, si no responde, sigue. */
@@ -107,5 +107,15 @@ describe("flujos: la forma de los pasos", () => {
       "          1. Terminar",
     ]);
     expect([1, 12, 24, 72, 168, 336].map(textoHoras)).toEqual(["1 hora", "12 horas", "1 día", "3 días", "1 semana", "2 semanas"]);
+  });
+});
+
+describe("margen de las esperas para el cron", () => {
+  const M = 12 * 3_600_000;
+  const espera = (desde: string, horas: number) => ({ espera_desde: desde, vence: new Date(Date.parse(desde) + horas * 3_600_000).toISOString() });
+  it("medio día, salvo que la espera sea más corta: entonces la mitad", () => {
+    expect(margenDeEspera(espera("2026-11-16T13:00:00Z", 24), M)).toBe(M);
+    expect(margenDeEspera(espera("2026-11-16T13:00:00Z", 2), M)).toBe(3_600_000);
+    expect(margenDeEspera({ espera_desde: null, vence: "2026-11-16T13:00:00Z" }, M)).toBe(M);
   });
 });

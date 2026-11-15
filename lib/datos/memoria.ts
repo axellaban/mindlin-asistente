@@ -2,7 +2,8 @@ import type { MensajeHistorial } from "../chatwoot/evento";
 import type { ReglasEtapa } from "../etapas/reglas";
 import { limiteCandidatos, MARGEN_MS, MAX_PASOS } from "../seguimientos/reglas";
 import { LINEAS_DE_FABRICA, type Linea } from "../lineas";
-import type { Almacen, Archivo, Conversacion, Corrida, Ejemplo, FlujoActivo, Proyecto, ReglaSeguimiento, SeguimientoEnviado, Tono, TipoRegistro } from "./tipos";
+import { margenDeEspera } from "../flujos/modelo";
+import { TIPOS_DEL_EQUIPO, type Almacen, type Archivo, type Conversacion, type Corrida, type Ejemplo, type FlujoActivo, type Proyecto, type ReglaSeguimiento, type SeguimientoEnviado, type Tono, type TipoRegistro } from "./tipos";
 
 /** Lo que el almacén en memoria sabe de cada conversación para los seguimientos (como las columnas de Postgres). */
 interface Seguimiento {
@@ -114,6 +115,10 @@ export function almacenEnMemoria(
       s.paso_seguimiento = 0;
       return true;
     },
+    async laDevolvioElEquipo(conversacion) {
+      const ultimo = registro.findLast((r) => r.conversacion === conversacion && TIPOS_DEL_EQUIPO.includes(r.tipo));
+      return ultimo?.tipo === "volvio_al_bot";
+    },
     async pausado() {
       return estado.pausado;
     },
@@ -217,10 +222,14 @@ export function almacenEnMemoria(
       for (const c of corridas) if (c.conversacion === conversacion && c.estado !== "terminado") Object.assign(c, { estado: "terminado", resultado, ocupado_hasta: null });
     },
     async corridasParaRetomar(cuando) {
-      const limite = new Date(Date.parse(cuando) + MARGEN_MS).toISOString();
+      const ahora = Date.parse(cuando);
       return corridas
         .filter((c) => !lineas.find((l) => l.id === c.linea)?.pausada)
-        .filter((c) => (c.estado === "esperando" && c.vence && c.vence <= limite) || (c.estado === "en_curso" && c.ocupado_hasta && c.ocupado_hasta < cuando))
+        .filter(
+          (c) =>
+            (c.estado === "esperando" && c.vence && Date.parse(c.vence) - margenDeEspera({ espera_desde: c.espera_desde, vence: c.vence }, MARGEN_MS) <= ahora) ||
+            (c.estado === "en_curso" && c.ocupado_hasta && c.ocupado_hasta < cuando),
+        )
         .map(copia);
     },
   };

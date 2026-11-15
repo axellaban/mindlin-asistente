@@ -114,6 +114,19 @@ Para trabajar: ramas `claude/…` y PR, `npm run verificar` antes del PR y Postg
 
 Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial completo y el CRM, de principio a fin. Se hace con datos inventados y un teléfono de prueba, en la línea 3 (y en la 4 cuando esté). Lo que se encuentre se anota acá como tarea (con dueño) y se corrige en PRs chicos. Dueños: Claude (código y revisión), Panel con Axel (lo que pasa en Chatwoot, WhatsApp y Vercel) y Mindlin (lo comercial).
 
+**Hallazgos de la QA desde el código (15/11, Claude).** Revisado lo mergeado en el #21: `lib/flujos/`, `lib/agente/charla.ts`, `lib/webhook.ts` y la migración `202611150011`. La migración es idempotente y sus índices cuidan lo importante: una sola corrida viva por conversación, un flujo activo por línea y proyecto, y una bandeja por línea. Lo que salió:
+
+- [x] **Bug:** el equipo no podía devolverle la conversación al asistente si venía de un flujo que terminó con «Terminar» o si la línea estaba en «presenta y pasa». El aviso de «pendiente» llega antes que el mensaje y gastaba la marca, así que el mensaje siguiente volvía a pasar al equipo, una y otra vez. Ahora se mira el registro: si lo último fue que el equipo la devolvió, contesta la IA. — Claude, 15/11
+- [x] **Bug:** una espera corta de un flujo (por ejemplo, 2 horas) que arrancaba poco antes de las 10 vencía en la corrida de las 10, al minuto. El margen del cron ahora nunca pasa de la mitad de la espera. — Claude, 15/11
+- [x] **Eco:** el webhook miraba los últimos 10 mensajes para reconocer el eco. Con un flujo de más de 10 mensajes seguidos, el eco de uno de los primeros abría la conversación como si la hubiera tomado una persona. Ahora mira 30. — Claude, 15/11
+- [ ] Probar en producción que «Pendiente» le devuelve la conversación al asistente: el paso 7 de la tarea 10 no figura en la prueba del 13/11. Quedó sumado a la tarea 12. — Panel con Axel
+- [x] **Pantallas del hub** (recorridas en la computadora y en el celular contra el asistente en local, con su base y datos inventados): sin errores de consola, sin pedidos fallidos y nada corrido de costado. El editor de flujos se desarmaba con una espera adentro de otra (la trae el modelo «Presentación, brochure y un seguimiento»): las tarjetas se salían de su camino y, en el celular, la flecha tapaba el título. Arreglado en el hub ([#87](https://github.com/matimindlin111/mindlinhub/pull/87)), junto con la pastilla «General» estirada y las tarjetas de las líneas: la 4, sin bandeja, decía «atiende la IA» y ahora dice «Falta conectarla». — Claude, 15/11
+- [x] `/panel/lineas` del asistente, en la computadora y en el celular: anda bien. — Claude, 15/11
+- [ ] Sugerencia: en el celular, las cuatro tarjetas de las líneas y la cabecera ocupan la primera pantalla y hay que bajar para llegar a las solapas. Se podría mostrar las líneas en una fila que se desliza. — Mindlin decide, después Claude
+- [x] Subir archivos por la API del hub, en local: una foto entra; un tipo que no se permite y uno de más de 2,5 MB se rechazan con un mensaje claro. — Claude, 15/11
+- [ ] «Probar» con la IA de verdad no se pudo ver en local (sin clave de IA), ni cómo llega un archivo a WhatsApp: los cubre la tarea 12. — Panel con Axel
+- [ ] Menor: el tipo de un archivo subido es el que declara el navegador; no se mira el contenido. Solo pueden subir quienes tienen Comercial en el hub, así que el riesgo es bajo. Se puede sumar el control de las primeras letras del archivo. — Claude, si se decide
+
 **1. Bugs, arreglos, base de datos y arquitectura**
 
 - [ ] La publicación aplicó `202611150011_lineas_y_flujos.sql` (en el log de Vercel, «aplicada»). En la base: las cuatro líneas, la 3 con la bandeja 1, y las conversaciones viejas en la línea 3.

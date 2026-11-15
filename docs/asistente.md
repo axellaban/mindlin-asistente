@@ -34,7 +34,7 @@ Todo se maneja con los estados de Chatwoot: **pendiente** la atiende el asistent
 
 - **Tomar una conversación:** escribir en ella (desde Chatwoot o desde el celular de la línea) o abrirla. Pasa a abierta y el asistente se calla ahí; tampoco le manda seguimientos.
 - **El asistente la pasa solo** cuando hace falta una persona (quiere visitar, reservar, negociar, algo que no está en la ficha, o si falla algo), con una nota interna del motivo y el resumen.
-- **Devolvérsela al asistente:** en Chatwoot, **Marcar como pendiente**. Con el próximo mensaje del interesado vuelve a responder (leyendo lo que escribió el equipo, para seguir su línea) y vuelve a llevar seguimientos. Queda en el registro como «Volvió al asistente».
+- **Devolvérsela al asistente:** en Chatwoot, **Marcar como pendiente**. Con el próximo mensaje del interesado vuelve a responder (leyendo lo que escribió el equipo, para seguir su línea) y vuelve a llevar seguimientos. Queda en el registro como «Volvió al asistente». Desde ahí conversa la IA aunque la línea esté en modo «presenta y pasa» o la conversación venga de un flujo que terminó, hasta que vuelva a pasar al equipo. Lo mismo si el equipo la resolvió y la persona vuelve a escribir: entra como pendiente y contesta la IA. (Hasta el 15/11 esos dos casos la volvían a pasar al equipo.)
 - **Pausar una línea:** en el hub (la línea → Conexión) o en el panel (Líneas). Igual que pausar el asistente, pero solo en esa línea.
 - **Pausar el asistente entero:** panel → Resumen → **Pausar el asistente**. Cada conversación nueva pasa al equipo con la nota «El asistente está pausado» y no salen seguimientos. Se reactiva con el mismo botón. Queda quién y cuándo.
 
