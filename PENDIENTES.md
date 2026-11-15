@@ -315,6 +315,14 @@ Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: C
 Se evaluó instalar DeskcommCRM (un CRM de código abierto con WhatsApp e IA) y se eligió seguir con lo nuestro y sumar lo que sirve de él (camino C). Lo demás ya lo tenían el hub o el asistente. Dueño: Claude.
 
 1. [x] **«No me escriban más», firme** ([#35](https://github.com/axellaban/mindlin-asistente/pull/35), [`docs/baja.md`](docs/baja.md)): una sola regla de baja; corta flujos y seguimientos para siempre en esa conversación. Arregla, además, que la señal «no le interesa» se borraba cuando la persona volvía a escribir.
-2. [x] **Seguimientos espaciados** ([`docs/seguimientos.md`](docs/seguimientos.md), «Espaciados»): entre 4 y 9 segundos al azar entre un mensaje automático y el siguiente, y los flujos escalonados, para no mandar 20 seguidos desde el mismo número.
-3. [ ] **Hub: «Te escribió y nadie le contestó»**: en el Dashboard y en Chats, los leads que escribieron por WhatsApp, ya no los atiende el asistente y esperan respuesta del equipo.
-4. [ ] **Hub: respuestas rápidas** en el chat del lead.
+2. [x] **Seguimientos espaciados** ([#36](https://github.com/axellaban/mindlin-asistente/pull/36), [`docs/seguimientos.md`](docs/seguimientos.md), «Espaciados»): entre 4 y 9 segundos al azar entre un mensaje automático y el siguiente, y los flujos escalonados, para no mandar 20 seguidos desde el mismo número.
+3. [x] **Hub: «Te escribieron y nadie les contestó»** (matimindlin111/mindlinhub#99): en el Dashboard del CRM y en Chats, los leads que escribieron por WhatsApp y esperan respuesta del equipo (o a los que el asistente no les contestó en 10 minutos). Un «gracias» o un 👍 no cuentan. También se ve ahí la marca «Pidió que no le escriban».
+4. [x] **Hub: respuestas rápidas** (matimindlin111/mindlinhub#100): textos guardados para mandar con un toque desde el chat del lead (⚡ o «/»), con {nombre} y {proyecto}. Se guardan en la pestaña «CRM Respuestas rápidas» de la planilla del CRM. **Mindlin carga las suyas** (cómo llegar, horarios, formas de pago): el hub no trae ninguna inventada.
+
+**Lo que no se trajo, y por qué:**
+- su bandeja de conversaciones (está Chatwoot);
+- sus agentes de IA (está el asistente);
+- el tablero del embudo, los motivos de pérdida, la importación de contactos y el scoring (ya los tiene el CRM del hub);
+- el reparto de leads en rueda entre vendedores (con el equipo de hoy no hace falta; se puede sumar si crece);
+- las automatizaciones «cuando pasa X, hacer Y» (por ahora alcanzan las etapas automáticas y los flujos);
+- la entrada de leads desde formularios web o de Meta (se puede sumar si Mindlin usa formularios: avisar).
