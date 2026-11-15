@@ -163,6 +163,18 @@ Para ver las conversaciones en el hub (en el CRM y en Asistente de WhatsApp → 
 - **`GET /api/hub/conversacion/{id}`**: una conversación entera: `{ "conversacion": { …lo de arriba, "interesado": { lo anotado }, "paso_seguimiento", "sin_seguimientos", "ultimo_seguimiento" }, "mensajes": [{ "id", "rol", "texto", "fecha" }], "registro": [lo último que hizo el asistente] }`. Hasta los 300 mensajes más nuevos, del más viejo al más nuevo. Los adjuntos vienen como texto: «[foto]», «[archivo]», y los audios transcriptos como «[audio: «…»]».
 - **`POST /api/hub/contacto`** con `{ "id": "<id del CRM>", "telefono": "<como esté en el CRM>" }` (uno de los dos alcanza): las conversaciones de ese contacto (hasta 5: puede haber escrito por más de una línea), cada una con `historial` (sus mensajes, como arriba). Cruza por el ID que anotó el asistente en la conversación o por los últimos 8 números del teléfono, como el CRM del hub (así coincide «+54 9 11 5555-1234» con «011 15 5555-1234»). Es una lectura, pero va por POST para que el teléfono no viaje en la dirección.
 
+## Qué vende: `GET /api/hub/resultados` (desde el 15/11)
+
+Para cada flujo y cada versión de seguimiento de los últimos 90 días, a cuántos leads les tocó y cuántos llegaron a Visita / reunión, Negociación y Reserva en el CRM ([`resultados.md`](resultados.md)):
+
+```json
+{ "dias": 90, "crm": true,
+  "flujos": [{ "flujo": 3, "leads": 20, "visita": 6, "negociacion": 2, "reserva": 1 }],
+  "seguimientos": [{ "regla": 5, "version": 2, "leads": 14, "visita": 3, "negociacion": 1, "reserva": 0 }] }
+```
+
+Lee la planilla del CRM entera: pedirlo cuando se abre la pantalla, no a cada rato. Sin CRM, o si no responde, `crm: false` y `error` con el motivo.
+
 ## Lo que la API no hace (todavía)
 
 - No manda mensajes: para responder, Chatwoot (es la fase 3 de las conversaciones en el hub).

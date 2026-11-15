@@ -6,6 +6,7 @@
 import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import type { Campania } from "../campanias";
+import type { LeadDeResultado } from "../resultados";
 import { TIPOS_DEL_EQUIPO, type Anotado, type Ejemplo, type ReglaSeguimiento, type Tono, type TipoRegistro } from "../datos/tipos";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import { EVENTOS, type Evento } from "../etapas/reglas";
@@ -571,6 +572,34 @@ export function datosPanel(db: Db) {
         [dias, linea],
       );
       return rows.map((r) => ({ campania: r.campania ?? null, conversaciones: Number(r.conversaciones) }));
+    },
+
+    /**
+     * Para medir qué vende (lib/resultados.ts): los leads de cada flujo y de cada versión de
+     * seguimiento de los últimos `dias`, con las etapas a las que los movió el asistente.
+     */
+    async leadsDeResultados(dias: number): Promise<{ flujos: (LeadDeResultado & { flujo: number })[]; seguimientos: (LeadDeResultado & { regla: number; version: number })[] }> {
+      const etapas = `coalesce((select array_agg(r.datos->>'etapa') from registro r where r.conversacion = x.conversacion and r.tipo = 'etapa' and r.datos ? 'etapa'), '{}') as etapas`;
+      const [f, s] = await Promise.all([
+        db.query(
+          `select x.flujo, x.conversacion, c.crm_contacto_id, c.telefono, ${etapas}
+           from flujo_corridas x left join conversaciones c on c.chatwoot_id = x.conversacion
+           where x.flujo is not null and x.inicio > now() - make_interval(days => $1)`,
+          [dias],
+        ),
+        db.query(
+          `select x.regla, x.version, x.conversacion, c.crm_contacto_id, c.telefono, ${etapas}
+           from seguimientos_enviados x left join conversaciones c on c.chatwoot_id = x.conversacion
+           where x.regla is not null and x.enviado > now() - make_interval(days => $1)`,
+          [dias],
+        ),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lead = (r: Record<string, any>) => ({ conversacion: Number(r.conversacion), crm_contacto_id: r.crm_contacto_id ?? null, telefono: r.telefono ?? null, etapas_asistente: (r.etapas ?? []).filter(Boolean) });
+      return {
+        flujos: f.rows.map((r) => ({ ...lead(r), flujo: Number(r.flujo) })),
+        seguimientos: s.rows.map((r) => ({ ...lead(r), regla: Number(r.regla), version: Number(r.version) })),
+      };
     },
 
     async conversacion(id: number): Promise<DetalleConversacion | null> {
