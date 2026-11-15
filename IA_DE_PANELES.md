@@ -185,3 +185,25 @@ Desde el 15/11 el asistente maneja varias líneas ([`docs/lineas.md`](docs/linea
 Las líneas 1 (outreach frío) y 2 (equipo y facturas) **todavía no se conectan**: su trabajo se suma más adelante. Si se conectan antes, el asistente no contesta ahí (pasa al equipo con una nota).
 
 Anotá en `docs/estado-paneles.md`, sección «Chatwoot», cómo quedó: sesión, bandeja, si el bot quedó asignado y el resultado de la prueba (sin números de teléfono).
+
+### Tarea 12 · QA en producción de las líneas y los flujos (15/11)
+
+Con todo publicado (asistente #21 y hub #86), revisar en producción lo que una sesión de código no puede ver. Todo con datos inventados y el teléfono de prueba. **No cambies fichas, tono ni etapas.** Los flujos que armes para probar dejalos apagados al terminar.
+
+1. **Vercel:** la publicación del asistente quedó Ready y su log dice «aplicada 202611150011_lineas_y_flujos.sql».
+2. **Hub, Comercial → Asistente de WhatsApp:**
+   - se ven las 4 líneas y la 3 dice «Responde»;
+   - en el Resumen, «Probar las conexiones»: «Líneas» atiende en la bandeja 1.
+   - Copiá la tabla en `docs/estado-paneles.md`.
+3. **Sin flujo:** desde un número que nunca le escribió a la línea 3, mandá «Hola, quería info de Lerma 439». Contesta la IA, como antes.
+4. **Con flujo:**
+   - En la línea 3 → Flujos, armá uno con el modelo «Presentación, brochure y un seguimiento». Subí una foto chica de prueba en un mensaje.
+   - Probalo en Probar, con «Simular que no respondió».
+   - Prendelo y escribí desde otro número nuevo. Tienen que llegar los mensajes en orden, con sus pausas y con la foto, una sola vez cada uno. En Chatwoot, la conversación no se tiene que abrir sola.
+   - Respondé: pasa al equipo (nota interna, conversación abierta) y la etapa en el CRM pasa a «Seguimiento».
+   - Con un tercer número, no respondas: al día siguiente a las 10 tiene que salir el seguimiento.
+   - Apagá el flujo al terminar.
+5. **Pausar la línea 3** desde el hub: un mensaje nuevo pasa al equipo con la nota «La línea … está pausada». Reactivala.
+6. **Pantallas:** anotá lo que se vea mal o confunda en la computadora y en el celular. En el editor de flujos del celular, arrastrar puede no andar: se usan las flechas.
+
+Anotá todo en `docs/estado-paneles.md`, sección «Chatwoot», como «QA de líneas y flujos», sin teléfonos ni claves.
