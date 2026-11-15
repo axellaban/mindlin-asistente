@@ -89,6 +89,8 @@ describe("probar el asistente desde el panel", () => {
       "⏳ El flujo «Presentación» espera la respuesta (hasta 1 día). Escribí para seguir por «Si responde», o simulá que no respondió.",
     ]);
     expect(r.estado.flujo).toMatchObject({ id: 5, posicion: "3", estado: "esperando", horas: 24 });
+    // En orden, para mostrarlo como en WhatsApp: los mensajes con la pausa en el medio.
+    expect(r.turno?.map((t) => t.tipo)).toEqual(["accion", "bot", "accion", "bot", "accion"]);
     expect(sinIA.pedidos).toEqual([]);
 
     // «Simular que no respondió»: el camino de «Si no responde».

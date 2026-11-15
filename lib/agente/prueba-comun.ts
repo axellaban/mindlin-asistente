@@ -36,6 +36,8 @@ export interface RespuestaPrueba {
   estado: EstadoPrueba;
   /** Lo que haría además de contestar, para mostrarlo debajo de la respuesta. */
   acciones: string[];
+  /** Todo lo de este mensaje en orden: los mensajes del asistente y lo que haría (pausas, etapas…). */
+  turno?: { tipo: "bot" | "accion"; texto: string }[];
 }
 
 /** Cuántos mensajes como mucho en una prueba (como el historial de una conversación real). */

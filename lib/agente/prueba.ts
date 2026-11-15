@@ -59,8 +59,13 @@ export async function probar({
   archivos?: Map<number, string>;
 }): Promise<RespuestaPrueba> {
   const acciones: string[] = [];
+  const turno: { tipo: "bot" | "accion"; texto: string }[] = [];
+  /** Lo que haría (va en «acciones» y, en orden, en «turno»). */
+  const accion = (texto: string) => (acciones.push(texto), turno.push({ tipo: "accion", texto }));
   const proyectos = proyectosDeLinea(linea, todos);
   const mensajes: MensajePrueba[] = [...estado.mensajes];
+  /** Un mensaje del asistente: queda en la charla y, en orden, en «turno». */
+  const bot = (texto: string) => (mensajes.push({ rol: "bot", texto }), turno.push({ tipo: "bot", texto }));
   if (!vencer) mensajes.push({ rol: "interesado" as const, texto: texto.trim().slice(0, MAX_LARGO_PRUEBA) });
   let proyectoId = proyectos.some((p) => p.id === estado.proyecto) ? estado.proyecto : proyectos.length === 1 ? proyectos[0].id : null;
   let anotado: Anotado = estado.anotado;
@@ -72,19 +77,19 @@ export async function probar({
       const suma = sumarAnotado(anotado, d);
       anotado = suma.anotado;
       if (!suma.cambios.length) return "Eso ya estaba anotado: no hace falta registrarlo de nuevo. Seguí la conversación.";
-      acciones.push(`📝 Anotaría en el CRM: ${suma.cambios.join(", ")}${d.resumen ? `. «${d.resumen}»` : ""}`);
+      accion(`📝 Anotaría en el CRM: ${suma.cambios.join(", ")}${d.resumen ? `. «${d.resumen}»` : ""}`);
       return "Listo: quedó anotado en el CRM.";
     },
     async elegirProyecto(id) {
       const p = proyecto(id);
       if (!p) throw new Error(`No hay un proyecto activo con id ${id}.`);
       proyectoId = p.id;
-      acciones.push(`🏢 Eligió el proyecto ${p.nombre}`);
+      accion(`🏢 Eligió el proyecto ${p.nombre}`);
       return `Quedó elegido. Ficha:\n\n${ficha(p)}`;
     },
     async marcarSenal(senal, detalle) {
       const etapa = reglasEtapa?.[senal];
-      acciones.push(`🏷️ ${tituloEvento(senal)}${detalle ? ` («${detalle}»)` : ""}${etapa ? `: lo movería a «${etapa}» en el CRM` : ""}`);
+      accion(`🏷️ ${tituloEvento(senal)}${detalle ? ` («${detalle}»)` : ""}${etapa ? `: lo movería a «${etapa}» en el CRM` : ""}`);
       return "Anotado para el equipo. Seguí la conversación sin mencionarlo.";
     },
   };
@@ -107,12 +112,12 @@ export async function probar({
       herramientas,
     });
     const respuesta = paraWhatsApp(r.texto);
-    if (respuesta) mensajes.push({ rol: "bot", texto: respuesta });
+    if (respuesta) bot(respuesta);
     return { pasar: r.pasarAPersona ?? (respuesta ? null : { motivo: "El asistente no supo qué responder.", resumen: "" }) };
   };
   const alEquipo = (p: { motivo: string; resumen: string }) => {
     pasada = true;
-    acciones.push(`🙋 Acá pasaría la conversación al equipo: ${p.motivo}${p.resumen ? `. Resumen: ${p.resumen}` : ""}`);
+    accion(`🙋 Acá pasaría la conversación al equipo: ${p.motivo}${p.resumen ? `. Resumen: ${p.resumen}` : ""}`);
   };
 
   /** Corre un tramo del flujo con el motor de verdad, mostrando lo que haría. */
@@ -121,17 +126,17 @@ export async function probar({
       async enviar(t, archivo) {
         const final = textoSeguimiento(t, { nombre: anotado.nombre?.split(/\s+/)[0] ?? "", proyecto: proyecto(proyectoId)?.nombre ?? "" });
         const adjunto = archivo ? `📎 ${archivos.get(archivo) ?? "archivo"}` : "";
-        mensajes.push({ rol: "bot", texto: [adjunto, final].filter(Boolean).join("\n") });
+        bot([adjunto, final].filter(Boolean).join("\n"));
       },
       ia: (consigna) => turnoIA(consigna),
       async etapa(e) {
-        acciones.push(`🏷️ Movería al lead a «${e}» en el CRM (si no está en Reserva o Vendido, y sin retroceder)`);
+        accion(`🏷️ Movería al lead a «${e}» en el CRM (si no está en Reserva o Vendido, y sin retroceder)`);
       },
       async equipo(p) {
         alEquipo(p);
       },
       async dormir(ms) {
-        acciones.push(`⏱️ Pausa de ${Math.round(ms / 1000)} s`);
+        accion(`⏱️ Pausa de ${Math.round(ms / 1000)} s`);
       },
       async guardar(c) {
         if (c.posicion) f.posicion = c.posicion;
@@ -145,16 +150,16 @@ export async function probar({
     if (r.estado === "esperando") {
       const espera = pasoEn(f.pasos, f.posicion);
       f.horas = espera?.tipo === "esperar" ? espera.horas : null;
-      acciones.push(`⏳ El flujo «${f.nombre}» espera la respuesta (hasta ${f.horas ? textoHoras(f.horas) : "el plazo"}). Escribí para seguir por «Si responde», o simulá que no respondió.`);
-    } else if (r.resultado === "ia") acciones.push(`🤖 Terminó el flujo «${f.nombre}»: desde acá conversa la IA.`);
-    else if (r.resultado === "fin") acciones.push(`🏁 Terminó el flujo «${f.nombre}». Si la persona escribe después, la atiende el equipo.`);
+      accion(`⏳ El flujo «${f.nombre}» espera la respuesta (hasta ${f.horas ? textoHoras(f.horas) : "el plazo"}). Escribí para seguir por «Si responde», o simulá que no respondió.`);
+    } else if (r.resultado === "ia") accion(`🤖 Terminó el flujo «${f.nombre}»: desde acá conversa la IA.`);
+    else if (r.resultado === "fin") accion(`🏁 Terminó el flujo «${f.nombre}». Si la persona escribe después, la atiende el equipo.`);
   };
 
   // ¿Lo atiende un flujo? (Si no, contesta la IA.)
   let atendio = true;
   if (vencer) {
     if (flujo?.estado !== "esperando") throw new Error("No hay un flujo esperando respuesta.");
-    acciones.push("⌛ La persona no respondió a tiempo.");
+    accion("⌛ La persona no respondió a tiempo.");
     await correrFlujo(flujo, "vencio");
   } else if (flujo?.estado === "esperando") {
     await correrFlujo(flujo, "respuesta");
@@ -168,7 +173,7 @@ export async function probar({
       flujo = { id: elegido.flujo.id, nombre: elegido.flujo.nombre, pasos: elegido.flujo.pasos, posicion: "0", estado: "esperando", resultado: null, horas: null };
       // Si es el flujo de un proyecto, se dice por qué arrancó ese y no el general.
       const delProyecto = elegido.flujo.proyecto ? ` (el de ${proyecto(elegido.flujo.proyecto)?.nombre ?? elegido.flujo.proyecto}, porque lo nombró)` : "";
-      acciones.push(`▶️ Arranca el flujo «${elegido.flujo.nombre}»${delProyecto}.`);
+      accion(`▶️ Arranca el flujo «${elegido.flujo.nombre}»${delProyecto}.`);
       await correrFlujo(flujo, "inicio");
     } else atendio = false;
   } else atendio = false;
@@ -186,6 +191,7 @@ export async function probar({
   return {
     estado: { mensajes: mensajes.slice(-MAX_MENSAJES_PRUEBA), proyecto: proyectoId, anotado, pasada, ...(linea || estado.linea ? { linea: linea?.id ?? estado.linea ?? null, flujo } : {}) },
     acciones,
+    turno,
   };
 }
 
