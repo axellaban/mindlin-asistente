@@ -11,6 +11,7 @@ import { LINEAS_DE_FABRICA, type Linea } from "../lineas";
 import { REGLAS_POR_DEFECTO } from "../etapas/reglas";
 import { correrSeguimientos } from "../seguimientos/correr";
 import type { FlujoActivo, Paso } from "./modelo";
+import type { Campania } from "../campanias";
 
 type Responder = Extract<Accion, { tipo: "responder" }>;
 const LINEA_3 = LINEAS_DE_FABRICA[2];
@@ -32,7 +33,7 @@ const presentacion: Paso[] = [
   },
 ];
 
-function armar({ flujos = [{ id: 1, nombre: "Presentación", proyecto: null, pasos: presentacion, linea: "linea-3" }] as (FlujoActivo & { linea: string })[], lineas = LINEAS_DE_FABRICA } = {}) {
+function armar({ flujos = [{ id: 1, nombre: "Presentación", proyecto: null, pasos: presentacion, linea: "linea-3" }] as (FlujoActivo & { linea: string })[], lineas = LINEAS_DE_FABRICA, campanias = [] as Campania[] } = {}) {
   const datos = almacenEnMemoria({
     proyectos: [lerma(), otro()],
     tono,
@@ -40,6 +41,7 @@ function armar({ flujos = [{ id: 1, nombre: "Presentación", proyecto: null, pas
     lineas,
     flujos,
     archivos: [{ id: 1, nombre: "brochure-lerma.pdf", tipo: "application/pdf", datos: new Uint8Array([37, 80, 68, 70]) }],
+    campanias,
   });
   const hechos: string[] = [];
   const chatwoot: Chatwoot = {
@@ -243,3 +245,37 @@ describe("flujos en una conversación de verdad", () => {
     expect(y.hechos).toEqual(["nota 7: 🙋 El asistente pasó esta conversación al equipo: El flujo «Presentación» tuvo un error y no pudo seguir.", "abrir 7"]);
   });
 });
+
+describe("de qué campaña viene cada lead", () => {
+  const TAGS = COLUMNAS_CONTACTOS.indexOf("Tags");
+  const meta: Campania = { id: 1, nombre: "Meta Lerma nov", linea: null, frases: ["Quiero más información sobre Lerma"], activa: true };
+
+  it("con el primer mensaje: queda en la conversación, como etiqueta del lead nuevo y en la nota de alta; después no cambia", async () => {
+    const x = armar({ campanias: [meta] });
+    expect(await x.escribe("¡Hola! Quiero mas informacion sobre Lerma 439")).toMatch(/^flujo «Presentación»/);
+    expect(x.datos.conversaciones.get(7)).toMatchObject({ campania: "Meta Lerma nov", campania_por: "frase" });
+    expect(x.pestanias["CRM Contactos"][0][TAGS]).toBe("Campaña: Meta Lerma nov");
+    expect(x.pestanias["CRM Actividad"][0][5]).toBe("Alta por WhatsApp (línea «Leads entrantes», campaña «Meta Lerma nov»). Arrancó el flujo «Presentación».");
+  });
+
+  it("sin frase que coincida, la campaña de la línea; y el que ya estaba en el CRM solo suma una nota (sus etiquetas no se tocan)", async () => {
+    const lineas = LINEAS_DE_FABRICA.map((l) => (l.id === "linea-3" ? { ...l, campania: "Leads 3" } : l));
+    const x = armar({ flujos: [], lineas, campanias: [meta] });
+    // Ya estaba en el CRM (lo cargó el equipo), con su etiqueta.
+    const fila = COLUMNAS_CONTACTOS.map(() => "");
+    Object.assign(fila, { [COLUMNAS_CONTACTOS.indexOf("ID")]: "cviejo", [COLUMNAS_CONTACTOS.indexOf("Nombre")]: "Ana Prueba", [COLUMNAS_CONTACTOS.indexOf("Teléfono")]: "+5491155550000", [ETAPA]: "Seguimiento", [TAGS]: "Referida" });
+    x.pestanias["CRM Contactos"].push(fila);
+    x.respuestas.push(respuesta([{ type: "text", text: "¡Hola Ana! ¿En qué te ayudo?" }]));
+    expect(await x.escribe("Buenas, ¿tienen 2 ambientes?", 7, lineas[2])).toBe("respondió");
+    expect(x.datos.conversaciones.get(7)).toMatchObject({ campania: "Leads 3", campania_por: "linea" });
+    expect(x.pestanias["CRM Contactos"]).toHaveLength(1);
+    expect(x.pestanias["CRM Contactos"][0][TAGS]).toBe("Referida");
+    expect(x.pestanias["CRM Actividad"].map((f) => f[5])).toEqual(["Escribió por WhatsApp (línea «Leads entrantes», campaña «Leads 3»)."]);
+    // El mensaje siguiente no la cambia ni vuelve a anotar nada, aunque nombre otra campaña.
+    x.respuestas.push(respuesta([{ type: "text", text: "Sí, hay." }]));
+    await x.escribe("Quiero más información sobre Lerma", 7, lineas[2]);
+    expect(x.datos.conversaciones.get(7)?.campania).toBe("Leads 3");
+    expect(x.pestanias["CRM Actividad"]).toHaveLength(1);
+  });
+});
+

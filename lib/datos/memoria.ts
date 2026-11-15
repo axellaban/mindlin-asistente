@@ -3,6 +3,7 @@ import type { ReglasEtapa } from "../etapas/reglas";
 import { limiteCandidatos, MARGEN_MS, MAX_PASOS } from "../seguimientos/reglas";
 import { LINEAS_DE_FABRICA, type Linea } from "../lineas";
 import { margenDeEspera } from "../flujos/modelo";
+import type { Campania } from "../campanias";
 import { TIPOS_DEL_EQUIPO, type Almacen, type Archivo, type Conversacion, type Corrida, type Ejemplo, type FlujoActivo, type Proyecto, type ReglaSeguimiento, type SeguimientoEnviado, type Tono, type TipoRegistro } from "./tipos";
 
 /** Lo que el almacén en memoria sabe de cada conversación para los seguimientos (como las columnas de Postgres). */
@@ -27,6 +28,7 @@ export function almacenEnMemoria(
     lineas?: Linea[];
     flujos?: (FlujoActivo & { linea: string })[];
     archivos?: Archivo[];
+    campanias?: Campania[];
   } = {},
 ) {
   const estado = { pausado: inicial.pausado ?? false };
@@ -167,6 +169,9 @@ export function almacenEnMemoria(
     },
     async lineas() {
       return lineas.map((l) => ({ ...l }));
+    },
+    async campanias() {
+      return (inicial.campanias ?? []).filter((c) => c.activa);
     },
     async flujosActivos(linea) {
       return flujos.filter((f) => f.linea === linea).map(({ linea: _l, ...f }) => structuredClone(f));

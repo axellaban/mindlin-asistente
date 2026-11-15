@@ -5,6 +5,7 @@
 
 import type pg from "pg";
 import type { MensajeHistorial } from "../chatwoot/evento";
+import type { Campania } from "../campanias";
 import { TIPOS_DEL_EQUIPO, type Anotado, type Ejemplo, type ReglaSeguimiento, type Tono, type TipoRegistro } from "../datos/tipos";
 import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import { EVENTOS, type Evento } from "../etapas/reglas";
@@ -75,9 +76,24 @@ export interface ConversacionHub {
   ultimo_texto: string | null;
   ultimo_rol: MensajeHistorial["rol"] | null;
   mensajes: number;
+  /** De qué campaña viene (lib/campanias.ts). */
+  campania: string | null;
   /** Quién la tiene, según lo último que pasó entre el asistente y el equipo (el registro). */
   atiende: "asistente" | "equipo";
   flujo: FlujoDeConversacion | null;
+}
+
+/** Una campaña como la ve el hub: lo que se configura y cuántas conversaciones trajo en 30 días. */
+export interface CampaniaPanel extends Campania {
+  actualizado: string | null;
+  actualizado_por: string | null;
+  conversaciones_30_dias: number;
+}
+
+/** Cuántas conversaciones nuevas trajo cada campaña (las sin campaña, con `campania: null`). */
+export interface PorCampania {
+  campania: string | null;
+  conversaciones: number;
 }
 
 /** Para buscar conversaciones: de una línea, o de un contacto del CRM (por su ID o su teléfono). */
@@ -337,9 +353,9 @@ export function datosPanel(db: Db) {
     async guardarLinea(id: string, l: LineaEditable, por: string): Promise<void> {
       await db.query(
         `update lineas set nombre = $2, descripcion = $3, telefono = $4, bandeja = $5, pausada = $6, pasar_al_responder = $7, instrucciones = $8, proyectos = $9,
-                actualizado = now(), actualizado_por = $10
+                campania = $11, actualizado = now(), actualizado_por = $10
          where id = $1`,
-        [id, l.nombre, l.descripcion, l.telefono, l.bandeja, l.pausada, l.pasar_al_responder, l.instrucciones, l.proyectos, por],
+        [id, l.nombre, l.descripcion, l.telefono, l.bandeja, l.pausada, l.pasar_al_responder, l.instrucciones, l.proyectos, por, l.campania],
       );
     },
 
@@ -469,7 +485,7 @@ export function datosPanel(db: Db) {
       const telefono = tel.length >= 8 ? tel.slice(-8) : null;
       if (contacto && !id && !telefono) return [];
       const { rows } = await db.query(
-        `select c.chatwoot_id, c.linea, l.nombre as linea_nombre, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
+        `select c.chatwoot_id, c.linea, l.nombre as linea_nombre, c.campania, c.nombre, c.telefono, c.proyecto, c.crm_contacto_id,
                 m.fecha as ultimo, m.texto as ultimo_texto, m.rol as ultimo_rol,
                 (select count(*) from mensajes x where x.conversacion = c.chatwoot_id) as cantidad,
                 e.tipo as equipo,
@@ -501,6 +517,7 @@ export function datosPanel(db: Db) {
         ultimo_texto: r.ultimo_texto ?? null,
         ultimo_rol: r.ultimo_rol ?? null,
         mensajes: Number(r.cantidad ?? 0),
+        campania: r.campania ?? null,
         atiende: r.equipo === "paso_a_persona" || r.equipo === "la_tomo_una_persona" ? "equipo" : "asistente",
         flujo: r.flujo_nombre
           ? {
@@ -513,6 +530,47 @@ export function datosPanel(db: Db) {
             }
           : null,
       }));
+    },
+
+    /** Todas las campañas (también las apagadas), con cuántas conversaciones trajo cada una en 30 días. */
+    async campanias(): Promise<CampaniaPanel[]> {
+      const { rows } = await db.query(
+        `select k.id, k.nombre, k.linea, k.frases, k.activa, k.actualizado, k.actualizado_por,
+                (select count(*)::int from conversaciones c where c.campania = k.nombre and (k.linea is null or c.linea = k.linea)
+                   and exists (select 1 from mensajes m where m.conversacion = c.chatwoot_id and m.fecha > now() - interval '30 days')) as conversaciones_30_dias
+         from campanias k order by k.activa desc, k.nombre, k.id`,
+      );
+      return rows.map((r) => ({ id: Number(r.id), nombre: r.nombre, linea: r.linea ?? null, frases: r.frases ?? [], activa: r.activa === true, actualizado: iso(r.actualizado), actualizado_por: r.actualizado_por ?? null, conversaciones_30_dias: Number(r.conversaciones_30_dias ?? 0) }));
+    },
+
+    async agregarCampania(c: Omit<Campania, "id">, por: string): Promise<number> {
+      const { rows } = await db.query("insert into campanias (nombre, linea, frases, activa, actualizado_por) values ($1, $2, $3, $4, $5) returning id", [c.nombre, c.linea, c.frases, c.activa, por]);
+      return Number(rows[0].id);
+    },
+
+    async guardarCampania(id: number, c: Omit<Campania, "id">, por: string): Promise<boolean> {
+      const { rowCount } = await db.query("update campanias set nombre = $2, linea = $3, frases = $4, activa = $5, actualizado = now(), actualizado_por = $6 where id = $1", [id, c.nombre, c.linea, c.frases, c.activa, por]);
+      return rowCount === 1;
+    },
+
+    /** Las conversaciones que ya quedaron con esa campaña la conservan (es su nombre). */
+    async borrarCampania(id: number): Promise<boolean> {
+      const { rowCount } = await db.query("delete from campanias where id = $1", [id]);
+      return rowCount === 1;
+    },
+
+    /** De qué campaña vinieron las conversaciones que empezaron en los últimos `dias` (de una línea o de todas). */
+    async porCampania(dias: number, linea: string | null = null): Promise<PorCampania[]> {
+      const { rows } = await db.query(
+        `select c.campania, count(*)::int as conversaciones
+         from conversaciones c
+         where ($2::text is null or c.linea = $2)
+           and (select min(m.fecha) from mensajes m where m.conversacion = c.chatwoot_id) > now() - make_interval(days => $1)
+         group by c.campania
+         order by count(*) desc, c.campania nulls last`,
+        [dias, linea],
+      );
+      return rows.map((r) => ({ campania: r.campania ?? null, conversaciones: Number(r.conversaciones) }));
     },
 
     async conversacion(id: number): Promise<DetalleConversacion | null> {

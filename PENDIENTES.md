@@ -212,13 +212,13 @@ Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial compl
   - cómo le llegan a la persona los mensajes, las pausas y los archivos;
   - cómo ve el equipo las notas internas y el paso al equipo (la app del celular, tarea 7).
 
-## Conversaciones en el hub (decidido el 15/11, falta hacerlo)
+## Conversaciones en el hub (decidido y hecho el 15/11; quedan las fases 2 y 3)
 
 Cómo se hace, en [`docs/arquitectura.md`](docs/arquitectura.md), sección 12: se leen de la base del asistente, solo cuando se abren, y Chatwoot se abre para los adjuntos.
 
 - [x] API del asistente: listar las conversaciones (todas o por línea; el hub busca por nombre o teléfono en la lista) y leer una (mensajes, lo anotado, el flujo y lo que hizo el asistente), y las de un contacto del CRM por su ID o su teléfono, con el link a Chatwoot ([`docs/api-hub.md`](docs/api-hub.md), «Conversaciones»). — Claude, 15/11
-- [ ] Hub, CRM: sumar los mensajes de WhatsApp al Chat de la ficha y a la bandeja de Chats, con «Abrir en Chatwoot». — Claude
-- [ ] Hub, Asistente de WhatsApp: la solapa «Conversaciones» por línea. — Claude
+- [x] Hub, CRM: sumar los mensajes de WhatsApp al Chat de la ficha y a la bandeja de Chats, con «Abrir en Chatwoot» (matimindlin111/mindlinhub#88). — Claude, 15/11
+- [x] Hub, Asistente de WhatsApp: la solapa «Conversaciones» por línea (matimindlin111/mindlinhub#88). — Claude, 15/11
 - [ ] Asignar el Agent Bot a las bandejas de las líneas 1 y 2 cuando estén, para que se guarden sus conversaciones. — Panel
 - [ ] Fase 2, si hace falta: fotos y audios adentro del hub, pedidos a Chatwoot en el momento con un usuario «Hub» (token nuevo en Vercel). — Claude y Panel
 - [ ] Fase 3: responder desde el hub por Chatwoot. — Claude
@@ -280,8 +280,8 @@ Lo deja la propuesta para después (lo construye Mindlin o se presupuesta aparte
 
 Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: Claude, salvo que diga otra cosa.
 
-1. [ ] **Conversaciones en el CRM del hub.** Se leen de la base del asistente cuando alguien las abre, y se ven en la ficha del lead → Chat, en la bandeja de Chats y en una solapa «Conversaciones» por línea. Para los adjuntos, «Abrir en Chatwoot». Cómo se arma: [`docs/arquitectura.md`](docs/arquitectura.md), sección 12, y la lista «Conversaciones en el hub».
-2. [ ] **Saber de qué campaña viene cada lead.** Por la línea y por el primer mensaje del anuncio (el texto que arma Meta, o palabras configurables por campaña). Se guarda en el CRM como origen o etiqueta. Mindlin dice qué campañas tiene.
+1. [x] **Conversaciones en el CRM del hub.** Hecho el 15/11: API del asistente ([#26](https://github.com/axellaban/mindlin-asistente/pull/26)) y pantallas del hub (matimindlin111/mindlinhub#88). Falta ver las conversaciones reales en producción (tarea 12). Se leen de la base del asistente cuando alguien las abre, y se ven en la ficha del lead → Chat, en la bandeja de Chats y en una solapa «Conversaciones» por línea. Para los adjuntos, «Abrir en Chatwoot». Cómo se arma: [`docs/arquitectura.md`](docs/arquitectura.md), sección 12, y la lista «Conversaciones en el hub».
+2. [ ] **Saber de qué campaña viene cada lead.** (15/11: el asistente ya la reconoce y la guarda, [`docs/campanias.md`](docs/campanias.md); falta la pantalla del hub y que **Mindlin pase sus campañas y el texto de cada anuncio**.) Por la línea y por el primer mensaje del anuncio (el texto que arma Meta, o palabras configurables por campaña). Se guarda en el CRM como origen o etiqueta. Mindlin dice qué campañas tiene.
 3. [ ] **Medir qué flujo vende, no solo cuál responde.** Cruzar cada flujo y cada versión de seguimiento con la etapa a la que llegó el lead en el CRM (visita, negociación, reserva) y mostrarlo en el hub, junto a los números de cada flujo y cada regla.
 4. [ ] **Avisar al responsable cuando el asistente pasa la conversación al equipo.** Un aviso en el hub (la campanita y el celular, como los demás avisos del hub), con el resumen y el link a la conversación.
 5. [ ] **Ver en qué paso del flujo va cada persona, y sacarla o reiniciarla a mano** desde el hub (Flujos → quiénes esperan).

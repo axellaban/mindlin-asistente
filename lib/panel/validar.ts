@@ -3,6 +3,7 @@
  * formulario y devuelve los datos limpios o un mensaje de error para mostrar.
  */
 
+import { MAX_NOMBRE_CAMPANIA } from "../campanias";
 import { ETAPAS } from "../crm/planilla";
 import { esEvento, ETAPAS_DESTINO, type Evento } from "../etapas/reglas";
 import type { Proyecto, ReglaSeguimiento, Tono } from "../datos/tipos";
@@ -150,7 +151,7 @@ export function validarRegla(f: Formulario, proyectos: string[], lineas: string[
 }
 
 /** Lo que se cambia de una línea desde el hub o el panel (el tipo y el orden, no). */
-export type LineaEditable = Pick<Linea, "nombre" | "descripcion" | "telefono" | "bandeja" | "pausada" | "pasar_al_responder" | "instrucciones" | "proyectos">;
+export type LineaEditable = Pick<Linea, "nombre" | "descripcion" | "telefono" | "bandeja" | "pausada" | "pasar_al_responder" | "instrucciones" | "proyectos" | "campania">;
 
 export function validarLinea(f: Formulario, proyectos: string[]): Resultado<LineaEditable> {
   const nombre = texto(f, "nombre");
@@ -173,7 +174,9 @@ export function validarLinea(f: Formulario, proyectos: string[]): Resultado<Line
   ];
   const noExiste = elegidos.find((p) => !proyectos.includes(p));
   if (noExiste) return { ok: false, error: `El proyecto «${noExiste}» no existe.` };
-  return { ok: true, valor: { nombre, descripcion, telefono, bandeja, pausada: f.get("pausada") === "on", pasar_al_responder: f.get("pasar_al_responder") === "on", instrucciones, proyectos: elegidos } };
+  const campania = texto(f, "campania").replace(/\s+/g, " ");
+  if (campania.length > MAX_NOMBRE_CAMPANIA) return { ok: false, error: `La campaña de la línea va hasta ${MAX_NOMBRE_CAMPANIA} letras (queda como etiqueta en el CRM).` };
+  return { ok: true, valor: { nombre, descripcion, telefono, bandeja, pausada: f.get("pausada") === "on", pasar_al_responder: f.get("pasar_al_responder") === "on", instrucciones, proyectos: elegidos, campania } };
 }
 
 export interface FlujoValidado {

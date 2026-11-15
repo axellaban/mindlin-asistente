@@ -13,6 +13,7 @@ import type { ContactoCRM, CRM } from "../crm/planilla";
 import type { Almacen, Anotado, Conversacion, Ejemplo, Proyecto, Tono } from "../datos/tipos";
 import { moverAEtapa, moverEtapa } from "../etapas/mover";
 import { etapaDeAlta, type Evento, type ReglasEtapa, type Senal } from "../etapas/reglas";
+import { campaniaDe, etiquetaCampania, type CampaniaPor } from "../campanias";
 import { proyectosDeLinea, type Linea } from "../lineas";
 import { nombreDePila, textoSeguimiento } from "../seguimientos/reglas";
 import { responder, type Herramientas, type Modelo } from "./agente";
@@ -61,6 +62,8 @@ export interface Charla {
   contacto: ContactoCRM | null | undefined;
   /** Lo que pasó con este mensaje, para las etapas automáticas (los flujos lo vacían: mueven ellos). */
   eventos: Evento[];
+  /** De qué campaña viene (lib/campanias.ts), decidido con el primer mensaje. */
+  campania: { nombre: string; por: CampaniaPor } | null;
   proyecto(id: string | null): Proyecto | null;
   elegirProyecto(id: string): Promise<void>;
   /** La IA contesta (sin consigna) o escribe siguiendo una consigna, y el mensaje sale por Chatwoot. */
@@ -115,6 +118,18 @@ export async function prepararCharla(
   if (!guardada || guardada.telefono !== telefono || guardada.nombre !== nombre) Object.assign(cambios, { telefono, nombre });
   if (linea && guardada?.linea !== linea.id) cambios.linea = linea.id;
   if (bandeja != null && guardada?.bandeja !== bandeja) cambios.bandeja = bandeja;
+  // La campaña, una sola vez: con el primer mensaje de una conversación nueva (todavía no le
+  // escribió nadie). Después no cambia, aunque escriba otra frase.
+  let campania: Charla["campania"] = guardada?.campania ? { nombre: guardada.campania, por: guardada.campania_por ?? "frase" } : null;
+  let campaniaNueva = false;
+  if (!campania && linea && historial.length && historial.every((m) => m.rol === "interesado")) {
+    const todas = await s.almacen.campanias().catch(() => []);
+    campania = campaniaDe(historial.map((m) => m.texto).join(" \n "), linea, todas);
+    if (campania) {
+      campaniaNueva = true;
+      Object.assign(cambios, { campania: campania.nombre, campania_por: campania.por });
+    }
+  }
   if (Object.keys(cambios).length) await s.almacen.guardarConversacion({ chatwoot_id: conv, ...cambios });
 
   const ch: Charla = {
@@ -130,6 +145,7 @@ export async function prepararCharla(
     proyectoId: guardada?.proyecto ?? (proyectos.length === 1 ? proyectos[0].id : null),
     contacto: undefined,
     eventos: eventoPara ? [eventoPara(guardada)] : [],
+    campania,
     proyecto: (id) => proyectos.find((p) => p.id === id) ?? null,
     async elegirProyecto(id) {
       ch.proyectoId = id;
@@ -259,7 +275,10 @@ export async function prepararCharla(
     },
   };
 
-  const lineaEnNota = () => (linea ? ` (línea «${linea.nombre}»)` : "");
+  const lineaEnNota = () => {
+    const partes = [linea && `línea «${linea.nombre}»`, campania && `campaña «${campania.nombre}»`].filter(Boolean);
+    return partes.length ? ` (${partes.join(", ")})` : "";
+  };
   const buscarEnCRM = () => s.crm!.buscar({ id: ch.guardada?.crm_contacto_id, telefono });
   async function crearEnCRM(resumen: string | undefined, cuando: string): Promise<ContactoCRM> {
     const a = ch.anotado;
@@ -274,6 +293,7 @@ export async function prepararCharla(
         formaDePago: a.forma_de_pago ?? "",
         plazo: a.plazo ?? "",
         notas: [resumen, a.zona && `Es de: ${a.zona}.`, a.busca_desde && `Busca hace: ${a.busca_desde}.`].filter(Boolean).join(" "),
+        tags: campania ? [etiquetaCampania(campania.nombre)] : [],
       },
       cuando,
       // Ya le está hablando el asistente: entra con la etapa del «primer contacto», no como «Nuevo».
@@ -288,6 +308,10 @@ export async function prepararCharla(
     try {
       ch.contacto = await buscarEnCRM();
       if (ch.contacto && ch.contacto.id !== guardada?.crm_contacto_id) await s.almacen.guardarConversacion({ chatwoot_id: conv, crm_contacto_id: ch.contacto.id });
+      // Ya estaba en el CRM y vuelve a escribir desde una campaña: queda en la actividad (sus etiquetas no se tocan).
+      if (ch.contacto && campaniaNueva && campania) {
+        await s.crm.anotarActividad({ contacto: ch.contacto, detalle: `Escribió por WhatsApp${lineaEnNota()}.`, ahora: ahora().toISOString() });
+      }
     } catch (e) {
       await s.almacen.registrar({ tipo: "error", conversacion: conv, detalle: `CRM (buscar): ${detalle(e)}` });
     }

@@ -151,6 +151,12 @@ Axel pidió ver en el hub las conversaciones de cada línea con cada persona, si
 
 Queda como complemento para los adjuntos.
 
+## 13. De qué campaña viene cada lead (15/11)
+
+Pedido de Axel (mejora 2). **Se decide con el primer mensaje y no cambia**: por las frases de cada campaña (el texto que arma el anuncio de Meta) y, si ninguna coincide, por la campaña de la línea. Queda en la conversación y, en el CRM, como etiqueta «Campaña: …» del lead nuevo (al que ya estaba solo se le anota en la actividad). Detalle en [`campanias.md`](campanias.md).
+
+¿Por qué por texto y no por el dato del anuncio? Meta manda de qué anuncio viene un mensaje («referral») solo por la API oficial de WhatsApp; por WAHA y Chatwoot no llega. Si algún día se pasa a la API oficial, se suma esa vía.
+
 ## Lo que se reutiliza de otros proyectos de Axel
 
 Se adapta, no se copia a ciegas:

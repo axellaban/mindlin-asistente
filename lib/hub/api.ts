@@ -36,6 +36,7 @@ import {
 import { LIMITES, TIPOS_DE_PASO, VARIABLES_FLUJO } from "../flujos/modelo";
 import { PLANTILLAS } from "../flujos/plantillas";
 import { TIPOS_LINEA } from "../lineas";
+import { MAX_FRASE, MAX_FRASES, MAX_NOMBRE_CAMPANIA, MIN_FRASE, validarCampania } from "../campanias";
 import { ETAPAS_DESTINO, EVENTOS } from "../etapas/reglas";
 import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
@@ -147,6 +148,8 @@ export const OPCIONES = {
   plantillas_flujo: PLANTILLAS,
   tipos_archivo: TIPOS_ARCHIVO,
   max_archivo_bytes: MAX_ARCHIVO_BYTES,
+  /** Las campañas: el largo del nombre (queda como etiqueta en el CRM) y de las frases. */
+  limites_campania: { nombre: MAX_NOMBRE_CAMPANIA, frase_min: MIN_FRASE, frase_max: MAX_FRASE, frases: MAX_FRASES },
 } as const;
 
 export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<RespuestaHub> {
@@ -166,7 +169,7 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
     switch (recurso) {
       case "config": {
         if (metodo !== "GET" || id) return noSePuede();
-        const [proyectos, tono, ejemplos, reglas, estado, etapas, lineas, flujos, archivos] = await Promise.all([
+        const [proyectos, tono, ejemplos, reglas, estado, etapas, lineas, flujos, archivos, campanias] = await Promise.all([
           datos.proyectos(),
           datos.tono(),
           datos.ejemplos(),
@@ -176,17 +179,18 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
           datos.lineas(),
           datos.flujos(),
           datos.archivos(),
+          datos.campanias(),
         ]);
         const falta = queFalta({ tono, proyectos, reglas: reglas.filter((r) => r.estado !== "archivada").length, archivadas: reglas.filter((r) => r.estado === "archivada").length, faltan: d.faltan ?? [] });
-        return { status: 200, json: { proyectos, tono, ejemplos, reglas, etapas, estado, falta, lineas, flujos, archivos, ia: d.ia ?? null, opciones: OPCIONES } };
+        return { status: 200, json: { proyectos, tono, ejemplos, reglas, etapas, estado, falta, lineas, flujos, archivos, campanias, ia: d.ia ?? null, opciones: OPCIONES } };
       }
 
       case "resumen": {
         // /resumen: todas las líneas; /resumen/linea-3: solo esa.
         if (metodo !== "GET") return noSePuede();
         if (id && !(await datos.linea(id))) return error(404, "Esa línea no existe.");
-        const [ultimos7Dias, registro] = await Promise.all([datos.resumen(7, id ?? null), datos.registro({ limite: 50, linea: id ?? null })]);
-        return { status: 200, json: { ultimos_7_dias: ultimos7Dias, registro } };
+        const [ultimos7Dias, registro, porCampania] = await Promise.all([datos.resumen(7, id ?? null), datos.registro({ limite: 50, linea: id ?? null }), datos.porCampania(30, id ?? null)]);
+        return { status: 200, json: { ultimos_7_dias: ultimos7Dias, registro, por_campania_30_dias: porCampania } };
       }
 
       case "conversaciones": {
@@ -226,6 +230,34 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
           conversaciones.map(async (c) => ({ ...c, enlace: d.enlaceChatwoot?.(c.chatwoot_id) ?? null, historial: await datos.mensajes(c.chatwoot_id, MENSAJES_POR_CONVERSACION) })),
         );
         return { status: 200, json: { conversaciones: conMensajes } };
+      }
+
+      case "campanias": {
+        // De qué campaña viene cada lead (lib/campanias.ts): alta, cambio y baja.
+        const listo = async (status = 200, extra: Objeto = {}) => ({ status, json: { ...extra, campanias: await datos.campanias() } });
+        if (metodo === "GET" && !id) return listo();
+        const lineas = async () => (await datos.lineas()).map((l) => l.id);
+        if (metodo === "POST" && !id) {
+          const r = validarCampania(cuerpo, await lineas());
+          if (!r.ok) return error(400, r.error);
+          return listo(201, { id: await datos.agregarCampania(r.valor, por) });
+        }
+        const n = idDe(id);
+        if (!n) return noSePuede();
+        const actual = (await datos.campanias()).find((c) => c.id === n);
+        if (!actual) return error(404, "Esa campaña no existe.");
+        if (metodo === "PUT") {
+          // Solo cambia lo que viene.
+          const r = validarCampania({ nombre: actual.nombre, linea: actual.linea, frases: actual.frases, activa: actual.activa, ...cuerpo }, await lineas());
+          if (!r.ok) return error(400, r.error);
+          await datos.guardarCampania(n, r.valor, por);
+          return listo();
+        }
+        if (metodo === "DELETE") {
+          await datos.borrarCampania(n);
+          return listo();
+        }
+        return noSePuede();
       }
 
       case "lineas": {

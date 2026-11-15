@@ -20,6 +20,7 @@ Lo compartido es lo que sabe Mindlin. Lo de cada línea es cómo atiende.
   - si está **pausada**: cada conversación nueva pasa al equipo y no salen seguimientos ni flujos;
   - el modo **«presenta y pasa»**, que antes era uno solo, en el tono;
   - sus **instrucciones**: lo que el asistente tiene que saber de esa línea, por ejemplo de qué campaña vienen. Van en las instrucciones de la IA, después del tono;
+  - su **campaña** y sus campañas con frases, para saber de qué campaña viene cada lead ([`campanias.md`](campanias.md));
   - qué **proyectos** atiende (sin elegir ninguno, todos los activos);
   - sus **flujos** ([`flujos.md`](flujos.md));
   - sus **seguimientos**: una regla puede valer para una sola línea o para todas. Va primero la de la línea y, dentro de cada una, la del proyecto.

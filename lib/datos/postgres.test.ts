@@ -85,7 +85,10 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await a.guardarConversacion({ chatwoot_id: 19, telefono: "5491155550000", nombre: "Ana" });
     await a.guardarConversacion({ chatwoot_id: 19, proyecto: "lerma-439" });
     await a.guardarConversacion({ chatwoot_id: 19, crm_contacto_id: "c1" });
-    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null, linea: null, bandeja: null });
+    expect(await a.conversacion(19)).toEqual({ chatwoot_id: 19, proyecto: "lerma-439", crm_contacto_id: "c1", telefono: "5491155550000", nombre: "Ana", interesado: {}, ultimo_seguimiento: null, linea: null, bandeja: null, campania: null, campania_por: null });
+    // La campaña va y vuelve con su motivo (y no borra lo demás).
+    await a.guardarConversacion({ chatwoot_id: 19, campania: "Meta Lerma", campania_por: "frase" });
+    expect(await a.conversacion(19)).toMatchObject({ proyecto: "lerma-439", campania: "Meta Lerma", campania_por: "frase" });
     // Lo que anotó el asistente (jsonb) va y vuelve igual, y no borra lo demás.
     await a.guardarConversacion({ chatwoot_id: 19, interesado: { nombre: "Ana Prueba", presupuesto_usd: "90000" } });
     expect(await a.conversacion(19)).toMatchObject({ proyecto: "lerma-439", interesado: { nombre: "Ana Prueba", presupuesto_usd: "90000" } });

@@ -38,6 +38,8 @@ export interface Linea {
   instrucciones: string;
   /** Qué proyectos atiende en esta línea. Vacía: todos los activos. */
   proyectos: string[];
+  /** La campaña de la línea, si el primer mensaje no coincide con ninguna frase (lib/campanias.ts). Vacía: ninguna. */
+  campania: string;
 }
 
 const fabrica = (l: Pick<Linea, "id" | "orden" | "nombre" | "tipo" | "descripcion"> & Partial<Linea>): Linea => ({
@@ -48,6 +50,7 @@ const fabrica = (l: Pick<Linea, "id" | "orden" | "nombre" | "tipo" | "descripcio
   pasar_al_responder: false,
   instrucciones: "",
   proyectos: [],
+  campania: "",
   ...l,
 });
 
