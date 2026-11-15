@@ -275,3 +275,18 @@ Cómo se hace, en [`docs/arquitectura.md`](docs/arquitectura.md), sección 12: s
 ## Fuera de esta versión
 
 Lo deja la propuesta para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos (calificar lotes; el cuestionario del «bot para lotes» de Kommo ya se puede armar como flujo), email (previsto; incluye los correos de VIA 53 de Kommo), avisos al responsable por el hub y la conexión del hub con Chatwoot.
+
+## Mejoras pedidas por Axel (15/11), en orden de prioridad
+
+Van después de la QA de punta a punta. Cada una en su PR, con su doc. Dueño: Claude, salvo que diga otra cosa.
+
+1. [ ] **Conversaciones en el CRM del hub.** Se leen de la base del asistente cuando alguien las abre, y se ven en la ficha del lead → Chat, en la bandeja de Chats y en una solapa «Conversaciones» por línea. Para los adjuntos, «Abrir en Chatwoot». Cómo se arma: [`docs/arquitectura.md`](docs/arquitectura.md), sección 12, y la lista «Conversaciones en el hub».
+2. [ ] **Saber de qué campaña viene cada lead.** Por la línea y por el primer mensaje del anuncio (el texto que arma Meta, o palabras configurables por campaña). Se guarda en el CRM como origen o etiqueta. Mindlin dice qué campañas tiene.
+3. [ ] **Medir qué flujo vende, no solo cuál responde.** Cruzar cada flujo y cada versión de seguimiento con la etapa a la que llegó el lead en el CRM (visita, negociación, reserva) y mostrarlo en el hub, junto a los números de cada flujo y cada regla.
+4. [ ] **Avisar al responsable cuando el asistente pasa la conversación al equipo.** Un aviso en el hub (la campanita y el celular, como los demás avisos del hub), con el resumen y el link a la conversación.
+5. [ ] **Ver en qué paso del flujo va cada persona, y sacarla o reiniciarla a mano** desde el hub (Flujos → quiénes esperan).
+6. [ ] **Responder desde el hub.** Desde la ficha del lead, que el mensaje salga por Chatwoot como el equipo y el asistente se corra, como cuando alguien escribe en Chatwoot.
+7. [ ] **Revisar respuestas reales todas las semanas.** En el hub, una lista de las respuestas del asistente para marcar las buenas (pasan a ejemplos) y las malas (con qué corregir en el tono o la ficha). Lo usa Mindlin.
+8. [ ] **Fotos y audios del lead adentro del hub.** Es la fase 2 de las conversaciones: se le piden a Chatwoot en el momento con un usuario «Hub». Hace falta un token nuevo en Vercel (Panel).
+9. [ ] **Una sola IA.** Elegir Claude u OpenAI y dejarla fija en Vercel. Hoy responde OpenAI, por la prueba. — Axel
+10. [ ] **Esperas de los flujos a la hora justa** (al final, porque depende de si Mindlin pasa a Vercel Pro). Con Pro, el cron puede volver a correr cada 15 minutos (`CORRIDA` en `lib/seguimientos/reglas.ts` y `vercel.json`). Sin Pro, un servicio externo gratuito que llame al cron. Mientras tanto, las esperas salen en la corrida de las 10 del día siguiente. — Axel decide
