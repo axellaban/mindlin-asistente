@@ -93,7 +93,7 @@ En las fichas y en el tono **solo cambia lo que se manda**: lo demás queda como
 | Cambiar un flujo | `PUT /api/hub/flujos/{id}` | `nombre`, `proyecto` o `pasos` (lo que no viene queda). Las conversaciones que ya lo empezaron siguen con los pasos de antes. |
 | Prender o apagar un flujo | `PATCH /api/hub/flujos/{id}` | `{ "activo": true }`. Al prenderlo, se apaga el que estaba activo para lo mismo (misma línea y mismo proyecto, o el general). |
 | Borrar un flujo | `DELETE /api/hub/flujos/{id}` | — |
-| Subir un archivo para los flujos | `POST /api/hub/archivos` | `{ "nombre": "audio.ogg", "tipo": "audio/ogg", "datos": "<base64>" }`. Hasta 2,5 MB; tipos en `opciones.tipos_archivo`. |
+| Subir un archivo para los flujos | `POST /api/hub/archivos` | `{ "nombre": "audio.ogg", "tipo": "audio/ogg", "datos": "<base64>" }`. Hasta 2,5 MB; tipos en `opciones.tipos_archivo`. El contenido tiene que ser del tipo que dice (se miran sus primeras letras): si no, 400. |
 | Ver (o escuchar) un archivo | `GET /api/hub/archivos/{id}` | Devuelve `{ "archivo": { …, "datos": "<base64>" } }`. |
 | Borrar un archivo | `DELETE /api/hub/archivos/{id}` | Solo si ningún flujo lo usa (si no, 409). |
 

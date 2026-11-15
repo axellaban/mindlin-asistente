@@ -8,7 +8,7 @@ Se arman en el hub (Comercial → Asistente de WhatsApp → la línea → Flujos
 
 | Paso | Qué hace |
 | --- | --- |
-| **Mensaje** | Un texto fijo con `{{nombre}}` y `{{proyecto}}`. Puede llevar una foto, un audio o un PDF subido al asistente (hasta 2,5 MB; un folleto más pesado va como link en el texto). |
+| **Mensaje** | Un texto fijo con `{{nombre}}` y `{{proyecto}}`. Puede llevar una foto, un audio o un PDF subido al asistente (hasta 2,5 MB; un folleto más pesado va como link en el texto). Se revisa que el archivo sea de verdad lo que dice ser: un programa renombrado como .jpg no entra. |
 | **Pausa** | De 1 a 60 segundos antes del paso siguiente, para que no salga todo de golpe. |
 | **La IA escribe** | Un mensaje que arma la IA con la ficha del proyecto, siguiendo una consigna. Por ejemplo: «Presentá el proyecto y preguntale qué busca». Tiene las mismas herramientas que en la charla: anota en el CRM, marca señales y puede pasar al equipo. |
 | **Esperar respuesta** | Abre dos caminos: **Si responde** y **Si no responde** en el plazo (de 1 hora a 30 días). Cada camino es otra lista de pasos. |
