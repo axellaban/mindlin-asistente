@@ -95,6 +95,106 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 - [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. — Axel
 - [x] Probar el CRM con la planilla real (con la línea de prueba): el contacto quedó con proyecto `lerma-439`, origen WhatsApp y su etapa. Antes hubo que poner al día tres títulos de «CRM Contactos» (B decía «Proyecto» y faltaban «Hora próximo paso» y «Tags»); se cambiaron solo esas celdas de la fila 1, después de confirmar que el hub lee la planilla por posición. — Panel y Axel, 13/11
 
+## QA de punta a punta (después del merge de las líneas y los flujos)
+
+Pedido de Axel (15/11): con todo en `main`, revisar el asistente comercial completo y el CRM, de principio a fin. Se hace con datos inventados y un teléfono de prueba, en la línea 3 (y en la 4 cuando esté). Lo que se encuentre se anota acá como tarea (con dueño) y se corrige en PRs chicos. Dueños: Claude (código y revisión), Panel con Axel (lo que pasa en Chatwoot, WhatsApp y Vercel) y Mindlin (lo comercial).
+
+**1. Bugs, arreglos, base de datos y arquitectura**
+
+- [ ] La publicación aplicó `202611150011_lineas_y_flujos.sql` (en el log de Vercel, «aplicada»). En la base: las cuatro líneas, la 3 con la bandeja 1, y las conversaciones viejas en la línea 3.
+- [ ] Conexiones (hub → Resumen): todo en verde y «Líneas» dice que atiende en la bandeja 1.
+- [ ] **Webhook:**
+  - responde en la línea 3;
+  - una bandeja sin línea pasa al equipo, con la nota;
+  - una línea pausada y la pausa general pasan al equipo;
+  - si escribe el equipo, el asistente se corre;
+  - «Pendiente» se la devuelve al asistente;
+  - no hay eco: ni con texto ni con un archivo de un flujo.
+- [ ] **Flujos de verdad, por WhatsApp:**
+  - arranca con un número nuevo;
+  - los mensajes salen en orden y con sus pausas;
+  - la foto, el audio y el PDF llegan bien a WhatsApp, con su epígrafe;
+  - si responde, sigue por «Si responde»;
+  - si no responde, el cron del día siguiente a las 10 sigue por el otro camino;
+  - «Terminar» y después escribe: pasa al equipo;
+  - el equipo toma la conversación: el flujo se corta;
+  - una sola corrida por conversación (`flujo_corridas`) y ningún mensaje repetido.
+- [ ] **CRM:**
+  - alta con el origen WhatsApp y la etapa de primer contacto;
+  - los pasos «Mover de etapa» y las señales (visita, compra, no le interesa) se anotan como «Cambio de etapa»;
+  - no toca Reserva ni Vendido;
+  - no crea contactos repetidos (mismo teléfono en dos líneas).
+- [ ] **Seguimientos:** reglas por línea y generales; nunca a quien lleva un flujo; el tope de 20 sumando los flujos.
+- [ ] **Registro y logs:**
+  - errores en el registro del asistente;
+  - en Vercel, que el webhook y el cron terminen bien lejos de los 300 segundos;
+  - el tamaño de la base en Neon;
+  - las funciones por día (plan Hobby).
+- [ ] **Seguridad:**
+  - ninguna clave en el repo ni en los logs;
+  - el permiso del módulo en el hub;
+  - los archivos solo de los tipos permitidos y hasta 2,5 MB;
+  - los datos personales solo para quien tiene Comercial.
+- [ ] **Arquitectura:**
+  - revisar las decisiones de las secciones 11 y 12 de [`docs/arquitectura.md`](docs/arquitectura.md);
+  - los límites del plan Hobby (esperas que se revisan una vez por día);
+  - qué falta para la línea 4.
+
+**2. Flujos comerciales, reglas, marketing y la base de conocimiento de cada proyecto**
+
+- [ ] **Fichas:**
+  - en cada proyecto, presentación, precios, financiación, disponibilidad, tipologías y links al día;
+  - las cinco apagadas, revisadas y prendidas las que correspondan;
+  - las palabras clave, que llevan al proyecto correcto sin confundir (por ejemplo, «53» o «caba»).
+- [ ] **Lo general:** «Sobre la empresa», «Objeciones, perfiles y señales» y 10 a 20 ejemplos reales sin datos personales.
+- [ ] **Flujos por proyecto:**
+  - armados desde los modelos de Kommo, con los textos, el brochure, la foto de obra y el audio;
+  - cuánto espera cada uno y a qué etapa mueve;
+  - cuándo pasa al equipo y cuándo sigue la IA;
+  - probados en Probar antes de prenderlos.
+- [ ] **Reglas:**
+  - el modo de cada línea;
+  - las instrucciones de la línea 4 (de qué campaña vienen);
+  - las 6 reglas de seguimiento archivadas, revisadas y activadas;
+  - las etapas automáticas (por ejemplo, ¿«señal de compra» mueve a Negociación?).
+- [ ] **Conversaciones difíciles en Probar y por WhatsApp:**
+  - un precio que no está en la ficha;
+  - otro proyecto en la misma charla;
+  - un alquiler;
+  - «no me interesa»;
+  - una visita;
+  - un audio;
+  - alguien que escribe sin parar;
+  - preguntas por la empresa y por Borok.
+- [ ] **Marketing:**
+  - de qué campaña viene cada lead (por línea, o por el primer mensaje del anuncio);
+  - cuánto responden a cada flujo y a cada versión de cada seguimiento;
+  - qué queda en el CRM para medir.
+
+**3. UX y UI**
+
+- [ ] **Hub, Asistente de WhatsApp:**
+  - las tarjetas de las líneas, las solapas por línea y la marca «Vale para todas las líneas»;
+  - el editor de flujos: arrastrar en la computadora; en el celular arrastrar no anda en todos los navegadores, así que se usan las flechas;
+  - la vista previa, subir y escuchar archivos, Probar con «Simular que no respondió» y Conexión;
+  - los textos, el teclado, y cómo se ve en el celular.
+- [ ] **Hub, CRM:** la ficha del lead y la bandeja de Chats, con lo que escribe el asistente (actividad y etapas).
+- [ ] **Panel del asistente:** Líneas, Conversaciones, Tono y Seguimientos.
+- [ ] **Chatwoot y WhatsApp:**
+  - cómo le llegan a la persona los mensajes, las pausas y los archivos;
+  - cómo ve el equipo las notas internas y el paso al equipo (la app del celular, tarea 7).
+
+## Conversaciones en el hub (decidido el 15/11, falta hacerlo)
+
+Cómo se hace, en [`docs/arquitectura.md`](docs/arquitectura.md), sección 12: se leen de la base del asistente, solo cuando se abren, y Chatwoot se abre para los adjuntos.
+
+- [ ] API del asistente: listar las conversaciones (por línea, buscando por nombre o teléfono) y leer una (mensajes, lo anotado, el flujo y lo que hizo el asistente), y las de un contacto del CRM. — Claude
+- [ ] Hub, CRM: sumar los mensajes de WhatsApp al Chat de la ficha y a la bandeja de Chats, con «Abrir en Chatwoot». — Claude
+- [ ] Hub, Asistente de WhatsApp: la solapa «Conversaciones» por línea. — Claude
+- [ ] Asignar el Agent Bot a las bandejas de las líneas 1 y 2 cuando estén, para que se guarden sus conversaciones. — Panel
+- [ ] Fase 2, si hace falta: fotos y audios adentro del hub, pedidos a Chatwoot en el momento con un usuario «Hub» (token nuevo en Vercel). — Claude y Panel
+- [ ] Fase 3: responder desde el hub por Chatwoot. — Claude
+
 ## Líneas y flujos (15/11)
 
 - [x] Cuatro líneas, cada una atada a su bandeja de Chatwoot. El asistente de ventas solo contesta en las de leads; en las otras, o en una bandeja que no es de ninguna línea, pasa al equipo con una nota. Pausa, modo, instrucciones y proyectos por línea, y seguimientos que pueden valer para una sola línea ([`docs/lineas.md`](docs/lineas.md)). — Claude, 15/11

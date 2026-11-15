@@ -127,6 +127,30 @@ Mindlin pidió cuatro líneas de WhatsApp: 1 outreach frío, 2 la del equipo (fa
 - **Las esperas largas las retoma el cron** (con Hobby, una vez por día). Las pausas cortas corren en la misma función (hasta 120 segundos por tramo).
 - **El bot de Telegram (línea 2) va al final y el outreach frío (línea 1) espera lo que pase Mindlin.** La línea existe para que el ruteo ya sea el correcto.
 
+## 12. Ver las conversaciones desde el hub (decidido el 15/11, falta hacerlo)
+
+Axel pidió ver en el hub las conversaciones de cada línea con cada persona, sin cargar Vercel.
+
+**Se leen de la base del asistente, solo cuando alguien las abre. Para lo que no está ahí, se abre Chatwoot.**
+
+- **El asistente ya tiene el texto.** Cada aviso de Chatwoot guarda el mensaje en `mensajes`: lo que escribe la persona, el asistente y el equipo (desde Chatwoot o desde el celular de la línea), en el momento. Así hace con todas las bandejas que tienen el Agent Bot. No hay que copiar nada más ni consultar a Chatwoot para leerlo.
+- **Lectura a pedido.** El hub lo pide cuando se abre la pantalla o la conversación: un pedido al asistente y una consulta a la base, de milisegundos. No hay sincronización, cron ni consultas cada tantos segundos. Con Fluid compute, Vercel cobra el tiempo de trabajo, no la espera. Neon se apaga solo cuando nadie consulta.
+- **Dónde se ve:**
+  - En el **CRM**: la ficha del lead → Chat, y la bandeja Comercial → CRM → Chats. Esas pantallas ya existen (`docs/crm.md` del hub, «Chat del lead y bandeja») y esperan «la integración de WhatsApp». El asistente tiene anotado de cada conversación el contacto del CRM (`crm_contacto_id`) y el teléfono: se cruzan por ahí, y los mensajes de WhatsApp se suman a los que ya anota el CRM, marcados con su línea.
+  - En **Asistente de WhatsApp**, una solapa «Conversaciones» por línea, para supervisar al asistente: qué dijo, en qué paso del flujo va y quién la atiende.
+- **Lo que no está en la base:** las fotos, los audios y los archivos en sí (en la base quedan como «[foto]» y los audios transcriptos), las notas internas y lo anterior a que la bandeja tuviera el bot. Para eso, «Abrir en Chatwoot», con un link directo a la conversación.
+- **Si hace falta verlos adentro del hub (fase 2):** pedírselos a Chatwoot en el momento, solo de la conversación abierta. Hace falta el token de un usuario «Hub» de Chatwoot, porque el del Agent Bot no puede leer el historial. Las fotos y los audios se ven directo desde Chatwoot (el VPS), sin pasar por Vercel.
+- **Las cuatro líneas:** para que entren todas, se asigna el Agent Bot a todas las bandejas. En outreach y en la del equipo no contesta (pasa al equipo), pero guarda los mensajes.
+- **Responder desde el hub (fase 3):** mandar por Chatwoot como el equipo, y que el asistente se corra como cuando alguien escribe en Chatwoot. Hasta entonces se responde en Chatwoot.
+
+¿Por qué no consultar a Chatwoot cada vez que se abre una conversación?
+
+- Obliga a guardar en Vercel un token de usuario con acceso a todo Chatwoot.
+- Chatwoot devuelve de a 20 mensajes, así que hacen falta varios pedidos por conversación.
+- Depende de que el servidor esté arriba y es más lento.
+
+Queda como complemento para los adjuntos.
+
 ## Lo que se reutiliza de otros proyectos de Axel
 
 Se adapta, no se copia a ciegas:
