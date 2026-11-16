@@ -417,10 +417,21 @@ Si algo falla, no lo arregles en los paneles: lo corrige Claude en el código.
 
 Para que la línea 1 pueda escribirle primero a las bases de leads viejas de Mindlin ([`docs/outreach.md`](docs/outreach.md)). **Necesita el chip propio de la línea 1**: no uses el de la línea de leads.
 
-1. **Vincular el chip:** igual que la línea 4 (tarea 11), con `/opt/mindlin-asistente/servidor.sh conectar` y un nombre de sesión propio. **No corras `servidor.sh bot`.**
-2. **La bandeja en Chatwoot:** que la sesión tenga su bandeja propia, con el **Agent Bot** asignado, así las respuestas le llegan al asistente. Anotá el número de bandeja.
-3. **En el hub:** Asistente de WhatsApp → línea 1 → Conexión, cargá el número y la bandeja.
+1. **WAHA y Chatwoot:** igual que la línea 4 (tarea 11, paso 1), en la terminal del VPS:
+
+   ```bash
+   bash /opt/mindlin-asistente/servidor.sh conectar linea1 "WhatsApp Outreach"
+   ```
+
+   Escaneá el QR con el teléfono del **chip de la línea 1**.
+2. **El Agent Bot:** **no corras `servidor.sh bot`**. En Chatwoot, en la bandeja nueva → Configuración → **Bot**, elegí «Asistente Mindlin» y guardá. Así las respuestas le llegan al asistente. Anotá el número de bandeja.
+3. **En el hub:** Asistente de WhatsApp → «Outreach frío» → Conexión, cargá el teléfono y la bandeja.
 4. **WAHA para el asistente:** en Vercel, proyecto del asistente, cargá `WAHA_URL` (la dirección pública de WAHA) y `WAHA_API_KEY` (la clave de WAHA, que está en el servidor). No las anotes en ningún lado; solo decí que quedaron cargadas.
-5. **Prueba con Axel:** cuando el código esté publicado, desde la línea 1 mandale el saludo a un teléfono de prueba del equipo («Mandarme una prueba»). Anotá si llegó, si aparece en Chatwoot como saliente en la bandeja de la línea 1 y si la respuesta entra a esa bandeja.
+5. **Prueba con Axel** (cuando el paso 4 del outreach esté publicado): desde la línea 1, «Mandarme una prueba» a un teléfono del equipo. Anotá:
+   - si llegó;
+   - si aparece en Chatwoot como saliente, en la bandeja de la línea 1;
+   - si la respuesta entra a esa misma conversación;
+   - si el asistente no la tomó como «escribió el equipo».
+6. **QA antes de la primera tanda:** la lista de «QA antes de la primera tanda real» de [`docs/outreach.md`](docs/outreach.md), con 5 números del equipo.
 
 Anotá todo en `docs/estado-paneles.md`, sección «Línea 1 (outreach)».

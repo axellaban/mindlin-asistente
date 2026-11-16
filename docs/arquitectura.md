@@ -163,7 +163,7 @@ Idea traída de DeskcommCRM: una sola regla de baja para todo. Si la persona lo 
 
 ## 15. Outreach frío en la línea 1 (decidido el 16/11, falta hacerlo)
 
-Mindlin va a cargar sus bases de leads viejas para escribirles desde la línea 1. Para WhatsApp son contactos nuevos, así que Axel autorizó la excepción a la regla de «no escribirle a quien no escribió», solo en esa línea y con cuidados configurables: chip propio, tope diario con subida gradual, tandas, pausas, franjas, 3 mensajes como máximo y baja para siempre.
+Mindlin va a cargar sus bases de leads viejas para escribirles desde la línea 1. Para WhatsApp son contactos nuevos, así que Axel autorizó la excepción a la regla de «no escribirle a quien no escribió», solo en esa línea y con cuidados configurables: chip propio, tope diario con subida gradual, tandas, pausas, franjas, variantes de cada texto, 3 mensajes sin respuesta como máximo y baja para siempre. Los cuidados los hace cumplir el servidor en cada envío, no la pantalla, para que dos pestañas o una persona y un agente a la vez no pasen los límites. La baja pasa a guardarse también por teléfono (hoy es por conversación).
 
 - **Dos modos de envío:** WAHA nativo (sale del servidor, sin abrir WhatsApp) y computer use (un agente en WhatsApp Web, con una pantalla «Enviar» pensada para él). Se pueden usar los dos.
 - **Con el plan Hobby:** la tanda con pausas la maneja la pantalla del hub mientras está abierta. Si hace falta que salga sola, después se suma un proceso en el servidor de Easypanel.

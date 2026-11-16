@@ -71,7 +71,7 @@ Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
    - ¿un número aparte o el mismo?;
    - ¿qué avisos pasan a WhatsApp?;
    - ¿conviven unas semanas con Telegram o se corta?
-4. **Línea 1 (outreach frío):** cargar las bases de leads viejas (en planillas) y escribir los textos de la secuencia: saludo, mensaje para quien responde y seguimiento. Mientras tanto, el hub trae un borrador. Ver [`docs/outreach.md`](docs/outreach.md).
+4. **Línea 1 (outreach frío):** cargar las bases de leads viejas (en planillas) y escribir los textos de la secuencia: saludo, mensaje para quien responde y seguimiento, con 2 variantes de cada uno. Mientras tanto, el hub trae un borrador, pero no deja mandar hasta que estén los textos. Antes de la primera tanda, confirmar con su abogado el Registro No Llame y el consentimiento de la base. Ver [`docs/outreach.md`](docs/outreach.md).
 5. **Etapas automáticas:** revisar las de fábrica. Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve.
 6. **VIA 53 y Torre Cuatro Vientos:** sus dos documentos tienen datos distintos (precios, entrega, forma de pago, el semipiso). ¿Cuáles valen?
 7. **Horario del equipo comercial:** hoy es de lunes a viernes de 9 a 20.
@@ -119,13 +119,15 @@ Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindl
 Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads viejas de Mindlin, con la excepción a la regla de WhatsApp y los cuidados configurables, y con los dos modos de envío (WAHA nativo y computer use). Diseño, cuidados y orden en [`docs/outreach.md`](docs/outreach.md). La base es el panel de prospección de Chapa Labs (`facundogregorini-lab/chapa-labs`, `/prospecting`): se rehace acá, no se copia.
 
 - [x] Diseño y la excepción a la regla, anotada en `AGENTS.md`. — Claude, 16/11
-- [ ] 1. Asistente: migración `outreach_*`, cargar la base (pegar o CSV, repetidos, cruce con el CRM y las bajas), la cola con la toma de 10 minutos, confirmar o «no salió», los cuidados y la API para el hub. — Claude
+- [ ] 1. Asistente: migración (`outreach_*` y `bajas` por teléfono), cargar la base (vista previa, teléfonos argentinos, repetidos, cruce con el CRM, las bajas y las conversaciones en curso), la cola con la toma de 10 minutos, confirmar o «no salió» sin contar dos veces, los cuidados que hace cumplir el servidor y la API para el hub. — Claude
 - [ ] 2. Hub, línea 1: Prospectos, Secuencia (textos, versiones y cuidados) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). — Claude
-- [ ] 3. Respuestas por el webhook: respuestas automáticas, baja, alta en el CRM solo si hay interés, qué pasa después (equipo, flujo o IA) y la bandeja «Responder». — Claude
-- [ ] 4. WAHA nativo: verificar números, la tanda desde el hub y «Mandarme una prueba». Antes: probar en la línea de prueba cómo sale un primer mensaje y que la respuesta entre a la bandeja de la línea 1. — Claude con Panel
+- [ ] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo»), respuestas automáticas, baja por teléfono, alta en el CRM de quien responde, qué pasa después (equipo, flujo o IA) y la bandeja «Responder». — Claude
+- [ ] 4. WAHA nativo: verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno si la sesión se cae. Antes: probar en la línea de prueba cómo sale un primer mensaje y que la respuesta entre a la bandeja de la línea 1. — Claude con Panel
+- [ ] QA con 5 números del equipo, en los dos modos, antes de la primera tanda real (lista en `docs/outreach.md`). — Claude y Panel con Axel
 - [ ] 5. Embudo contra la meta, resultados por lote y por versión, y la subida gradual del tope. — Claude
 - [ ] Tarea 16 de la IA de paneles: el chip de la línea 1 vinculado, su bandeja con el Agent Bot, `WAHA_URL` y `WAHA_API_KEY` en Vercel del asistente y la prueba del primer mensaje. — Panel con Axel
-- [ ] Cargar las bases y escribir los textos de la secuencia. — Mindlin
+- [ ] Cargar las bases y escribir los textos de la secuencia, con al menos 2 variantes de cada mensaje. — Mindlin
+- [ ] Confirmar con su abogado lo legal antes de la primera tanda: el Registro No Llame (ley 26.951) y el consentimiento de la base (ley 25.326). — Mindlin
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
