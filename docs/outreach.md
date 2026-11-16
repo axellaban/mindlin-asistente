@@ -130,7 +130,7 @@ Idea traída del ranking de prospectos de Chapa Labs (habita.), adaptada a leads
 
 ## El embudo y los resultados
 
-- **Embudo contra la meta:** cargados → con WhatsApp → contactados → respondieron → interesados → visita → reserva. Cada paso incluye a los siguientes. Las metas se cambian en el hub.
+- **Embudo contra la meta:** cargados → con WhatsApp → contactados → respondieron → interesados → visita → reserva. Cada paso incluye a los siguientes. Las metas se cambian en el hub. De fábrica: 100 contactados por semana, 70 % con WhatsApp, 15 % responde, 35 % interesados, 30 % visita y 15 % reserva. Se marca dónde se frena: el primer paso por debajo de la meta, con al menos 30 casos en el paso anterior.
   - Interesados, visita y reserva salen de la etapa del lead en el CRM.
   - Las respuestas automáticas no cuentan como «respondieron».
 - **Por lote y por versión del mensaje:** cuántos respondieron dentro de los 7 días del primer contacto. Con menos de 30 casos, se marca «muestra chica». No hay versión «ganadora» automática: decide una persona.
@@ -230,7 +230,7 @@ Cada paso es un PR chico, con pruebas y su doc.
    - qué pasa después (equipo, flujo o IA);
    - la bandeja «Responder».
 4. **WAHA nativo** (hecho el 16/11 en el asistente: `lib/outreach/waha.ts` y `enviarPorWaha`; falta la tarea 16 y la pantalla del hub): verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno por sesión caída. Antes, la prueba de la tarea 16.
-5. **Embudo y resultados:** el embudo contra la meta, los resultados por lote y por versión, y la subida gradual del tope.
+5. **Embudo y resultados** (hecho el 16/11 en el asistente: `lib/outreach/resultados.ts`; falta la pantalla): el embudo contra la meta, los resultados por lote y por versión, y la subida gradual del tope.
 6. **Si hace falta:** el proceso en el servidor, para que la tanda salga sin el hub abierto.
 
 **QA antes de la primera tanda real:** con un lote de 5 números del equipo, en los dos modos. Hay que probar:

@@ -238,6 +238,7 @@ La línea 1 le escribe primero a las bases viejas de Mindlin ([`outreach.md`](ou
 | `POST outreach/{línea}/verificar` | WAHA: pregunta si los próximos 20 (por puntaje) tienen WhatsApp, de a uno y despacio. No manda nada. `{ verificados, con_whatsapp, sin_whatsapp, estado }` |
 | `POST outreach/{línea}/prueba` | `{ telefono }`. WAHA: el saludo, con «Prueba» como nombre, a un número del equipo. No cuenta |
 | `GET outreach/{línea}/waha` | `{ conectado, sesion, estado }`: si la sesión de WAHA de la línea (`config.waha_sesion`, de fábrica «linea1») está conectada |
+| `POST outreach/{línea}/resultados` | `{ dias?: número \| null, lote? }`. `embudo` (`pasos`: cargados → con WhatsApp → contactados → respondieron → interesados → visita → reserva, cada uno con `cantidad`, `conversion`, `meta` y `bajo`; `frena`: el primer paso por debajo de la meta con muestra suficiente; `meta_contactados` del período), `por_base` y `por_version` (respuesta dentro de los 7 días del primer mensaje, con `muestra_chica`), `por_dia` (los últimos 14 días: envíos, fallas y frenos por modo y por persona o bot) y `crm_conectado`. Interesados, visita y reserva salen de la etapa de hoy en el CRM. Las metas van en `config.metas` |
 | `POST outreach/{línea}/seguir` | Sacar el freno |
 | `POST outreach/{línea}/mandar-igual` | Fuera de franja, solo hoy (el tope y las pausas siguen) |
 
