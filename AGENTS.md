@@ -27,7 +27,7 @@ Antes de trabajar, leé en este orden:
 - **Nada de datos reales de interesados ni de conversaciones en el repo ni en las pruebas.** Las pruebas usan datos inventados.
 - **El agente no inventa** precios, disponibilidad, plazos ni condiciones: si no está en la ficha del proyecto, lo dice y ofrece que lo contacte una persona.
 - **No copiar código del hub de Mindlin a este repo.** Su cuenta de GitHub está suspendida y no hay que volver a subir su contenido desde otra cuenta. Lo que haga falta del hub (por ejemplo, las columnas del CRM) se reescribe acá.
-- **WhatsApp por WAHA es no oficial.** Nada de envíos masivos ni a quien no escribió: los seguimientos van solo a quien ya consultó, de 9 a 20 y con tope de intentos.
+- **WhatsApp por WAHA es no oficial.** Nada de envíos masivos ni a quien no escribió: los seguimientos van solo a quien ya consultó, de 9 a 20 y con tope de intentos. **Única excepción: la línea 1 (outreach frío)**, autorizada por Axel el 16/11/2026, con chip propio, tope diario, tandas, pausas, franjas, 3 mensajes como máximo por persona y baja para siempre, todo configurable ([`docs/outreach.md`](docs/outreach.md)).
 - Textos de la app y de los documentos en castellano rioplatense, claros y sin jerga: lo usan Mati, Tadeo y el equipo comercial, que no son técnicos.
 
 ## Stack

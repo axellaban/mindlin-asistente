@@ -6,7 +6,7 @@ Desde el 15/11 el asistente maneja varias líneas. Cada número de WhatsApp es u
 
 | # | Línea | Tipo | Qué hace el asistente |
 | --- | --- | --- | --- |
-| 1 | Outreach frío | `outreach_frio` | Nada todavía: tendrá su propio panel, y Mindlin va a pasar qué incorporar. Si alguien responde ahí, la conversación pasa al equipo con una nota. |
+| 1 | Outreach frío | `outreach_frio` | Le escribe primero a las bases de leads viejas de Mindlin, con WAHA nativo o computer use. Diseñado el 16/11 ([`outreach.md`](outreach.md)), falta construirlo. Mientras tanto, si alguien responde, la conversación pasa al equipo con una nota. |
 | 2 | Equipo: facturas y outreach cálido | `equipo` | Nada todavía: es la migración del bot de Telegram (facturas, recibos, presupuestos, consultas del hub) más el outreach a contactos conocidos. **Va al final.** Mientras tanto, pasa al equipo. |
 | 3 | Leads entrantes | `entrada` | La que ya andaba: bandeja 1 «WhatsApp Lerma 439». Responde la IA o un flujo. |
 | 4 | Leads entrantes 2 | `entrada` | Igual que la 3, para otra campaña o zona. Falta conectarla (ver «Sumar una línea»). |

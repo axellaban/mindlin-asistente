@@ -39,6 +39,7 @@ Si una sección de `docs/estado-paneles.md` quedó vieja, marcala como resuelta,
 4. **Tarea 15** · Probar en producción todo lo del 15/11 (las mejoras 1 a 8 y lo traído de DeskcommCRM) y revisar que el hub y el asistente usen la misma planilla del CRM. Después de la 13 y la 14.
 5. **Tarea 11** · Sumar la línea 4. Necesita el chip o número de esa línea: no arranques sin él.
 6. **Tarea 7** · El equipo en Chatwoot. Espera a que Axel decida el correo de Chatwoot.
+7. **Tarea 16** · La línea 1 (outreach frío). Necesita el chip propio de esa línea: no arranques sin él.
 
 **Hechas:** 1, 2, 3, 9 y 10. **Reemplazadas por la 9 (Easypanel):** 4, 5, 6 y 8. Eran de la instalación vieja sobre Ubuntu y quedan como referencia: no hay que volver a hacerlas. La guía de hoy para el servidor es [`docs/easypanel.md`](docs/easypanel.md).
 
@@ -412,3 +413,14 @@ En `docs/estado-paneles.md`, una sección nueva: «QA del 15/11 (mejoras y Deskc
 
 Si algo falla, no lo arregles en los paneles: lo corrige Claude en el código.
 
+### Tarea 16 · La línea 1 (outreach frío)
+
+Para que la línea 1 pueda escribirle primero a las bases de leads viejas de Mindlin ([`docs/outreach.md`](docs/outreach.md)). **Necesita el chip propio de la línea 1**: no uses el de la línea de leads.
+
+1. **Vincular el chip:** igual que la línea 4 (tarea 11), con `/opt/mindlin-asistente/servidor.sh conectar` y un nombre de sesión propio. **No corras `servidor.sh bot`.**
+2. **La bandeja en Chatwoot:** que la sesión tenga su bandeja propia, con el **Agent Bot** asignado, así las respuestas le llegan al asistente. Anotá el número de bandeja.
+3. **En el hub:** Asistente de WhatsApp → línea 1 → Conexión, cargá el número y la bandeja.
+4. **WAHA para el asistente:** en Vercel, proyecto del asistente, cargá `WAHA_URL` (la dirección pública de WAHA) y `WAHA_API_KEY` (la clave de WAHA, que está en el servidor). No las anotes en ningún lado; solo decí que quedaron cargadas.
+5. **Prueba con Axel:** cuando el código esté publicado, desde la línea 1 mandale el saludo a un teléfono de prueba del equipo («Mandarme una prueba»). Anotá si llegó, si aparece en Chatwoot como saliente en la bandeja de la línea 1 y si la respuesta entra a esa bandeja.
+
+Anotá todo en `docs/estado-paneles.md`, sección «Línea 1 (outreach)».
