@@ -103,7 +103,7 @@ Las tareas de [`IA_DE_PANELES.md`](IA_DE_PANELES.md), en este orden:
 
 ### Claude (código)
 
-- **Outreach frío (línea 1):** construirlo según [`docs/outreach.md`](docs/outreach.md). Las tareas, abajo, en «Outreach frío (línea 1)».
+- **Outreach frío (línea 1):** hecho del lado del asistente el 16/11 (base, cola y cuidados, puntaje, respuestas, WAHA y resultados; [`docs/outreach.md`](docs/outreach.md)). Las pantallas del hub las hace otra IA en paralelo. Se retoma con lo que salga de la tarea 16 y de la primera tanda de prueba.
 
 Además, se retoma con:
 
