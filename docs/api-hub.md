@@ -234,6 +234,10 @@ La línea 1 le escribe primero a las bases viejas de Mindlin ([`outreach.md`](ou
 | `POST outreach/contactos/{id}/soltar` / `saltar` | Soltarlo sin mandar / dejarlo para dentro de 4 horas |
 | `GET outreach/{línea}/respuestas` | La bandeja «Responder»: quienes respondieron (etapa `respondio` o `interesado`), con `lote_nombre`, `conversacion` (para «Abrir en Chatwoot» o responder con `POST responder/{conversación}`), `ultimo_mensaje` y `ultimo_mensaje_fecha` |
 | `POST outreach/contactos/{id}/marcar` | `{ etapa: "interesado" \| "cerrado" }`: cómo siguió (solo los que respondieron) |
+| `POST outreach/{línea}/enviar` | **WAHA nativo:** manda el siguiente (uno por pedido). `{ enviado: tarjeta }`, `{ sin_whatsapp: contacto }` (quedó inválido, no cuenta como falla: pedir el siguiente enseguida), `{ no_salio, error, frenada }`, `{ espera }` o `{ vacia }`. La pantalla vuelve a llamar cuando termina la pausa (`espera.hasta`). Si la sesión de WAHA no está conectada, frena la línea. 503 si falta WAHA |
+| `POST outreach/{línea}/verificar` | WAHA: pregunta si los próximos 20 (por puntaje) tienen WhatsApp, de a uno y despacio. No manda nada. `{ verificados, con_whatsapp, sin_whatsapp, estado }` |
+| `POST outreach/{línea}/prueba` | `{ telefono }`. WAHA: el saludo, con «Prueba» como nombre, a un número del equipo. No cuenta |
+| `GET outreach/{línea}/waha` | `{ conectado, sesion, estado }`: si la sesión de WAHA de la línea (`config.waha_sesion`, de fábrica «linea1») está conectada |
 | `POST outreach/{línea}/seguir` | Sacar el freno |
 | `POST outreach/{línea}/mandar-igual` | Fuera de franja, solo hoy (el tope y las pausas siguen) |
 

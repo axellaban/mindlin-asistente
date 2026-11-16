@@ -10,6 +10,10 @@
  * - GET    outreach/<línea>/aprendizajes     qué responde mejor, por variable del puntaje y por franja
  * - POST   outreach/<línea>/recalcular       volver a calcular los puntajes (después de prender o apagar una ficha)
  * - POST   outreach/<línea>/tomar            { modo, contacto? } el siguiente, por 10 minutos, con el texto
+ * - POST   outreach/<línea>/enviar           WAHA nativo: manda el siguiente (uno por pedido)
+ * - POST   outreach/<línea>/verificar        WAHA: si los próximos 20 tienen WhatsApp (no manda nada)
+ * - POST   outreach/<línea>/prueba           { telefono } WAHA: el saludo de prueba a un número del equipo
+ * - GET    outreach/<línea>/waha             si la sesión de WAHA de la línea está conectada
  * - POST   outreach/<línea>/seguir           sacar el freno
  * - POST   outreach/<línea>/mandar-igual     fuera de franja, solo hoy
  * - PATCH  outreach/lotes/<id>               { pausado }
@@ -28,12 +32,15 @@ import type { ContactoCRM } from "../crm/planilla";
 import type { Linea } from "../lineas";
 import type { DatosOutreach, EtapaOutreach, Falla } from "./datos";
 import { validarConfigOutreach, type Modo } from "./reglas";
+import type { Waha } from "./waha";
 
 export interface DependenciasOutreach {
   outreach: DatosOutreach;
   linea: (id: string) => Promise<Linea | null>;
   contactosCRM: (() => Promise<ContactoCRM[]>) | null;
   ahora: () => Date;
+  /** WAHA directo (WAHA_URL y WAHA_API_KEY). Null si falta: el modo WAHA no está disponible. */
+  waha?: Waha | null;
 }
 
 type Objeto = Record<string, unknown>;
@@ -150,6 +157,31 @@ async function manejarLinea(linea: string, accion: string, metodo: string, cuerp
       if (metodo !== "POST") return noSePuede();
       await o.recalcular(linea, d.ahora());
       return res(200, { estado: await o.estado(linea, d.ahora(), por) });
+    case "enviar": {
+      // WAHA nativo: manda el siguiente (uno por pedido; la pantalla vuelve a llamar cuando termina la pausa).
+      if (metodo !== "POST") return noSePuede();
+      if (!d.waha) return error(503, "Falta conectar WAHA (WAHA_URL y WAHA_API_KEY en Vercel). Mientras tanto, se puede mandar con computer use.");
+      return res(200, await o.enviarPorWaha(linea, d.waha, { por, ejecutor: cuerpo.ejecutor === "bot" ? "bot" : "persona" }, d.ahora()));
+    }
+    case "verificar": {
+      if (metodo !== "POST") return noSePuede();
+      if (!d.waha) return error(503, "Falta conectar WAHA (WAHA_URL y WAHA_API_KEY en Vercel).");
+      const r = await o.verificarNumeros(linea, d.waha, { por }, d.ahora());
+      return "error" in r ? error(409, r.error) : res(200, { ...r, estado: await o.estado(linea, d.ahora(), por) });
+    }
+    case "prueba": {
+      if (metodo !== "POST") return noSePuede();
+      if (!d.waha) return error(503, "Falta conectar WAHA (WAHA_URL y WAHA_API_KEY en Vercel).");
+      const r = await o.prueba(linea, d.waha, String(cuerpo.telefono ?? ""));
+      return "error" in r ? error(400, r.error) : res(200, r);
+    }
+    case "waha": {
+      if (metodo !== "GET") return noSePuede();
+      if (!d.waha) return res(200, { conectado: false, estado: "sin configurar" });
+      const sesion = (await o.config(linea)).waha_sesion;
+      const estado = await d.waha.estado(sesion).catch((e) => `error: ${e instanceof Error ? e.message : String(e)}`);
+      return res(200, { conectado: estado === "WORKING", sesion, estado });
+    }
     case "respuestas":
       if (metodo !== "GET") return noSePuede();
       return res(200, { respuestas: await o.respuestas(linea) });

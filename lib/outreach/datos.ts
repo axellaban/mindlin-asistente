@@ -28,6 +28,7 @@ import {
 } from "./reglas";
 import { normalizarTelefono, telefonoParaComparar } from "./telefono";
 import { aprendizajes, puntuar, type Aprendizaje, type Parte } from "./puntaje";
+import type { Waha } from "./waha";
 
 type Db = Pick<pg.Pool, "query" | "connect">;
 type Cliente = Pick<pg.PoolClient, "query">;
@@ -505,7 +506,8 @@ export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
             alAzar = true;
           }
         }
-        const clave = randomUUID();
+        // La clave dice el modo: el eco de un envío por WAHA no lo confirma el webhook (lo confirma quien mandó).
+        const clave = `${o.modo === "waha" ? "waha-" : ""}${randomUUID()}`;
         const hasta = new Date(ahora.getTime() + TOMA_MINUTOS * 60_000);
         await q.query("update outreach_contactos set tomado_por = $2, tomado_hasta = $3, toma_clave = $4, toma_azar = $5 where id = $1", [rows[0].id, o.por, hasta, clave, alAzar]);
         const c = { ...contactoDeFila(rows[0]), tomado_por: o.por, tomado_hasta: hasta.toISOString() };
@@ -724,7 +726,7 @@ export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
       const { rows } = await db.query(
         `select c.id, c.toma_clave, c.tomado_por, c.mensajes, c.nombre, c.proyecto, p.nombre as proyecto_nombre
          from outreach_contactos c left join proyectos p on p.id = c.proyecto
-         where c.linea = $1 and c.telefono = $2 and c.tomado_hasta > $3 and c.toma_clave is not null`,
+         where c.linea = $1 and c.telefono = $2 and c.tomado_hasta > $3 and c.toma_clave is not null and c.toma_clave not like 'waha-%'`,
         [linea, t, new Date(ahora.getTime() - TOMA_MINUTOS * 60_000)],
       );
       const r = rows[0];
@@ -764,6 +766,126 @@ export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
         [id, etapa, por, ahora],
       );
       return Boolean(rows[0]);
+    },
+
+    /** Frena la línea (por ejemplo, si la sesión de WhatsApp se desconectó). */
+    async frenar(linea: string, motivo: string, por: string): Promise<void> {
+      await db.query("insert into outreach_estado (linea) values ($1) on conflict (linea) do nothing", [linea]);
+      const { rowCount } = await db.query("update outreach_estado set frenado = $2, frenado_desde = now() where linea = $1 and frenado is null", [linea, motivo]);
+      if (rowCount) await db.query("insert into outreach_eventos (linea, tipo, por, detalle) values ($1, 'freno', $2, $3)", [linea, por, motivo.slice(0, 500)]);
+    },
+
+    /**
+     * WAHA dice que el número no tiene WhatsApp: queda inválido sin contar como falla (en las bases
+     * viejas hay muchos fijos, y eso no dice nada de la salud de la línea).
+     */
+    async sinWhatsApp(id: number, o: { clave?: string | null; por: string }, ahora: Date): Promise<void> {
+      const { rows } = await db.query(
+        `update outreach_contactos set etapa = 'invalido', motivo = 'no tiene WhatsApp', tiene_whatsapp = false, proxima_accion = null,
+           tomado_por = null, tomado_hasta = null, toma_clave = null, actualizado = $2
+         where id = $1 and ($3::text is null or toma_clave = $3) and etapa in ('por_contactar', 'saludado') returning linea, lote`,
+        [id, ahora, o.clave ?? null],
+      );
+      if (rows[0]) await db.query("insert into outreach_eventos (linea, contacto, lote, tipo, modo, por, detalle, creado) values ($1, $2, $3, 'verificacion', 'waha', $4, 'no tiene WhatsApp', $5)", [rows[0].linea, id, rows[0].lote, o.por, ahora]);
+    },
+
+    /**
+     * Manda el siguiente por WAHA (un mensaje por pedido: la pantalla del hub llama de nuevo cuando
+     * termina la pausa). Toma, revisa la sesión y el número, manda y confirma; si falla, lo anota.
+     */
+    async enviarPorWaha(
+      linea: string,
+      waha: Waha,
+      o: { por: string; ejecutor: Ejecutor },
+      ahora: Date,
+    ): Promise<{ enviado: Tarjeta } | { sin_whatsapp: ContactoOutreach } | { no_salio: ContactoOutreach; error: string; frenada: boolean } | { espera: MotivoEspera & { texto: string } } | { vacia: true }> {
+      const t = await this.tomar(linea, { modo: "waha", por: o.por }, ahora);
+      if (!("tarjeta" in t)) return t;
+      const { tarjeta } = t;
+      const cfg = await config(linea);
+      const soltar = () => this.soltar(tarjeta.contacto.id, o.por);
+      let estado: string;
+      try {
+        estado = await waha.estado(cfg.waha_sesion);
+      } catch (e) {
+        await soltar();
+        const motivo = `no se pudo hablar con WAHA (${e instanceof Error ? e.message : String(e)})`;
+        await this.frenar(linea, motivo.slice(0, 300), o.por);
+        return { espera: { motivo: "frenada", detalle: motivo, texto: textoEspera({ motivo: "frenada", detalle: motivo }) } };
+      }
+      if (estado !== "WORKING") {
+        await soltar();
+        const motivo = `la sesión de WhatsApp «${cfg.waha_sesion}» no está conectada (${estado})`;
+        await this.frenar(linea, motivo, o.por);
+        return { espera: { motivo: "frenada", detalle: motivo, texto: textoEspera({ motivo: "frenada", detalle: motivo }) } };
+      }
+      let chatId = `${tarjeta.contacto.telefono}@c.us`;
+      if (tarjeta.contacto.tiene_whatsapp !== true) {
+        try {
+          const ex = await waha.existe(cfg.waha_sesion, tarjeta.contacto.telefono!);
+          if (!ex.existe) {
+            await this.sinWhatsApp(tarjeta.contacto.id, { clave: tarjeta.clave, por: o.por }, ahora);
+            return { sin_whatsapp: { ...tarjeta.contacto, etapa: "invalido", tiene_whatsapp: false } };
+          }
+          if (ex.chatId) chatId = ex.chatId;
+        } catch {
+          // Si no se puede verificar, se intenta mandar igual: si no sale, cuenta como falla.
+        }
+      }
+      try {
+        await waha.enviarTexto(cfg.waha_sesion, chatId, tarjeta.texto);
+      } catch (e) {
+        const error = e instanceof Error ? e.message : String(e);
+        const f = await this.fallo(tarjeta.contacto.id, { clave: tarjeta.clave, falla: "no_salio", modo: "waha", por: o.por, ejecutor: o.ejecutor }, ahora);
+        return { no_salio: tarjeta.contacto, error, frenada: "ok" in f && f.frenada };
+      }
+      await this.confirmar(tarjeta.contacto.id, { clave: tarjeta.clave, modo: "waha", por: o.por, ejecutor: o.ejecutor }, ahora);
+      return { enviado: tarjeta };
+    },
+
+    /**
+     * «Verificar números»: le pregunta a WhatsApp, de a uno y despacio, si los próximos de la cola
+     * tienen WhatsApp. No le manda nada a nadie. Los que no tienen quedan inválidos.
+     */
+    async verificarNumeros(linea: string, waha: Waha, o: { por: string; limite?: number; pausaMs?: number }, ahora: Date): Promise<{ verificados: number; con_whatsapp: number; sin_whatsapp: number } | { error: string }> {
+      const cfg = await config(linea);
+      const estado = await waha.estado(cfg.waha_sesion).catch((e) => `ERROR: ${e instanceof Error ? e.message : String(e)}`);
+      if (estado !== "WORKING") return { error: `La sesión de WhatsApp «${cfg.waha_sesion}» no está conectada (${estado}).` };
+      const { rows } = await db.query(
+        `select c.id, c.telefono, c.lote from outreach_contactos c join outreach_lotes l on l.id = c.lote and not l.pausado
+         where c.linea = $1 and c.etapa = 'por_contactar' and c.telefono is not null and c.tiene_whatsapp is null
+         order by c.puntaje desc, c.id limit $2`,
+        [linea, Math.min(Math.max(o.limite ?? 20, 1), 20)],
+      );
+      let con = 0;
+      let sin = 0;
+      for (const [i, r] of rows.entries()) {
+        if (i > 0 && (o.pausaMs ?? 1500) > 0) await new Promise((ok) => setTimeout(ok, o.pausaMs ?? 1500));
+        const ex = await waha.existe(cfg.waha_sesion, r.telefono).catch(() => null);
+        if (!ex) continue;
+        if (ex.existe) {
+          con++;
+          await db.query("update outreach_contactos set tiene_whatsapp = true, actualizado = $2 where id = $1", [r.id, ahora]);
+          await db.query("insert into outreach_eventos (linea, contacto, lote, tipo, modo, por, detalle, creado) values ($1, $2, $3, 'verificacion', 'waha', $4, 'tiene WhatsApp', $5)", [linea, r.id, r.lote, o.por, ahora]);
+        } else {
+          sin++;
+          await this.sinWhatsApp(Number(r.id), { por: o.por }, ahora);
+        }
+      }
+      if (con) await recalcular(db, linea, ahora, rows.map((r) => Number(r.id)));
+      return { verificados: con + sin, con_whatsapp: con, sin_whatsapp: sin };
+    },
+
+    /** «Mandarme una prueba»: el saludo, con un nombre de ejemplo, a un número del equipo. No cuenta para nada. */
+    async prueba(linea: string, waha: Waha, telefono: string): Promise<{ ok: true; texto: string } | { error: string }> {
+      const n = normalizarTelefono(telefono);
+      if (!n.telefono) return { error: `Ese teléfono no sirve: ${n.motivo}.` };
+      const cfg = await config(linea);
+      const estado = await waha.estado(cfg.waha_sesion).catch(() => "sin respuesta");
+      if (estado !== "WORKING") return { error: `La sesión de WhatsApp «${cfg.waha_sesion}» no está conectada (${estado}).` };
+      const { texto } = textoDelPaso(cfg, 0, { id: 0, nombre: "Prueba", proyecto_nombre: null });
+      await waha.enviarTexto(cfg.waha_sesion, `${n.telefono}@c.us`, `🧪 Prueba del outreach:\n\n${texto}`);
+      return { ok: true, texto };
     },
 
     /** Pidió la baja (por teléfono, para todas las líneas). Lo usa el webhook (paso 3) y el hub. */

@@ -48,6 +48,7 @@ import type { ReglaSeguimiento } from "../datos/tipos";
 import type { Chequeo } from "../chequeo";
 import type { DatosOutreach } from "../outreach/datos";
 import { manejarOutreach } from "../outreach/api";
+import type { Waha } from "../outreach/waha";
 import { CONFIG_OUTREACH_DE_FABRICA, LIMITES_OUTREACH } from "../outreach/reglas";
 import { NOMBRES_VARIABLE } from "../outreach/puntaje";
 
@@ -83,6 +84,8 @@ export interface DependenciasHub {
   outreach?: DatosOutreach | null;
   /** El reloj (en las pruebas, uno fijo). */
   ahora?: () => Date;
+  /** WAHA directo, para el outreach (lib/outreach/waha.ts). Null si falta. */
+  waha?: Waha | null;
 }
 
 /** El largo máximo de un mensaje que se manda desde el hub (WhatsApp acepta más, pero así se lee). */
@@ -192,7 +195,7 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
     // El outreach frío de la línea 1 (docs/outreach.md): tiene sus propias direcciones, más largas.
     if (!d.outreach) return error(503, "Falta la base de datos (DATABASE_URL) en Vercel.");
     try {
-      return await manejarOutreach(p.ruta.slice(1), metodo, cuerpo, por, { outreach: d.outreach, linea: (l) => datos.linea(l), contactosCRM: d.contactosCRM ?? null, ahora: d.ahora ?? (() => new Date()) });
+      return await manejarOutreach(p.ruta.slice(1), metodo, cuerpo, por, { outreach: d.outreach, linea: (l) => datos.linea(l), contactosCRM: d.contactosCRM ?? null, ahora: d.ahora ?? (() => new Date()), waha: d.waha ?? null });
     } catch (e) {
       return error(500, `No se pudo completar: ${(e instanceof Error ? e.message : String(e)).slice(0, 300)}`);
     }

@@ -126,7 +126,9 @@ Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads vi
 - [x] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo» y confirman solos), respuestas automáticas, «no», número equivocado, baja por teléfono (en todas las líneas), alta en el CRM de quien responde, qué pasa después (equipo o IA; un flujo, más adelante) y la API de la bandeja «Responder». — Claude, 16/11
 - [x] Arreglo: el registro no aceptaba «pidio_baja» y el asistente fallaba al anotar una baja en producción (migración `202611160017_registro_baja.sql`). — Claude, 16/11
 - [ ] Hub: la bandeja «Responder» de la línea 1 (`GET outreach/{línea}/respuestas`, «Abrir en Chatwoot», responder desde el hub y marcar interesado o cerrado) y «Al responder» (equipo o IA) en Secuencia. — Otra IA, con el paso 2
-- [ ] 4. WAHA nativo: verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno si la sesión se cae. Antes: probar en la línea de prueba cómo sale un primer mensaje y que la respuesta entre a la bandeja de la línea 1. — Claude con Panel
+- [x] 4. WAHA nativo, en el asistente: mandar uno por pedido (`POST outreach/{línea}/enviar`), verificar números, «Mandarme una prueba», estado de la sesión y el freno si se cae. Solo texto por ahora. — Claude, 16/11
+- [ ] 4b. Hub: el botón de la tanda por WAHA (llama a `enviar`, espera la pausa y repite hasta la tanda), «Verificar 20 números», «Mandarme una prueba» y si WAHA está conectado. — Otra IA, con el paso 2
+- [ ] 4c. Probar en la línea 1 de verdad (tarea 16): que el mensaje por WAHA aparezca en Chatwoot como saliente en su bandeja y que la respuesta entre a esa conversación. — Panel con Axel
 - [ ] QA con 5 números del equipo, en los dos modos, antes de la primera tanda real (lista en `docs/outreach.md`). — Claude y Panel con Axel
 - [ ] 5. Embudo contra la meta, resultados por lote y por versión, y la subida gradual del tope. — Claude
 - [ ] Tarea 16 de la IA de paneles: el chip de la línea 1 vinculado, su bandeja con el Agent Bot, `WAHA_URL` y `WAHA_API_KEY` en Vercel del asistente y la prueba del primer mensaje. — Panel con Axel
