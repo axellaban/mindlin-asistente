@@ -1,6 +1,6 @@
 # Outreach frío (línea 1)
 
-Diseño del 16/11/2026, con lo que pidió Axel ese día. **Todavía no está hecho:** este documento es el plan para construirlo. Las tareas están en [`PENDIENTES.md`](../PENDIENTES.md), en «Outreach frío (línea 1)».
+Diseño del 16/11/2026, con lo que pidió Axel ese día. **Hecho: el paso 1** (la base del asistente y su API, ver «En qué orden se construye»). Lo demás, en [`PENDIENTES.md`](../PENDIENTES.md), en «Outreach frío (línea 1)».
 
 ## Qué es
 
@@ -131,6 +131,20 @@ En la base del asistente (Neon), con una migración nueva. Nombres orientativos:
 
 **Los datos son personales:** solo los ve quien tiene el permiso del módulo en el hub. No van al repo ni a las pruebas: las pruebas usan datos inventados. Borrar un lote borra sus contactos y deja en los eventos solo los totales.
 
+## El código (paso 1)
+
+| Archivo | Qué hace |
+| --- | --- |
+| `lib/outreach/telefono.ts` | Los teléfonos argentinos al formato 549…; lo dudoso, con su motivo |
+| `lib/outreach/importar.ts` | Leer lo pegado o un CSV (títulos reconocidos por nombre) y decidir quién entra a la cola |
+| `lib/outreach/reglas.ts` | Los cuidados (validar, de fábrica), el reloj de Buenos Aires, las franjas, los días hábiles, el tope que sube, los textos y «¿puede salir ahora?» |
+| `lib/outreach/datos.ts` | La base: lotes, cola, toma de 10 minutos (con la línea bloqueada), confirmar sin contar dos veces, fallas y freno, baja por teléfono |
+| `lib/outreach/api.ts` | Las direcciones `/api/hub/outreach/…` |
+
+Pruebas: las puras corren siempre; `datos.test.ts`, contra un Postgres de verdad (como en el control Verificar).
+
+**Cola, en orden:** primero los seguimientos que ya tocan; después los nuevos, de la consulta más reciente a la más vieja y, a igual fecha, los de un proyecto con ficha activa. «No salió» lo pasa al día hábil siguiente; «Saltar», 4 horas.
+
 ## Qué se reutiliza de lo que ya hay
 
 - **Líneas** (`lib/lineas.ts`): la línea 1 ya existe, con su tipo `outreach_frio`. Hoy, si alguien responde, pasa al equipo con una nota. Eso cambia a anotar la respuesta y hacer lo que esté configurado.
@@ -149,7 +163,7 @@ En la base del asistente (Neon), con una migración nueva. Nombres orientativos:
 
 Cada paso es un PR chico, con pruebas y su doc.
 
-1. **Asistente:**
+1. **Asistente** (hecho el 16/11: `db/migraciones/202611160015_outreach.sql` y `lib/outreach/`; la API, en [`api-hub.md`](api-hub.md), «Outreach frío»):
    - la migración (incluida `bajas`);
    - cargar la base, con la vista previa, los teléfonos y los cruces;
    - la cola, con la toma de 10 minutos;
