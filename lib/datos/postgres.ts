@@ -1,3 +1,4 @@
+import { telefonoParaComparar } from "../outreach/telefono";
 import pg from "pg";
 import { limiteCandidatos, MARGEN_MS, MAX_PASOS } from "../seguimientos/reglas";
 import { esTipoLinea, type Linea } from "../lineas";
@@ -186,6 +187,13 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
          where conversaciones.pidio_baja is null`,
         [conversacion, ahora],
       );
+      // La baja vale también por teléfono, para todas las líneas (el outreach no le escribe más; docs/outreach.md).
+      const { rows } = await db.query("select telefono, linea from conversaciones where chatwoot_id = $1", [conversacion]);
+      const telefono = telefonoParaComparar(rows[0]?.telefono);
+      if (telefono) {
+        await db.query("insert into bajas (telefono, linea, origen) values ($1, $2, 'pidió por WhatsApp') on conflict (telefono) do nothing", [telefono, rows[0]?.linea ?? null]);
+        await db.query("update outreach_contactos set etapa = 'baja', motivo = 'pidió que no le escriban más', proxima_accion = null, actualizado = now() where telefono = $1 and etapa <> 'baja'", [telefono]);
+      }
       return rowCount === 1;
     },
     async volvioAlBot(conversacion) {

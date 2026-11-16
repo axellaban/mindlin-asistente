@@ -9,6 +9,8 @@ import { crearModeloOpenAI, crearTranscriptorOpenAI, type Transcriptor } from ".
 import { eleccionTranscripcion, elegirIA } from "./agente/proveedor";
 import type { Modelo } from "./agente/agente";
 import { avisoAlHubDesdeEnv, type AvisarAlEquipo } from "./hub/aviso";
+import { poolDesdeEnv } from "./datos/postgres";
+import { datosOutreach, type DatosOutreach } from "./outreach/datos";
 
 export interface Conexiones {
   almacen: Almacen | null;
@@ -19,6 +21,8 @@ export interface Conexiones {
   transcribir?: Transcriptor | null;
   /** Avisa en el hub cuando el asistente pasa una conversación al equipo (necesita HUB_URL y HUB_CLAVE). */
   avisarAlEquipo?: AvisarAlEquipo | null;
+  /** El outreach frío de la línea 1 (lib/outreach/datos.ts): las respuestas de la base. */
+  outreach?: DatosOutreach | null;
 }
 
 /** Las conexiones que se pueden armar con las variables cargadas (las que faltan quedan en null). */
@@ -34,5 +38,9 @@ export function conexionesDesdeEnv(env: Record<string, string | undefined> = pro
     crm: hoja ? crearCRM(hoja, { responsable: env.CRM_RESPONSABLE?.trim() ?? "" }) : null,
     transcribir: audios ? crearTranscriptorOpenAI(audios) : null,
     avisarAlEquipo: avisoAlHubDesdeEnv(env),
+    outreach: (() => {
+      const pool = poolDesdeEnv(env);
+      return pool ? datosOutreach(pool) : null;
+    })(),
   };
 }

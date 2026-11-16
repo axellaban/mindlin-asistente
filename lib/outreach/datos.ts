@@ -651,6 +651,121 @@ export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
       return { todos: aprendizajes(filas), al_azar: aprendizajes(filas.filter((f) => f.al_azar)), por_puntaje, contactados: filas.length };
     },
 
+    /** La persona de la base de esta línea con ese teléfono (cualquier formato), con el nombre de su base. */
+    async contactoPorTelefono(linea: string, telefono: string): Promise<(ContactoOutreach & { lote_nombre: string; conversacion: number | null; crm_contacto_id: string | null }) | null> {
+      const t = telefonoParaComparar(telefono);
+      if (!t) return null;
+      const { rows } = await db.query(
+        `select ${COLUMNAS}, l.nombre as lote_nombre, c.conversacion, c.crm_contacto_id from outreach_contactos c join outreach_lotes l on l.id = c.lote where c.linea = $1 and c.telefono = $2`,
+        [linea, t],
+      );
+      return rows[0] ? { ...contactoDeFila(rows[0]), lote_nombre: rows[0].lote_nombre, conversacion: rows[0].conversacion == null ? null : Number(rows[0].conversacion), crm_contacto_id: rows[0].crm_contacto_id ?? null } : null;
+    },
+
+    /**
+     * Escribió alguien de la base. Una respuesta automática se anota pero no cuenta; un «no» o un
+     * número equivocado lo cierran; una respuesta de verdad lo pasa a «respondió» y corta la
+     * secuencia. `primera`: si es la primera respuesta de verdad (para dar de alta en el CRM y avisar una sola vez).
+     */
+    async anotarRespuesta(
+      id: number,
+      o: { clasificacion: "automatica" | "no" | "equivocado" | "respuesta"; conversacion: number; mensaje: number | null },
+      ahora: Date,
+    ): Promise<{ primera: boolean }> {
+      return transaccion(db, async (q) => {
+        const { rows } = await q.query("select linea, lote, etapa, respondio from outreach_contactos where id = $1 for update", [id]);
+        const r = rows[0];
+        if (!r) return { primera: false };
+        // Un reintento de Chatwoot (el mismo mensaje) no se anota dos veces.
+        const clave = o.mensaje != null ? `respuesta-${o.mensaje}` : null;
+        if (clave && (await q.query("select 1 from outreach_eventos where clave = $1", [clave])).rows.length) return { primera: false };
+        await q.query("insert into outreach_eventos (linea, contacto, lote, tipo, clave, detalle, creado) values ($1, $2, $3, 'respuesta', $4, $5, $6)", [
+          r.linea,
+          id,
+          r.lote,
+          clave,
+          o.clasificacion,
+          ahora,
+        ]);
+        if (o.clasificacion === "automatica") {
+          await q.query("update outreach_contactos set conversacion = coalesce(conversacion, $2), actualizado = $3 where id = $1", [id, o.conversacion, ahora]);
+          return { primera: false };
+        }
+        if (o.clasificacion === "no" || o.clasificacion === "equivocado") {
+          await q.query(
+            `update outreach_contactos set etapa = $2, motivo = $3, proxima_accion = null, conversacion = coalesce(conversacion, $4),
+               respondio = coalesce(respondio, $5), actualizado = $5 where id = $1 and etapa not in ('baja')`,
+            [id, o.clasificacion === "no" ? "cerrado" : "invalido", o.clasificacion === "no" ? "dijo que no" : "número equivocado", o.conversacion, ahora],
+          );
+          return { primera: false };
+        }
+        const primera = r.respondio == null;
+        await q.query(
+          `update outreach_contactos set etapa = case when etapa in ('por_contactar', 'saludado') then 'respondio' else etapa end,
+             respondio = coalesce(respondio, $2), proxima_accion = null, conversacion = coalesce(conversacion, $3), actualizado = $2 where id = $1`,
+          [id, ahora, o.conversacion],
+        );
+        return { primera };
+      });
+    },
+
+    async anotarCRM(id: number, crm_contacto_id: string): Promise<void> {
+      await db.query("update outreach_contactos set crm_contacto_id = $2 where id = $1", [id, crm_contacto_id]);
+    },
+
+    /**
+     * Salió un mensaje por la línea (desde WhatsApp Web o el celular) y llegó por Chatwoot: si es
+     * el que estaba tomado para ese teléfono, se confirma solo (el agente o la persona no tienen que
+     * tocar «Salió»). Devuelve si lo confirmó.
+     */
+    async confirmarPorChat(linea: string, telefono: string, texto: string, ahora: Date): Promise<boolean> {
+      const t = telefonoParaComparar(telefono);
+      if (!t) return false;
+      const { rows } = await db.query(
+        `select c.id, c.toma_clave, c.tomado_por, c.mensajes, c.nombre, c.proyecto, p.nombre as proyecto_nombre
+         from outreach_contactos c left join proyectos p on p.id = c.proyecto
+         where c.linea = $1 and c.telefono = $2 and c.tomado_hasta > $3 and c.toma_clave is not null`,
+        [linea, t, new Date(ahora.getTime() - TOMA_MINUTOS * 60_000)],
+      );
+      const r = rows[0];
+      if (!r) return false;
+      const cfg = await config(linea);
+      const esperado = textoDelPaso(cfg, Number(r.mensajes), { id: Number(r.id), nombre: r.nombre, proyecto_nombre: r.proyecto_nombre ?? null }).texto;
+      const igual = (a: string) => a.replace(/\s+/g, " ").trim();
+      if (igual(esperado) !== igual(texto)) return false;
+      const c = await this.confirmar(Number(r.id), { clave: r.toma_clave, modo: "computer_use", por: r.tomado_por ?? "WhatsApp", ejecutor: "persona" }, ahora);
+      return "ok" in c;
+    },
+
+    /** La bandeja «Responder»: quienes respondieron, con su último mensaje. */
+    async respuestas(linea: string, limite = 100): Promise<(ContactoOutreach & { lote_nombre: string; conversacion: number | null; ultimo_mensaje: string | null; ultimo_mensaje_fecha: string | null })[]> {
+      const { rows } = await db.query(
+        `select ${COLUMNAS}, l.nombre as lote_nombre, c.conversacion, m.texto as ultimo_mensaje, m.fecha as ultimo_mensaje_fecha
+         from outreach_contactos c join outreach_lotes l on l.id = c.lote
+         left join lateral (select texto, fecha from mensajes where conversacion = c.conversacion and rol = 'interesado' order by fecha desc limit 1) m on true
+         where c.linea = $1 and c.etapa in ('respondio', 'interesado')
+         order by coalesce(m.fecha, c.respondio) desc nulls last limit $2`,
+        [linea, Math.min(Math.max(limite, 1), 500)],
+      );
+      return rows.map((r) => ({
+        ...contactoDeFila(r),
+        lote_nombre: r.lote_nombre,
+        conversacion: r.conversacion == null ? null : Number(r.conversacion),
+        ultimo_mensaje: r.ultimo_mensaje ?? null,
+        ultimo_mensaje_fecha: iso(r.ultimo_mensaje_fecha),
+      }));
+    },
+
+    /** El equipo marca cómo siguió: interesado o cerrado (no le interesa). */
+    async marcar(id: number, etapa: "interesado" | "cerrado", por: string, ahora: Date): Promise<boolean> {
+      const { rows } = await db.query(
+        `update outreach_contactos set etapa = $2, motivo = case when $2 = 'cerrado' then 'lo cerró ' || $3 else motivo end, proxima_accion = null, actualizado = $4
+         where id = $1 and etapa in ('respondio', 'interesado', 'cerrado') returning linea, lote`,
+        [id, etapa, por, ahora],
+      );
+      return Boolean(rows[0]);
+    },
+
     /** Pidió la baja (por teléfono, para todas las líneas). Lo usa el webhook (paso 3) y el hub. */
     async baja(telefono: string, o: { linea: string | null; origen: string }): Promise<void> {
       const t = telefonoParaComparar(telefono);

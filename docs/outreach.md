@@ -150,6 +150,21 @@ En la base del asistente (Neon), con una migración nueva. Nombres orientativos:
 
 **Los datos son personales:** solo los ve quien tiene el permiso del módulo en el hub. No van al repo ni a las pruebas: las pruebas usan datos inventados. Borrar un lote borra sus contactos y deja en los eventos solo los totales.
 
+## Las respuestas, en el código (paso 3)
+
+- El webhook reconoce la línea de outreach por la bandeja y le pasa **todos** sus mensajes a `lib/outreach/webhook.ts`, esté como esté la conversación (una respuesta en una conversación abierta también se anota).
+- **Lo que sale por la línea** no corre al asistente ni abre la conversación. Si el texto y el teléfono coinciden con el contacto tomado, el envío se confirma solo.
+- **Lo que entra** se clasifica (`lib/outreach/respuestas.ts`):
+  - **automática:** se anota y no cuenta;
+  - **baja:** baja por teléfono, se le contesta una vez y queda la nota;
+  - **no:** queda cerrado;
+  - **equivocado:** queda inválido;
+  - **respuesta:** el contacto pasa a «respondió» y se corta la secuencia. Entra al CRM con la etapa «Contacto inicial» y la etiqueta «Outreach: {base}», o, si ya estaba, se le suma la actividad. Después hace lo que diga `al_responder`.
+- **Reintentos:** si Chatwoot reintenta el mismo mensaje, no se anota dos veces. El alta en el CRM y el aviso salen solo con la primera respuesta.
+- **Alguien que no está en la base** y escribe a la línea 1: pasa al equipo, como antes.
+- **La baja ahora es también por teléfono, en todas las líneas.** Quien la pide en la 3 o la 4 no recibe nada del outreach, y quien la pide en la 1 no recibe seguimientos en ninguna. Se guarda en la tabla `bajas`.
+- **Arreglo de paso:** el registro no aceptaba el tipo «pidio_baja», y en producción el asistente fallaba al anotar una baja. Lo arregla la migración `202611160017_registro_baja.sql`.
+
 ## El código (paso 1)
 
 | Archivo | Qué hace |
@@ -193,7 +208,7 @@ Cada paso es un PR chico, con pruebas y su doc.
    - Prospectos (cargar y ver);
    - Secuencia (textos, variantes, versiones y cuidados);
    - **Enviar con computer use** (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). No necesita WAHA y se puede usar ya.
-3. **Respuestas por el webhook:**
+3. **Respuestas por el webhook** (hecho el 16/11: `lib/outreach/webhook.ts` y `respuestas.ts`):
    - los mensajes salientes de la línea 1;
    - las respuestas automáticas;
    - la baja por teléfono;

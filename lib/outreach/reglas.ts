@@ -49,6 +49,11 @@ export interface ConfigOutreach {
   puntaje: PesosPuntaje;
   /** Qué porcentaje de los nuevos sale al azar y no por puntaje (para medir si el puntaje acierta). */
   exploracion: number;
+  /**
+   * Qué pasa cuando alguien responde de verdad: «equipo» (pasa al equipo con una nota y el aviso
+   * en el hub) o «ia» (la atiende el asistente con las fichas, como en una línea de leads).
+   */
+  al_responder: "equipo" | "ia";
 }
 
 export const LIMITES_OUTREACH = {
@@ -95,6 +100,7 @@ export const CONFIG_OUTREACH_DE_FABRICA: ConfigOutreach = {
   freno_fallas: 3,
   puntaje: PESOS_DE_FABRICA,
   exploracion: EXPLORACION_DE_FABRICA,
+  al_responder: "equipo",
 };
 
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$|^24:00$/;
@@ -193,6 +199,8 @@ export function validarConfigOutreach(x: unknown): { config: ConfigOutreach } | 
   const exploracion = entero(o.exploracion, [0, 50], "Al azar");
   if (typeof exploracion === "string") return { error: exploracion };
   c.exploracion = exploracion;
+  if (o.al_responder !== "equipo" && o.al_responder !== "ia") return { error: "Al responder: «equipo» o «ia»." };
+  c.al_responder = o.al_responder;
   if (!c.modos!.waha && !c.modos!.computer_use) return { error: "Modos: elegí al menos uno (WAHA nativo o computer use)." };
   return { config: c as ConfigOutreach };
 }

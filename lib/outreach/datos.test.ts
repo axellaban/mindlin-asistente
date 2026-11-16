@@ -3,6 +3,10 @@ import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ContactoCRM } from "../crm/planilla";
 import { datosOutreach } from "./datos";
+import { crearAlmacen } from "../datos/postgres";
+import { mensajeDeOutreach } from "./webhook";
+import { RESPUESTA_BAJA } from "./respuestas";
+import type { Linea } from "../lineas";
 import { CONFIG_OUTREACH_DE_FABRICA as F } from "./reglas";
 
 /**
@@ -46,7 +50,7 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
   afterAll(() => pool?.end());
 
   beforeEach(async () => {
-    await pool.query("delete from outreach_eventos; delete from outreach_contactos; delete from outreach_lotes; delete from outreach_estado; delete from outreach_config; delete from bajas; delete from conversaciones;");
+    await pool.query("delete from outreach_eventos; delete from outreach_contactos; delete from outreach_lotes; delete from outreach_estado; delete from outreach_config; delete from bajas; delete from conversaciones; delete from registro;");
     await d().guardarConfig(L, { ...F, textos_revisados: true, tope_inicial: 3, tope_max: 10, freno_fallas: 2 }, "Axel");
   });
 
@@ -202,6 +206,86 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     const cfg = await d().config(L);
     await d().guardarConfig(L, { ...cfg, puntaje: { ...cfg.puntaje, proyecto: { activo: 0, apagado: 0 } } }, "Axel");
     expect((await d().cola(L, ba("2026-11-16T11:00"))).map((c) => [c.nombre, c.puntaje])).toEqual([["Beto", 14], ["Ana Gómez", 12], ["Dani", 10]]);
+  });
+
+  it("las respuestas de la línea 1: confirmar solo, automáticas, una de verdad (CRM y equipo), sin repetir, y la baja", async () => {
+    await d().crearLote(L, "Leads 2024", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+    const hechos: string[] = [];
+    const creados: unknown[] = [];
+    const chatwoot = {
+      enviar: async (c: number, t: string) => (hechos.push(`enviar ${c}: ${t}`), 1),
+      notaInterna: async (c: number, t: string) => void hechos.push(`nota ${c}: ${t}`),
+      pasarAPersona: async (c: number) => void hechos.push(`abierta ${c}`),
+    };
+    const crm = {
+      buscar: async () => null,
+      crearContacto: async (datos: unknown, _: string, etapa?: string) => (creados.push({ datos, etapa }), { id: "crm-ana", responsable: "Tade" }),
+      anotarActividad: async () => {},
+    };
+    const avisos: unknown[] = [];
+    const s = {
+      outreach: d(),
+      almacen: crearAlmacen(pool),
+      chatwoot: chatwoot as never,
+      crm: crm as never,
+      avisarAlEquipo: async (a: unknown) => void avisos.push(a),
+      ahora: () => lunes,
+    };
+    const linea = { id: L, nombre: "Outreach frío", tipo: "outreach_frio" } as Linea;
+    const responder = { tipo: "responder" } as never;
+    const ana = { nombre: "Ana", telefono: "5491111111111" };
+
+    // Sale el saludo desde WhatsApp Web: llega como mensaje del equipo y se confirma solo.
+    const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t)) throw new Error("sin tarjeta");
+    const sale = await mensajeDeOutreach(s, linea, { id: 10, conversacion: 50, rol: "persona", texto: t.tarjeta.texto, fecha: lunes.toISOString() }, ana, responder);
+    expect(sale).toEqual({ fin: true, json: { accion: "ignorar", motivo: "salió el mensaje del outreach: quedó confirmado" } });
+    expect((await d().contactos(L, { buscar: "Ana" }))[0]).toMatchObject({ etapa: "saludado", mensajes: 1 });
+
+    // Una respuesta automática: se anota y nada más.
+    const auto = await mensajeDeOutreach(s, linea, { id: 11, conversacion: 50, rol: "interesado", texto: "Gracias por comunicarte con nosotros", fecha: lunes.toISOString() }, ana, responder);
+    expect(auto).toMatchObject({ fin: true, json: { motivo: "respuesta automática" } });
+    expect((await d().contactos(L, { buscar: "Ana" }))[0]).toMatchObject({ etapa: "saludado", respondio: null });
+
+    // Una de verdad: corta la secuencia, entra al CRM con la etiqueta de la base y pasa al equipo.
+    const real = await mensajeDeOutreach(s, linea, { id: 12, conversacion: 50, rol: "interesado", texto: "Hola! sí, sigo buscando", fecha: lunes.toISOString() }, ana, responder);
+    if (!real.fin) throw new Error("debía terminar");
+    expect(real.json).toEqual({ accion: "pasar_a_persona", motivo: "respondió al outreach", contacto: t.tarjeta.contacto.id });
+    await real.tarea?.();
+    expect((await d().contactos(L, { buscar: "Ana" }))[0]).toMatchObject({ etapa: "respondio", proxima_accion: null });
+    expect(creados).toMatchObject([{ etapa: "Contacto inicial", datos: { telefono: "5491111111111", proyecto: "lerma-439", tags: ["Outreach: Leads 2024"] } }]);
+    expect(hechos).toEqual([expect.stringContaining("nota 50: 🙋 Respondió al outreach (base «Leads 2024», había consultado por Lerma)"), "abierta 50"]);
+    expect(avisos).toMatchObject([{ conversacion: 50, motivo: "Respondió al outreach", responsable: "Tade", contacto: "crm-ana" }]);
+    expect(await d().respuestas(L)).toMatchObject([{ nombre: "Ana Gómez", ultimo_mensaje: null, conversacion: 50 }]);
+
+    // Chatwoot reintenta el mismo aviso: no se anota de nuevo; otro mensaje no vuelve a dar de alta ni a avisar.
+    await mensajeDeOutreach(s, linea, { id: 12, conversacion: 50, rol: "interesado", texto: "Hola! sí, sigo buscando", fecha: lunes.toISOString() }, ana, responder);
+    const otro = await mensajeDeOutreach(s, linea, { id: 13, conversacion: 50, rol: "interesado", texto: "¿Qué precio tiene?", fecha: lunes.toISOString() }, ana, responder);
+    if (otro.fin) await otro.tarea?.();
+    expect(creados).toHaveLength(1);
+    expect(avisos).toHaveLength(1);
+    expect((await pool.query("select count(*)::int as n from outreach_eventos where tipo = 'respuesta'")).rows[0].n).toBe(3);
+
+    // La baja de otro de la base: corta todo y se le contesta una vez.
+    hechos.length = 0;
+    const beto = { nombre: "Beto", telefono: "5491122222222" };
+    const baja = await mensajeDeOutreach(s, linea, { id: 20, conversacion: 60, rol: "interesado", texto: "No me escriban más", fecha: lunes.toISOString() }, beto, responder);
+    if (!baja.fin) throw new Error("debía terminar");
+    await baja.tarea?.();
+    expect(hechos[0]).toBe(`enviar 60: ${RESPUESTA_BAJA}`);
+    expect((await d().contactos(L, { buscar: "Beto" }))[0]).toMatchObject({ etapa: "baja" });
+    expect((await pool.query("select telefono from bajas")).rows).toEqual([{ telefono: "5491122222222" }]);
+
+    // Alguien que no está en la base: sigue el webhook (pasa al equipo, como antes).
+    const nuevo = await mensajeDeOutreach(s, linea, { id: 30, conversacion: 70, rol: "interesado", texto: "Hola", fecha: lunes.toISOString() }, { nombre: "X", telefono: "5491199999999" }, responder);
+    expect(nuevo).toEqual({ fin: false, linea: { ...linea, tipo: "outreach_frio" } });
+
+    // Con «al responder: IA», una respuesta de verdad sigue como una línea de leads.
+    const cfg = await d().config(L);
+    await d().guardarConfig(L, { ...cfg, al_responder: "ia" }, "Axel");
+    const dani = await mensajeDeOutreach(s, linea, { id: 40, conversacion: 80, rol: "interesado", texto: "Sí, contame", fecha: lunes.toISOString() }, { nombre: "Dani", telefono: "5491133333333" }, responder);
+    expect(dani).toEqual({ fin: false, linea: { ...linea, tipo: "entrada" } });
   });
 
   it("el tope sube después de una semana sin frenos", async () => {

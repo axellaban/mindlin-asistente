@@ -26,6 +26,8 @@ function armar() {
     confirmar: anotar("confirmar", { ok: true, ya_estaba: false }),
     fallo: anotar("fallo", { ok: true, frenada: false }),
     soltar: anotar("soltar", true),
+    marcar: anotar("marcar", false),
+    respuestas: anotar("respuestas", []),
     saltar: anotar("saltar", true),
     seguir: anotar("seguir"),
     mandarIgualHoy: anotar("mandarIgualHoy"),
@@ -75,6 +77,13 @@ describe("API del outreach", () => {
     expect(await pedir("DELETE", "lotes/3")).toEqual({ status: 404, json: { error: "Esa base no existe." } });
     expect(await pedir("PUT", "contactos/3/telefono", { telefono: "4567" })).toEqual({ status: 400, json: { error: "Ese teléfono no sirve: falta el código de área." } });
     expect((await pedir("POST", "linea-1/lotes", { nombre: "Leads", texto: "x" })).status).toBe(201);
+  });
+
+  it("la bandeja de respuestas y marcar cómo siguió", async () => {
+    const { pedir } = armar();
+    expect(await pedir("GET", "linea-1/respuestas")).toEqual({ status: 200, json: { respuestas: [] } });
+    expect(await pedir("POST", "contactos/4/marcar", { etapa: "otra" })).toEqual({ status: 400, json: { error: "«etapa» tiene que ser interesado o cerrado." } });
+    expect(await pedir("POST", "contactos/4/marcar", { etapa: "interesado" })).toEqual({ status: 409, json: { error: "Solo se marcan los que ya respondieron." } });
   });
 
   it("direcciones que no existen", async () => {

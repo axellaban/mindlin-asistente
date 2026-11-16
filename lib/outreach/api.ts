@@ -17,6 +17,8 @@
  * - POST   outreach/contactos/<id>/confirmar { clave, modo, ejecutor } salió (cuenta una sola vez)
  * - POST   outreach/contactos/<id>/fallo     { clave, falla, modo, ejecutor } no salió / sin WhatsApp / número incorrecto
  * - POST   outreach/contactos/<id>/soltar    | saltar
+ * - GET    outreach/<línea>/respuestas       la bandeja «Responder»: quienes respondieron, con su último mensaje
+ * - POST   outreach/contactos/<id>/marcar    { etapa: interesado | cerrado } cómo siguió
  * - PUT    outreach/contactos/<id>/telefono  { telefono } corregir uno «por revisar»
  *
  * `ejecutor` es «bot» cuando opera un agente con computer use (la pestaña con ?agente=1 en el hub).
@@ -76,6 +78,10 @@ export async function manejarOutreach(ruta: string[], metodo: string, cuerpo: Ob
       if (!FALLAS.includes(cuerpo.falla as Falla)) return error(400, "«falla» tiene que ser no_salio, sin_whatsapp o numero_incorrecto.");
       const r = await o.fallo(n, { clave, falla: cuerpo.falla as Falla, modo, por, ejecutor }, d.ahora());
       return "error" in r ? error(409, r.error) : res(200, r);
+    }
+    if (accion === "marcar" && metodo === "POST") {
+      if (cuerpo.etapa !== "interesado" && cuerpo.etapa !== "cerrado") return error(400, "«etapa» tiene que ser interesado o cerrado.");
+      return (await o.marcar(n, cuerpo.etapa, por, d.ahora())) ? res(200, { ok: true }) : error(409, "Solo se marcan los que ya respondieron.");
     }
     if (accion === "soltar" && metodo === "POST") return res(200, { ok: await o.soltar(n, por) });
     if (accion === "saltar" && metodo === "POST") return (await o.saltar(n, por, d.ahora())) ? res(200, { ok: true }) : error(409, "Lo tiene otra persona.");
@@ -144,6 +150,9 @@ async function manejarLinea(linea: string, accion: string, metodo: string, cuerp
       if (metodo !== "POST") return noSePuede();
       await o.recalcular(linea, d.ahora());
       return res(200, { estado: await o.estado(linea, d.ahora(), por) });
+    case "respuestas":
+      if (metodo !== "GET") return noSePuede();
+      return res(200, { respuestas: await o.respuestas(linea) });
     case "aprendizajes":
       if (metodo !== "GET") return noSePuede();
       return res(200, await o.aprendizajes(linea));
