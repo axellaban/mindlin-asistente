@@ -161,14 +161,25 @@ Pedido de Axel (mejora 2). **Se decide con el primer mensaje y no cambia**: por 
 
 Idea traída de DeskcommCRM: una sola regla de baja para todo. Si la persona lo pide (o la IA marca «no le interesa»), no le sale nada automático más en esa conversación: ni seguimientos ni flujos, aunque vuelva a escribir o el equipo le devuelva la conversación al asistente. La IA le contesta una vez, corto, y el equipo puede seguir escribiéndole a mano. Tiene su propia marca (`conversaciones.pidio_baja`), separada de la de «la tiene el equipo». Detalle en [`baja.md`](baja.md).
 
+## 15. Outreach frío en la línea 1 (decidido el 16/11, falta hacerlo)
+
+Mindlin va a cargar sus bases de leads viejas para escribirles desde la línea 1. Para WhatsApp son contactos nuevos, así que Axel autorizó la excepción a la regla de «no escribirle a quien no escribió», solo en esa línea y con cuidados configurables: chip propio, tope diario con subida gradual, tandas, pausas, franjas, variantes de cada texto, 3 mensajes sin respuesta como máximo y baja para siempre. Los cuidados los hace cumplir el servidor en cada envío, no la pantalla, para que dos pestañas o una persona y un agente a la vez no pasen los límites. La baja pasa a guardarse también por teléfono (hoy es por conversación).
+
+- **Dos modos de envío:** WAHA nativo (sale del servidor, sin abrir WhatsApp) y computer use (un agente en WhatsApp Web, con una pantalla «Enviar» pensada para él). Se pueden usar los dos.
+- **Con el plan Hobby:** la tanda con pausas la maneja la pantalla del hub mientras está abierta. Si hace falta que salga sola, después se suma un proceso en el servidor de Easypanel.
+- **Datos:** en la base del asistente (tablas `outreach_*`). Al CRM entra solo quien responde con interés.
+- **Respuestas:** llegan en el momento por el webhook de Chatwoot, no con una lectura diaria como en Turnia.
+
+Se toma la lógica del panel de prospección de Chapa Labs (Turnia y habita.), rehecha acá. Detalle y orden de trabajo en [`outreach.md`](outreach.md).
+
 ## Lo que se reutiliza de otros proyectos de Axel
 
 Se adapta, no se copia a ciegas:
 
 - **Turnia** (`axellaban/turniasalud`): límites por chat contra bucles con otros bots (`src/lib/chat-guard.ts`, `chat-limits.ts`), seguimientos en horario y con tope (`src/lib/followups.ts`), transcripción de audios, el diseño del agente con herramientas, y el trato con WAHA si hace falta hablarle directo (`src/lib/waha.ts`).
 - **habita.** (`axellaban/amoblaia`): mensajes de seguimiento por etapa con versiones y la medición de cuál convierte (`docs/FOLLOWUP.md`), y el historial de conversaciones del asistente.
-- **Chapa Labs** (`axellaban/chapa-labs`): el panel de prospección, para cuando se sume la línea de outreach (fuera del MVP).
+- **Chapa Labs** (`facundogregorini-lab/chapa-labs`, el que se publica; no `axellaban/chapa-labs`): el panel de prospección. Es la base del outreach frío (sección 15).
 
 ## Fuera del MVP
 
-Lo que la propuesta deja para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos y email (previsto, ver sección 9). La línea de outreach ya existe (sección 11), pero su panel espera lo que pase Mindlin.
+Lo que la propuesta deja para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos y email (previsto, ver sección 9). La línea de outreach ya existe (sección 11), y su panel está diseñado (sección 15).

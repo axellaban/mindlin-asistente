@@ -53,7 +53,7 @@ Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
 ### Axel: hace
 
 8. Pasarle a la IA de paneles las tareas 12 a 15 (y estar para el teléfono de prueba y los códigos).
-9. Conseguir el chip o número de la línea 4 (tarea 11).
+9. Conseguir el chip o número de la línea 4 (tarea 11) y **el de la línea 1** (outreach frío, chip propio para no arriesgar la línea de leads).
 10. Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas del CRM sin avisar.
 11. Hostinger: delegar el acceso Admin a su cuenta.
 12. Cuando vuelva la cuenta de GitHub de Mindlin, transferirles este repo.
@@ -71,7 +71,7 @@ Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
    - ¿un número aparte o el mismo?;
    - ¿qué avisos pasan a WhatsApp?;
    - ¿conviven unas semanas con Telegram o se corta?
-4. **Línea 1 (outreach frío):** qué tiene que tener su panel.
+4. **Línea 1 (outreach frío):** cargar las bases de leads viejas (en planillas) y escribir los textos de la secuencia: saludo, mensaje para quien responde y seguimiento, con 2 variantes de cada uno. Mientras tanto, el hub trae un borrador, pero no deja mandar hasta que estén los textos. Antes de la primera tanda, confirmar con su abogado el Registro No Llame y el consentimiento de la base. Ver [`docs/outreach.md`](docs/outreach.md).
 5. **Etapas automáticas:** revisar las de fábrica. Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve.
 6. **VIA 53 y Torre Cuatro Vientos:** sus dos documentos tienen datos distintos (precios, entrega, forma de pago, el semipiso). ¿Cuáles valen?
 7. **Horario del equipo comercial:** hoy es de lunes a viernes de 9 a 20.
@@ -98,19 +98,36 @@ Las tareas de [`IA_DE_PANELES.md`](IA_DE_PANELES.md), en este orden:
 - **14:** usuario «Hub» de Chatwoot.
 - **15:** prueba en producción de todo lo del 15/11, más la revisión de la planilla del CRM.
 - **11:** la línea 4, con el chip.
+- **16:** la línea 1 (outreach), con su chip.
 - **7:** el equipo en Chatwoot, cuando esté el correo.
 
 ### Claude (código)
 
-Nada abierto. Se retoma con:
+- **Outreach frío (línea 1):** construirlo según [`docs/outreach.md`](docs/outreach.md). Las tareas, abajo, en «Outreach frío (línea 1)».
+
+Además, se retoma con:
 
 - lo que salga de las tareas 12 y 15;
 - la línea 2, cuando Mati y Axel la definan;
-- el panel de outreach frío, cuando Mindlin pase qué quiere;
 - los formularios, si los usan;
 - probar Claude de verdad, si se elige Claude.
 
 Decididas: Vercel en la cuenta de Axel (07/11) y, desde el 13/11, en la de Mindlin (`mindlindevelopers.ia`, plan Hobby), con el repo público para que publique (Axel); servidor Hostinger KVM 1 con 4 GB (07/11, comprado el 09/11), con Easypanel (Axel, 13/11); Chatwoot en `chat.mindlindevelopers.com` (09/11); origen «WhatsApp» en el CRM (ya existe en el hub, 10/11); el CRM es una planilla de Google (Axel, 10/11), y es la misma que usa el CRM del hub en producción (confirmado el 15/11); el asistente mueve a los leads de etapa y se configura desde el hub, que arma Claude (Axel, 11/11); lotes y correos quedan afuera por ahora (Axel, 11/11); audios: se transcriben con OpenAI, clave cargada (11/11).
+
+## Outreach frío (línea 1)
+
+Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads viejas de Mindlin, con la excepción a la regla de WhatsApp y los cuidados configurables, y con los dos modos de envío (WAHA nativo y computer use). Diseño, cuidados y orden en [`docs/outreach.md`](docs/outreach.md). La base es el panel de prospección de Chapa Labs (`facundogregorini-lab/chapa-labs`, `/prospecting`): se rehace acá, no se copia.
+
+- [x] Diseño y la excepción a la regla, anotada en `AGENTS.md`. — Claude, 16/11
+- [ ] 1. Asistente: migración (`outreach_*` y `bajas` por teléfono), cargar la base (vista previa, teléfonos argentinos, repetidos, cruce con el CRM, las bajas y las conversaciones en curso), la cola con la toma de 10 minutos, confirmar o «no salió» sin contar dos veces, los cuidados que hace cumplir el servidor y la API para el hub. — Claude
+- [ ] 2. Hub, línea 1: Prospectos, Secuencia (textos, versiones y cuidados) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). — Claude
+- [ ] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo»), respuestas automáticas, baja por teléfono, alta en el CRM de quien responde, qué pasa después (equipo, flujo o IA) y la bandeja «Responder». — Claude
+- [ ] 4. WAHA nativo: verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno si la sesión se cae. Antes: probar en la línea de prueba cómo sale un primer mensaje y que la respuesta entre a la bandeja de la línea 1. — Claude con Panel
+- [ ] QA con 5 números del equipo, en los dos modos, antes de la primera tanda real (lista en `docs/outreach.md`). — Claude y Panel con Axel
+- [ ] 5. Embudo contra la meta, resultados por lote y por versión, y la subida gradual del tope. — Claude
+- [ ] Tarea 16 de la IA de paneles: el chip de la línea 1 vinculado, su bandeja con el Agent Bot, `WAHA_URL` y `WAHA_API_KEY` en Vercel del asistente y la prueba del primer mensaje. — Panel con Axel
+- [ ] Cargar las bases y escribir los textos de la secuencia, con al menos 2 variantes de cada mensaje. — Mindlin
+- [ ] Confirmar con su abogado lo legal antes de la primera tanda: el Registro No Llame (ley 26.951) y el consentimiento de la base (ley 25.326). — Mindlin
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
