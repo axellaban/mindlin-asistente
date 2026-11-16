@@ -133,7 +133,7 @@ Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads vi
 - [x] 5. Embudo contra la meta, resultados por base y por versión, lo que salió cada día (`POST outreach/{línea}/resultados`) y la subida gradual del tope. — Claude, 16/11
 - [ ] 5b. Hub: la solapa «Resultados» de la línea 1 (embudo contra la meta con dónde se frena, por base, por versión, por día y los aprendizajes del puntaje) y las metas en Secuencia. — Otra IA, con el paso 2
 - [ ] Tarea 16 de la IA de paneles: el chip de la línea 1 vinculado, su bandeja con el Agent Bot, `WAHA_URL` y `WAHA_API_KEY` en Vercel del asistente y la prueba del primer mensaje. — Panel con Axel
-- [ ] Cargar las bases y escribir los textos de la secuencia, con al menos 2 variantes de cada mensaje. — Mindlin
+- [ ] Cargar las bases y revisar los textos de la secuencia. Hay un borrador con 3 variantes del saludo y 3 del seguimiento (hub → línea 1 → Secuencia): Mati los cambia a su gusto y marca «Textos revisados»; sin eso no sale nada. Cuando quiera, más adelante. — Mindlin
 - [ ] Confirmar con su abogado lo legal antes de la primera tanda: el Registro No Llame (ley 26.951) y el consentimiento de la base (ley 25.326). — Mindlin
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin

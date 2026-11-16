@@ -95,10 +95,12 @@ export const CONFIG_OUTREACH_DE_FABRICA: ConfigOutreach = {
   saludo: [
     "Hola {nombre}, ¿cómo estás? Te escribo de Mindlin Developers. Hace un tiempo nos consultaste por un departamento. ¿Seguís buscando?",
     "¡Hola {nombre}! Soy de Mindlin Developers. Nos habías escrito hace un tiempo por un departamento: ¿todavía estás buscando?",
+    "Buenas {nombre}, ¿qué tal? Te escribo del equipo de Mindlin Developers. Hace un tiempo nos consultaste por un departamento y quería saber si seguís con la búsqueda.",
   ],
   seguimiento: [
     "{nombre}, te escribo de nuevo por si se te pasó. Si te sirve, te cuento lo que tenemos hoy{proyecto_en}. Y si ya no buscás, avisame y no te escribo más.",
     "Hola {nombre}, ¿pudiste ver mi mensaje? Si seguís buscando, te paso las novedades{proyecto_en}. Si no, decime y no te molesto más.",
+    "{nombre}, último mensaje de mi parte. Si en algún momento querés ver opciones{proyecto_en}, escribime por acá y te paso todo. ¡Gracias!",
   ],
   textos_revisados: false,
   excluidos: [],

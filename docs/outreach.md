@@ -78,7 +78,7 @@ Configurable desde el hub, con versiones A/B. Es la de Turnia, adaptada:
 
 Los seguimientos no los manda un cron: **entran a la cola del día** y salen en la tanda, con los mismos cuidados. Así funciona igual en el plan Hobby.
 
-Variables: `{nombre}`, `{proyecto}` (el que consultó en su momento, si la base lo trae) y `{link}`. Si falta el nombre, el texto no lo usa. **Los textos los escribe Mindlin.** Mientras tanto, el hub trae un borrador marcado «Borrador: revisar» y **no deja empezar a mandar con textos en borrador**.
+Variables: `{nombre}`, `{proyecto}` y `{proyecto_en}` (el que consultó en su momento, si la base lo trae). Si falta el nombre, el texto no lo usa. **Los textos los define Mindlin.** Mientras tanto, hay un borrador con 3 variantes del saludo y 3 del seguimiento, con el tono de Mindlin, y **no deja empezar a mandar hasta que alguien marque «Textos revisados»**.
 
 ## Las respuestas
 
