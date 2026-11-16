@@ -271,6 +271,16 @@ Tarea 10, hecha con Axel sobre el servidor nuevo. **Resultado: el asistente atie
 - Hay **6 reglas de seguimiento cargadas pero archivadas**: mientras sigan así no sale ningún seguimiento. Se activan en `/panel` → Seguimientos.
 - La pausa global quedó como estaba: «El asistente está respondiendo».
 
+### QA de líneas y flujos en producción (tareas 12 a 15, 16/11/2026)
+
+- **Publicaciones.** El asistente está Ready en Production (`eae05af`). Build Logs dice `migrar: base al día (14 migraciones)`. El hub de producción está Ready en `56474f1`. La publicación automática de `0b76e8f` figura Blocked por separado.
+- **Líneas que muestra el hub.** La 1 («Outreach frío») y la 2 («Equipo: facturas y outreach cálido») figuran «Próximamente». La 3 («Leads entrantes») figura «Responde» en la bandeja 1 y usa IA desde el primer mensaje. La 4 («Leads entrantes 2») figura «Sin conectar».
+- **Conexiones.** El chequeo del hub validó Chatwoot, Neon, la recepción de WhatsApp y la última respuesta registradas, las columnas de la planilla del asistente y OpenAI. El cron tiene horario diario a las 10 de Buenos Aires y el chequeo indica que no hay reglas activas.
+- **Flujos.** Quedó creado y apagado «Prueba QA 16/11 · Presentación, brochure y seguimiento» en la línea 3. La solapa «Probar» usa el flujo activo de la línea, por lo que la prueba aislada se hizo con IA: contestó sobre ubicación y forma de pago de Lerma 439. Quedan las pruebas del flujo, los archivos y los seguimientos por WhatsApp con números de prueba acordados.
+- **Avisos (13).** `HUB_URL` quedó guardada en Production de `mindlin-asistente`. La solicitud para republicar llegó a la pantalla de verificación por correo de la cuenta de Mindlin. Axel tiene que completar ese paso. Después hay que confirmar `avisosAlHub: true` y probar un traspaso al equipo con el contacto de prueba. El endpoint de avisos está publicado en el hub y devuelve `401` ante una petición sin autorización.
+- **Adjuntos (14).** El correo propuesto ya corresponde al administrador de Chatwoot. Queda definir si se autoriza ese acceso o se crea un agente técnico con acceso a las bandejas necesarias. `adjuntosEnElHub` devuelve `false`.
+- **Planilla del CRM (15).** En la lista de variables del hub no aparece `DATABASE_URL`. El código del despliegue actual toma `COLA_SHEET_ID` cuando no están `CRM_CONTACTOS_SHEET_ID` y `CRM_SHEET_ID`, como en este proyecto. El asistente tiene `CRM_SHEET_ID` en Production como Secret, de modo que Vercel no muestra el valor para compararlo. La búsqueda por el nombre del contacto de la QA del 13/11 no devolvió coincidencias en el CRM del hub. Queda confirmar con un alta controlada y verificar que aparezca en ambos lados.
+
 ## Pendientes para retomar (09/11/2026)
 
 - **Hostinger, diferido por Axel:** completar el código de la cuenta dueña y aceptar desde `axellaban@gmail.com` la invitación de Admin al VPS de Mindlin.
