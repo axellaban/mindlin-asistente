@@ -347,6 +347,30 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     expect(enviados).toEqual([expect.stringMatching(/^5491199990000@c\.us: 🧪 Prueba del outreach:\n\n(Hola|¡Hola!) Prueba/)]);
   });
 
+  it("los resultados: embudo con el CRM de hoy, por base y por versión", async () => {
+    await d().crearLote(L, "Leads 2024", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+    const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t)) throw new Error("sin tarjeta");
+    await d().confirmar(t.tarjeta.contacto.id, { clave: t.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes);
+    await d().anotarRespuesta(t.tarjeta.contacto.id, { clasificacion: "respuesta", conversacion: 50, mensaje: 1 }, ba("2026-11-17T10:00"));
+    await d().anotarCRM(t.tarjeta.contacto.id, "crm-ana");
+    const crm = [{ id: "crm-ana", telefono: "1111111111", etapa: "Visita / reunión" }] as ContactoCRM[];
+    const r = await d().resultados(L, { dias: null }, crm, ba("2026-11-17T12:00"));
+    expect(r.embudo.pasos.map((p) => [p.paso, p.cantidad])).toEqual([
+      ["cargados", 3],
+      ["con_whatsapp", 1],
+      ["contactados", 1],
+      ["respondieron", 1],
+      ["interesados", 1],
+      ["visita", 1],
+      ["reserva", 0],
+    ]);
+    expect(r.por_base).toEqual([{ clave: "Leads 2024", contactados: 1, respondieron: 1, tasa: 1, muestra_chica: true }]);
+    expect(r.por_version).toHaveLength(1);
+    expect(r.por_dia).toEqual([{ dia: "2026-11-16", tipo: "envio", modo: "computer_use", ejecutor: "bot", n: 1 }]);
+  });
+
   it("el tope sube después de una semana sin frenos", async () => {
     await pool.query("insert into outreach_estado (linea, tope, tope_desde) values ($1, 3, '2026-11-09')", [L]);
     const e = await d().estado(L, ba("2026-11-16T11:00"), "Facu");

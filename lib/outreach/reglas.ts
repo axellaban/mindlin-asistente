@@ -8,6 +8,7 @@
 
 import { normalizarTelefono } from "./telefono";
 import { EXPLORACION_DE_FABRICA, PESOS_DE_FABRICA, validarPesos, type PesosPuntaje } from "./puntaje";
+import { METAS_DE_FABRICA, validarMetas, type MetasOutreach } from "./resultados";
 
 /** Una franja de envío, en hora de Buenos Aires. Días: 0 domingo … 6 sábado. Horas «HH:MM». */
 export interface Franja {
@@ -56,6 +57,8 @@ export interface ConfigOutreach {
   al_responder: "equipo" | "ia";
   /** La sesión de WAHA de la línea (la que se creó al vincular el chip; tarea 16). */
   waha_sesion: string;
+  /** El embudo contra la meta (lib/outreach/resultados.ts). */
+  metas: MetasOutreach;
 }
 
 export const LIMITES_OUTREACH = {
@@ -104,6 +107,7 @@ export const CONFIG_OUTREACH_DE_FABRICA: ConfigOutreach = {
   exploracion: EXPLORACION_DE_FABRICA,
   al_responder: "equipo",
   waha_sesion: "linea1",
+  metas: METAS_DE_FABRICA,
 };
 
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$|^24:00$/;
@@ -207,6 +211,9 @@ export function validarConfigOutreach(x: unknown): { config: ConfigOutreach } | 
   const sesion = String(o.waha_sesion ?? "").trim();
   if (!/^[A-Za-z0-9_-]{1,40}$/.test(sesion)) return { error: "Sesión de WAHA: solo letras, números, - y _ (por ejemplo, linea1)." };
   c.waha_sesion = sesion;
+  const metas = validarMetas(o.metas);
+  if ("error" in metas) return { error: metas.error };
+  c.metas = metas.metas;
   if (!c.modos!.waha && !c.modos!.computer_use) return { error: "Modos: elegí al menos uno (WAHA nativo o computer use)." };
   return { config: c as ConfigOutreach };
 }

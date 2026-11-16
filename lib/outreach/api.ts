@@ -14,6 +14,7 @@
  * - POST   outreach/<línea>/verificar        WAHA: si los próximos 20 tienen WhatsApp (no manda nada)
  * - POST   outreach/<línea>/prueba           { telefono } WAHA: el saludo de prueba a un número del equipo
  * - GET    outreach/<línea>/waha             si la sesión de WAHA de la línea está conectada
+ * - POST   outreach/<línea>/resultados       { dias?, lote? } el embudo contra la meta, por base, por versión y por día
  * - POST   outreach/<línea>/seguir           sacar el freno
  * - POST   outreach/<línea>/mandar-igual     fuera de franja, solo hoy
  * - PATCH  outreach/lotes/<id>               { pausado }
@@ -181,6 +182,13 @@ async function manejarLinea(linea: string, accion: string, metodo: string, cuerp
       const sesion = (await o.config(linea)).waha_sesion;
       const estado = await d.waha.estado(sesion).catch((e) => `error: ${e instanceof Error ? e.message : String(e)}`);
       return res(200, { conectado: estado === "WORKING", sesion, estado });
+    }
+    case "resultados": {
+      // { dias?: 7 | 30 | 90 | null, lote? }
+      if (metodo !== "POST") return noSePuede();
+      const dias = cuerpo.dias == null ? null : Number(cuerpo.dias);
+      if (dias !== null && (!Number.isInteger(dias) || dias < 1 || dias > 3650)) return error(400, "«dias» va de 1 a 3650, o null para todo.");
+      return res(200, await o.resultados(linea, { dias, lote: idDe(String(cuerpo.lote ?? "")) }, await crm(), d.ahora()));
     }
     case "respuestas":
       if (metodo !== "GET") return noSePuede();

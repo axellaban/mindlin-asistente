@@ -29,6 +29,7 @@ import {
 import { normalizarTelefono, telefonoParaComparar } from "./telefono";
 import { aprendizajes, puntuar, type Aprendizaje, type Parte } from "./puntaje";
 import type { Waha } from "./waha";
+import { comparar, embudo, type FilaResultado } from "./resultados";
 
 type Db = Pick<pg.Pool, "query" | "connect">;
 type Cliente = Pick<pg.PoolClient, "query">;
@@ -886,6 +887,51 @@ export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
       const { texto } = textoDelPaso(cfg, 0, { id: 0, nombre: "Prueba", proyecto_nombre: null });
       await waha.enviarTexto(cfg.waha_sesion, `${n.telefono}@c.us`, `🧪 Prueba del outreach:\n\n${texto}`);
       return { ok: true, texto };
+    },
+
+    /**
+     * Los resultados: el embudo contra la meta, por base, por versión del saludo y lo que salió
+     * cada día. `dias`: los contactados en ese período (null, todo). La etapa de hoy en el CRM viene de afuera.
+     */
+    async resultados(linea: string, o: { dias: number | null; lote?: number | null }, crm: ContactoCRM[] | null, ahora: Date) {
+      const cfg = await config(linea);
+      const desde = o.dias ? new Date(ahora.getTime() - o.dias * 86_400_000) : null;
+      const { rows } = await db.query(
+        `select l.nombre as lote, c.tiene_whatsapp, c.etapa, c.crm_contacto_id, c.telefono,
+           e.creado as primer_envio, e.version,
+           (select min(r.creado) from outreach_eventos r where r.contacto = c.id and r.tipo = 'respuesta' and r.detalle = 'respuesta') as respondio
+         from outreach_contactos c join outreach_lotes l on l.id = c.lote
+         left join lateral (select creado, version from outreach_eventos where contacto = c.id and tipo = 'envio' and paso = 0 order by creado limit 1) e on true
+         where c.linea = $1 and c.etapa <> 'por_revisar' and ($2::bigint is null or c.lote = $2)
+           and ($3::timestamptz is null or e.creado >= $3 or (e.creado is null and c.creado >= $3))`,
+        [linea, o.lote ?? null, desde],
+      );
+      const porId = new Map((crm ?? []).map((x) => [x.id, x.etapa]));
+      const porTel = new Map((crm ?? []).map((x) => [telefonoParaComparar(x.telefono), x.etapa]));
+      const filas: FilaResultado[] = rows.map((r) => ({
+        lote: r.lote,
+        tiene_whatsapp: r.tiene_whatsapp,
+        primer_envio: iso(r.primer_envio),
+        version: r.version == null ? null : Number(r.version),
+        respondio: iso(r.respondio),
+        etapa: r.etapa,
+        crm_etapa_hoy: (r.crm_contacto_id && porId.get(r.crm_contacto_id)) || (r.crm_contacto_id ? porTel.get(r.telefono) : null) || null,
+      }));
+      const primero = filas.reduce<number | null>((m, f) => (f.primer_envio ? Math.min(m ?? Infinity, Date.parse(f.primer_envio)) : m), null);
+      const semanas = Math.max(1, (o.dias ?? (primero ? Math.ceil((ahora.getTime() - primero) / 86_400_000) : 7)) / 7);
+      const dias = await db.query(
+        `select to_char(creado - interval '3 hours', 'YYYY-MM-DD') as dia, tipo, coalesce(modo, '') as modo, coalesce(ejecutor, '') as ejecutor, count(*)::int as n
+         from outreach_eventos where linea = $1 and tipo in ('envio', 'no_salio', 'sin_whatsapp', 'numero_incorrecto', 'freno') and creado >= $2
+         group by 1, 2, 3, 4 order by 1`,
+        [linea, new Date(ahora.getTime() - 14 * 86_400_000)],
+      );
+      return {
+        embudo: embudo(filas, cfg.metas, { semanas }),
+        por_base: comparar(filas, (f) => f.lote),
+        por_version: comparar(filas, (f) => (f.version == null ? null : `Saludo ${f.version}`)),
+        por_dia: dias.rows,
+        crm_conectado: crm !== null,
+      };
     },
 
     /** Pidió la baja (por teléfono, para todas las líneas). Lo usa el webhook (paso 3) y el hub. */
