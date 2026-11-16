@@ -1,0 +1,198 @@
+import { execFileSync } from "node:child_process";
+import pg from "pg";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { ContactoCRM } from "../crm/planilla";
+import { datosOutreach } from "./datos";
+import { CONFIG_OUTREACH_DE_FABRICA as F } from "./reglas";
+
+/**
+ * El outreach contra un Postgres de verdad (como lib/panel/datos.test.ts), en su propio esquema.
+ * Datos inventados. El 16/11/2026 es lunes; Buenos Aires es UTC−3.
+ */
+const url = process.env.PRUEBA_DATABASE_URL;
+const ESQUEMA = "prueba_outreach";
+const ba = (fechaHora: string) => new Date(`${fechaHora}:00-03:00`);
+const L = "linea-1";
+
+const MIGRAR_EN_ESQUEMA = `
+const { readdirSync, readFileSync } = require("node:fs");
+const pg = require("pg");
+(async () => {
+  const c = new pg.Client({ connectionString: process.env.URL_PRUEBA });
+  await c.connect();
+  for (const f of readdirSync("db/migraciones").filter((f) => f.endsWith(".sql")).sort()) {
+    await c.query(readFileSync("db/migraciones/" + f, "utf8").replaceAll("public.", process.env.ESQUEMA + "."));
+  }
+  await c.end();
+})().catch((e) => { console.error(e); process.exit(1); });
+`;
+
+const crm = (telefono: string, etapa: string): ContactoCRM =>
+  ({ id: `crm-${telefono}`, nombre: "", telefono, etapa, responsable: "", proyectos: [], ultimoContacto: "", notas: "", para: "", ambientes: "", presupuestoUsd: "", formaDePago: "", plazo: "", proximoPaso: "", fechaProximoPaso: "" }) as ContactoCRM;
+
+describe.skipIf(!url)("outreach (Postgres real)", () => {
+  let pool: pg.Pool;
+  const d = () => datosOutreach(pool);
+
+  beforeAll(async () => {
+    const admin = new pg.Client({ connectionString: url });
+    await admin.connect();
+    await admin.query(`drop schema if exists ${ESQUEMA} cascade; create schema ${ESQUEMA};`);
+    await admin.end();
+    execFileSync("node", ["-e", MIGRAR_EN_ESQUEMA], { env: { ...process.env, URL_PRUEBA: url, ESQUEMA }, encoding: "utf8" });
+    pool = new pg.Pool({ connectionString: `${url}${url!.includes("?") ? "&" : "?"}options=-c%20search_path%3D${ESQUEMA}` });
+  });
+  afterAll(() => pool?.end());
+
+  beforeEach(async () => {
+    await pool.query("delete from outreach_eventos; delete from outreach_contactos; delete from outreach_lotes; delete from outreach_estado; delete from outreach_config; delete from bajas; delete from conversaciones;");
+    await d().guardarConfig(L, { ...F, textos_revisados: true, tope_inicial: 3, tope_max: 10, freno_fallas: 2 }, "Axel");
+  });
+
+  const BASE = ["Nombre\tCelular\tProyecto\tFecha", "Ana Gómez\t011 15 1111-1111\tLerma\t10/01/2024", "Beto\t11 2222 2222\t\t05/03/2025", "Caro\t4567-8901\t\t", "Dani\t11 3333 3333\t\t"].join("\n");
+
+  it("carga una base: entran los buenos, quedan por revisar los dudosos y no se repiten", async () => {
+    await pool.query("insert into conversaciones (chatwoot_id, telefono, pidio_baja) values (900, '+5491133333333', now())");
+    const previa = await d().vistaPrevia(L, BASE, { incluir_descartados: false }, [crm("1122222222", "Seguimiento")]);
+    expect("totales" in previa && previa.totales).toEqual({ entra: 2, por_revisar: 1, repetido: 0, excluido: 1 });
+
+    const r = await d().crearLote(L, "Leads 2024", BASE, { incluir_descartados: false }, null, "Mati");
+    expect(r).toMatchObject({ guardados: 3, totales: { entra: 2, por_revisar: 1, excluido: 1 } });
+    const lotes = await d().lotes(L);
+    expect(lotes).toMatchObject([{ nombre: "Leads 2024", creado_por: "Mati", etapas: { por_contactar: 2, por_revisar: 1 } }]);
+
+    // La misma base otra vez: ya estaban.
+    expect(await d().crearLote(L, "Otra vez", BASE, { incluir_descartados: false }, null, "Mati")).toEqual({ error: "Ninguna fila entra: todas están repetidas o excluidas (mirá la vista previa)." });
+
+    const [caro] = await d().contactos(L, { etapa: "por_revisar" });
+    expect(caro).toMatchObject({ nombre: "Caro", telefono: null, motivo: "falta el código de área" });
+    expect(await d().corregirTelefono(caro.id, "4567-8901")).toEqual({ error: "Ese teléfono no sirve: falta el código de área." });
+    expect(await d().corregirTelefono(caro.id, "011 15 1111-1111")).toEqual({ error: "Ese teléfono ya está cargado en esta línea." });
+    expect(await d().corregirTelefono(caro.id, "0221 15 444-4444")).toMatchObject({ contacto: { telefono: "5492214444444", etapa: "por_contactar" } });
+    expect((await d().contactos(L, { buscar: "4444" })).map((c) => c.nombre)).toEqual(["Caro"]);
+  });
+
+  it("la cola: tomar, confirmar una sola vez, la pausa, el seguimiento y el tope", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+
+    // La más reciente primero (Beto consultó en 2025).
+    const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t)) throw new Error(JSON.stringify(t));
+    expect(t.tarjeta).toMatchObject({ paso: 0, contacto: { nombre: "Beto", telefono: "5491122222222" } });
+    expect(t.tarjeta.texto).toMatch(/^(Hola|¡Hola!?) Beto/);
+    expect(t.tarjeta.whatsapp_web).toContain("web.whatsapp.com/send?phone=5491122222222&text=");
+
+    // Mientras Facu la tiene, Axel espera; Facu, si recarga, recibe la misma.
+    const otro = await d().tomar(L, { modo: "computer_use", por: "Axel" }, lunes);
+    expect(otro).toMatchObject({ espera: { motivo: "ocupada", por: "Facu" } });
+    const deNuevo = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    expect("tarjeta" in deNuevo && deNuevo.tarjeta.clave).toBe(t.tarjeta.clave);
+
+    // Confirmar dos veces cuenta una.
+    const c1 = await d().confirmar(t.tarjeta.contacto.id, { clave: t.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes);
+    const c2 = await d().confirmar(t.tarjeta.contacto.id, { clave: t.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes);
+    expect(c1).toMatchObject({ ok: true, ya_estaba: false, contacto: { etapa: "saludado", mensajes: 1, proxima_accion: ba("2026-11-18T00:00").toISOString() } });
+    expect(c2).toMatchObject({ ok: true, ya_estaba: true });
+    expect((await pool.query("select count(*)::int as n from outreach_eventos where tipo = 'envio'")).rows[0].n).toBe(1);
+    expect(await d().confirmar(t.tarjeta.contacto.id, { clave: "otra", modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes)).toEqual({
+      error: "Ese envío no es el que estaba tomado. Volvé a la cola y tomalo de nuevo.",
+    });
+
+    // Pausa entre mensajes (computer use: de 45 a 90 segundos).
+    expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, new Date(lunes.getTime() + 30_000))).toMatchObject({ espera: { motivo: "pausa" } });
+    const mas2 = new Date(lunes.getTime() + 120_000);
+    const t2 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, mas2);
+    if (!("tarjeta" in t2)) throw new Error(JSON.stringify(t2));
+    expect(t2.tarjeta.contacto.nombre).toBe("Ana Gómez");
+    expect(t2.tarjeta.texto).toContain("Ana");
+    await d().confirmar(t2.tarjeta.contacto.id, { clave: t2.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "persona" }, mas2);
+
+    const mas4 = new Date(lunes.getTime() + 240_000);
+    const t3 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, mas4);
+    if (!("tarjeta" in t3)) throw new Error(JSON.stringify(t3));
+    await d().confirmar(t3.tarjeta.contacto.id, { clave: t3.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "persona" }, mas4);
+
+    // Tope de 3: el cuarto espera a mañana. El miércoles, el seguimiento de Beto ya toca.
+    expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, new Date(lunes.getTime() + 360_000))).toMatchObject({ espera: { motivo: "tope", tope: 3 } });
+    expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, ba("2026-11-17T11:00"))).toEqual({ vacia: true });
+    const mie = await d().tomar(L, { modo: "computer_use", por: "Facu" }, ba("2026-11-18T11:00"));
+    expect("tarjeta" in mie && mie.tarjeta).toMatchObject({ paso: 1, contacto: { nombre: "Beto" } });
+    if (!("tarjeta" in mie)) return;
+    await d().confirmar(mie.tarjeta.contacto.id, { clave: mie.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, ba("2026-11-18T11:00"));
+    // Con 2 mensajes sin respuesta (el máximo de fábrica), no hay más.
+    const [beto] = await d().contactos(L, { buscar: "Beto" });
+    expect(beto).toMatchObject({ mensajes: 2, proxima_accion: null });
+  });
+
+  it("fuera de horario, «Mandar igual» y el borrador", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, ba("2026-11-16T14:00"))).toMatchObject({ espera: { motivo: "fuera_de_horario" } });
+    await d().mandarIgualHoy(L, "Axel", ba("2026-11-16T14:00"));
+    expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, ba("2026-11-16T14:00"))).toHaveProperty("tarjeta");
+    await d().guardarConfig(L, F, "Axel");
+    const e = await d().estado(L, ba("2026-11-17T11:00"), "Facu");
+    expect(e.puede.computer_use).toMatchObject({ motivo: "borrador" });
+    expect(e.en_cola).toBe(3);
+  });
+
+  it("las fallas seguidas frenan la línea hasta que alguien la revisa", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+    const t1 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t1)) throw new Error("sin tarjeta");
+    expect(await d().fallo(t1.tarjeta.contacto.id, { clave: t1.tarjeta.clave, falla: "sin_whatsapp", modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes)).toEqual({ ok: true, frenada: false });
+    const t2 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t2)) throw new Error("sin tarjeta");
+    expect(t2.tarjeta.contacto.id).not.toBe(t1.tarjeta.contacto.id);
+    expect(await d().fallo(t2.tarjeta.contacto.id, { clave: t2.tarjeta.clave, falla: "no_salio", modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes)).toEqual({ ok: true, frenada: true });
+    expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes)).toMatchObject({ espera: { motivo: "frenada" } });
+    const [invalido] = await d().contactos(L, { etapa: "invalido" });
+    expect(invalido).toMatchObject({ id: t1.tarjeta.contacto.id, tiene_whatsapp: false, motivo: "no tiene WhatsApp" });
+
+    await d().seguir(L, "Axel");
+    // El que no salió vuelve al día hábil siguiente: hoy sigue el tercero.
+    const t3 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    expect("tarjeta" in t3 && [t1.tarjeta.contacto.id, t2.tarjeta.contacto.id].includes(t3.tarjeta.contacto.id)).toBe(false);
+    const cola = await d().cola(L, ba("2026-11-17T11:00"));
+    expect(cola.map((c) => c.id)).toContain(t2.tarjeta.contacto.id);
+    expect(cola.map((c) => c.id)).not.toContain(t1.tarjeta.contacto.id);
+  });
+
+  it("saltar, soltar y la baja por teléfono", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+    const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t)) throw new Error("sin tarjeta");
+    expect(await d().saltar(t.tarjeta.contacto.id, "Facu", lunes)).toBe(true);
+    const t2 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    expect("tarjeta" in t2 && t2.tarjeta.contacto.id).not.toBe(t.tarjeta.contacto.id);
+    if (!("tarjeta" in t2)) return;
+    expect(await d().soltar(t2.tarjeta.contacto.id, "Axel")).toBe(false);
+    expect(await d().soltar(t2.tarjeta.contacto.id, "Facu")).toBe(true);
+
+    await d().baja("+54 9 11 1111-1111", { linea: "linea-3", origen: "pidió por WhatsApp" });
+    const cola = await d().cola(L, ba("2026-11-17T11:00"));
+    expect(cola.map((c) => c.nombre).sort()).toEqual(["Beto", "Dani"]);
+    expect((await d().contactos(L, { etapa: "baja" })).map((c) => c.nombre)).toEqual(["Ana Gómez"]);
+  });
+
+  it("el tope sube después de una semana sin frenos", async () => {
+    await pool.query("insert into outreach_estado (linea, tope, tope_desde) values ($1, 3, '2026-11-09')", [L]);
+    const e = await d().estado(L, ba("2026-11-16T11:00"), "Facu");
+    expect(e.tope).toBe(8);
+    expect((await pool.query("select detalle from outreach_eventos where tipo = 'tope'")).rows).toEqual([{ detalle: "El tope sube a 8 por día." }]);
+  });
+
+  it("borrar un lote borra sus contactos y deja los envíos sin datos personales", async () => {
+    const r = await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    if (!("lote" in r)) throw new Error(r.error);
+    const lunes = ba("2026-11-16T11:00");
+    const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t)) throw new Error("sin tarjeta");
+    await d().confirmar(t.tarjeta.contacto.id, { clave: t.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes);
+    expect(await d().borrarLote(r.lote)).toBe(true);
+    expect(await d().contactos(L, {})).toEqual([]);
+    expect((await pool.query("select contacto, lote, tipo from outreach_eventos")).rows).toEqual([{ contacto: null, lote: String(r.lote), tipo: "envio" }]);
+  });
+});

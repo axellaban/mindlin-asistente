@@ -212,6 +212,29 @@ Devuelve `{ "mensaje": { "id", "conversacion", "rol": "persona", "texto", "fecha
 
 Cada respuesta trae la lista actualizada y `hecho`. 404 si el mensaje no es una respuesta del asistente.
 
+## Outreach frío: `/api/hub/outreach/…` (desde el 16/11)
+
+La línea 1 le escribe primero a las bases viejas de Mindlin ([`outreach.md`](outreach.md)). **Los cuidados los hace cumplir el asistente en cada pedido** (tope, franjas, pausas, freno, baja, uno a la vez por línea): la pantalla solo pregunta. Solo para líneas de tipo `outreach_frio`.
+
+| Pedido | Qué hace |
+| --- | --- |
+| `GET outreach/{línea}` | `{ estado, lotes }`. `estado.config` (los cuidados y los textos), `tope`, `enviados_hoy`, `en_cola`, `etapas`, `frenado` y `puede.waha` / `puede.computer_use`: `{ ok: true }` o `{ motivo, texto }` (borrador, pausada, frenada, fuera_de_horario con `abre`, tope, pausa con `hasta`, ocupada con `por`, modo) |
+| `PUT outreach/{línea}/config` | Cambia lo que viene (lo demás queda). Valida: tope de 1 a 200, pausas mínimas (60 s WAHA, 30 s computer use), franjas solo de 9 a 20, de 1 a 3 mensajes sin respuesta, hasta 5 variantes por texto, saludo sin links, variables `{nombre}`, `{proyecto}`, `{proyecto_en}`, excluidos con teléfono válido. Hasta `textos_revisados: true` no sale nada |
+| `POST outreach/{línea}/vista-previa` | `{ texto, incluir_descartados }`: lo pegado de una planilla o un CSV. Devuelve `columnas` (qué título se usó para cada dato), `otras`, `totales` (`entra`, `por_revisar`, `repetido`, `excluido`), `filas` (hasta 500, con `estado` y `motivo`) y `crm_conectado`. No guarda nada |
+| `POST outreach/{línea}/lotes` | `{ nombre, texto, incluir_descartados }`: guarda la base. Entran los que pasan los cruces; los teléfonos dudosos quedan `por_revisar`. 201 con `{ lote, totales, guardados, lotes }` |
+| `PATCH outreach/lotes/{id}` / `DELETE outreach/lotes/{id}` | `{ pausado }` / borrar la base con sus contactos (los envíos quedan, sin el contacto) |
+| `POST outreach/{línea}/contactos` | `{ lote?, etapa?, buscar?, limite? }` (buscar: nombre, proyecto o 3 o más cifras del teléfono) |
+| `PUT outreach/contactos/{id}/telefono` | `{ telefono }`: corregir uno «por revisar» |
+| `GET outreach/{línea}/cola` | Los próximos 20, sin tomarlos |
+| `POST outreach/{línea}/tomar` | `{ modo: "waha" \| "computer_use", contacto? }`. Toma el siguiente por 10 minutos: `{ tarjeta: { contacto, paso, texto, version, clave, hasta, whatsapp_web, whatsapp_celular } }`, `{ espera: { motivo, texto, … } }` o `{ vacia: true }`. Si quien pide ya tenía uno, devuelve el mismo |
+| `POST outreach/contactos/{id}/confirmar` | `{ clave, modo, ejecutor: "persona" \| "bot" }`: salió. Con la misma clave cuenta una vez (`ya_estaba: true`). Agenda el seguimiento y la pausa |
+| `POST outreach/contactos/{id}/fallo` | `{ clave, falla: "no_salio" \| "sin_whatsapp" \| "numero_incorrecto", modo, ejecutor }`. Las fallas seguidas frenan la línea (`frenada: true`) |
+| `POST outreach/contactos/{id}/soltar` / `saltar` | Soltarlo sin mandar / dejarlo para dentro de 4 horas |
+| `POST outreach/{línea}/seguir` | Sacar el freno |
+| `POST outreach/{línea}/mandar-igual` | Fuera de franja, solo hoy (el tope y las pausas siguen) |
+
+Quién hizo cada cosa sale de `X-Hub-Usuario`. `ejecutor: "bot"` es para la pestaña del agente (computer use). En `GET /config`, `opciones.outreach` trae los cuidados de fábrica, los límites y las variables.
+
 ## Lo que la API no hace (todavía)
 
 - No manda archivos: fotos, audios y PDF se mandan desde Chatwoot.

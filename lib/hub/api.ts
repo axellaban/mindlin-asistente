@@ -46,6 +46,9 @@ import { CORRIDA, HORARIO, MAX_PASOS, VARIABLES } from "../seguimientos/reglas";
 import { TOPE_POR_CORRIDA } from "../seguimientos/correr";
 import type { ReglaSeguimiento } from "../datos/tipos";
 import type { Chequeo } from "../chequeo";
+import type { DatosOutreach } from "../outreach/datos";
+import { manejarOutreach } from "../outreach/api";
+import { CONFIG_OUTREACH_DE_FABRICA, LIMITES_OUTREACH } from "../outreach/reglas";
 
 export interface PedidoHub {
   metodo: string;
@@ -75,6 +78,10 @@ export interface DependenciasHub {
   adjuntos?: LectorDeAdjuntos | null;
   /** Los contactos del CRM, para medir qué vende (lib/resultados.ts). Null si el CRM no está conectado. */
   contactosCRM?: (() => Promise<ContactoCRM[]>) | null;
+  /** El outreach frío (lib/outreach/datos.ts). Null si falta la base. */
+  outreach?: DatosOutreach | null;
+  /** El reloj (en las pruebas, uno fijo). */
+  ahora?: () => Date;
 }
 
 /** El largo máximo de un mensaje que se manda desde el hub (WhatsApp acepta más, pero así se lee). */
@@ -166,6 +173,8 @@ export const OPCIONES = {
   max_archivo_bytes: MAX_ARCHIVO_BYTES,
   /** Las campañas: el largo del nombre (queda como etiqueta en el CRM) y de las frases. */
   limites_campania: { nombre: MAX_NOMBRE_CAMPANIA, frase_min: MIN_FRASE, frase_max: MAX_FRASE, frases: MAX_FRASES },
+  /** El outreach frío (docs/outreach.md): los cuidados de fábrica y sus límites. */
+  outreach: { de_fabrica: CONFIG_OUTREACH_DE_FABRICA, limites: LIMITES_OUTREACH, variables: ["{nombre}", "{proyecto}", "{proyecto_en}"] },
 } as const;
 
 export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<RespuestaHub> {
@@ -176,9 +185,18 @@ export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<Resp
 
   const por = limpiarNombre(p.usuario ?? "") || "Hub";
   const [recurso, id, ...resto] = p.ruta;
-  if (resto.length) return error(404, "Esa dirección no existe.");
   const cuerpo: Objeto = esObjeto(p.cuerpo) ? p.cuerpo : {};
   const metodo = p.metodo.toUpperCase();
+  if (recurso === "outreach") {
+    // El outreach frío de la línea 1 (docs/outreach.md): tiene sus propias direcciones, más largas.
+    if (!d.outreach) return error(503, "Falta la base de datos (DATABASE_URL) en Vercel.");
+    try {
+      return await manejarOutreach(p.ruta.slice(1), metodo, cuerpo, por, { outreach: d.outreach, linea: (l) => datos.linea(l), contactosCRM: d.contactosCRM ?? null, ahora: d.ahora ?? (() => new Date()) });
+    } catch (e) {
+      return error(500, `No se pudo completar: ${(e instanceof Error ? e.message : String(e)).slice(0, 300)}`);
+    }
+  }
+  if (resto.length) return error(404, "Esa dirección no existe.");
   const noSePuede = () => error(405, `No se puede hacer ${metodo} en /${p.ruta.join("/")}.`);
 
   try {
