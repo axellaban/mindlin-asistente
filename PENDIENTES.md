@@ -120,7 +120,9 @@ Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads vi
 
 - [x] Diseño y la excepción a la regla, anotada en `AGENTS.md`. — Claude, 16/11
 - [x] 1. Asistente: migración (`outreach_*` y `bajas` por teléfono), cargar la base (vista previa, teléfonos argentinos, repetidos, cruce con el CRM, las bajas y las conversaciones en curso), la cola con la toma de 10 minutos, confirmar o «no salió» sin contar dos veces, los cuidados que hace cumplir el servidor y la API para el hub (`docs/api-hub.md`, «Outreach frío»). Falta conectar el webhook a la tabla `bajas` (paso 3). — Claude, 16/11
-- [ ] 2. Hub, línea 1: Prospectos, Secuencia (textos, versiones y cuidados) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). — Claude
+- [x] Puntaje de las bases (0 a 100, pesos configurables, 15 % al azar, aprendizajes), en el asistente. Las pantallas, en el paso 2. — Claude, 16/11
+- [ ] 2. Hub, línea 1: Resumen, Prospectos (con el puntaje y los aprendizajes), Secuencia (textos, versiones, cuidados y pesos del puntaje) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). En el repo del hub. — Otra IA (16/11, en paralelo)
+- [ ] Hub: el scoring del CRM se puede configurar aunque el CRM esté en la planilla (pestaña «CRM Config»). En el repo del hub. — Otra IA (16/11, en paralelo)
 - [ ] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo»), respuestas automáticas, baja por teléfono, alta en el CRM de quien responde, qué pasa después (equipo, flujo o IA) y la bandeja «Responder». — Claude
 - [ ] 4. WAHA nativo: verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno si la sesión se cae. Antes: probar en la línea de prueba cómo sale un primer mensaje y que la respuesta entre a la bandeja de la línea 1. — Claude con Panel
 - [ ] QA con 5 números del equipo, en los dos modos, antes de la primera tanda real (lista en `docs/outreach.md`). — Claude y Panel con Axel

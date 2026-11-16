@@ -7,6 +7,8 @@
  * - POST   outreach/<línea>/lotes            { nombre, texto, incluir_descartados } cargar una base
  * - POST   outreach/<línea>/contactos        { lote?, etapa?, buscar?, limite? } buscar en las bases
  * - GET    outreach/<línea>/cola             los próximos (no toma a nadie)
+ * - GET    outreach/<línea>/aprendizajes     qué responde mejor, por variable del puntaje y por franja
+ * - POST   outreach/<línea>/recalcular       volver a calcular los puntajes (después de prender o apagar una ficha)
  * - POST   outreach/<línea>/tomar            { modo, contacto? } el siguiente, por 10 minutos, con el texto
  * - POST   outreach/<línea>/seguir           sacar el freno
  * - POST   outreach/<línea>/mandar-igual     fuera de franja, solo hoy
@@ -137,6 +139,14 @@ async function manejarLinea(linea: string, accion: string, metodo: string, cuerp
       });
       return res(200, { contactos });
     }
+    case "recalcular":
+      // Por ejemplo, después de prender o apagar una ficha (el proyecto suma distinto).
+      if (metodo !== "POST") return noSePuede();
+      await o.recalcular(linea, d.ahora());
+      return res(200, { estado: await o.estado(linea, d.ahora(), por) });
+    case "aprendizajes":
+      if (metodo !== "GET") return noSePuede();
+      return res(200, await o.aprendizajes(linea));
     case "cola":
       if (metodo !== "GET") return noSePuede();
       return res(200, { cola: await o.cola(linea, d.ahora()) });

@@ -32,7 +32,8 @@ const crm = (telefono: string, etapa: string): ContactoCRM =>
 
 describe.skipIf(!url)("outreach (Postgres real)", () => {
   let pool: pg.Pool;
-  const d = () => datosOutreach(pool);
+  // Sin azar: la cola sale siempre por puntaje (la parte al azar se prueba aparte).
+  const d = () => datosOutreach(pool, { azar: () => 1 });
 
   beforeAll(async () => {
     const admin = new pg.Client({ connectionString: url });
@@ -76,12 +77,15 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
     const lunes = ba("2026-11-16T11:00");
 
-    // La más reciente primero (Beto consultó en 2025).
+    // Por puntaje: Ana consultó por Lerma 439 (ficha activa) y con nombre (32); Beto, solo más reciente (14).
+    const cola = await d().cola(L, lunes);
+    expect(cola.map((c) => [c.nombre, c.puntaje])).toEqual([["Ana Gómez", 32], ["Beto", 14], ["Dani", 10]]);
+    expect(cola[0].puntaje_detalle.find((p) => p.variable === "proyecto")).toEqual({ variable: "proyecto", valor: "con ficha activa", puntos: 20 });
     const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
     if (!("tarjeta" in t)) throw new Error(JSON.stringify(t));
-    expect(t.tarjeta).toMatchObject({ paso: 0, contacto: { nombre: "Beto", telefono: "5491122222222" } });
-    expect(t.tarjeta.texto).toMatch(/^(Hola|¡Hola!?) Beto/);
-    expect(t.tarjeta.whatsapp_web).toContain("web.whatsapp.com/send?phone=5491122222222&text=");
+    expect(t.tarjeta).toMatchObject({ paso: 0, contacto: { nombre: "Ana Gómez", telefono: "5491111111111" } });
+    expect(t.tarjeta.texto).toMatch(/^(Hola|¡Hola!?) Ana/);
+    expect(t.tarjeta.whatsapp_web).toContain("web.whatsapp.com/send?phone=5491111111111&text=");
 
     // Mientras Facu la tiene, Axel espera; Facu, si recarga, recibe la misma.
     const otro = await d().tomar(L, { modo: "computer_use", por: "Axel" }, lunes);
@@ -104,8 +108,8 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     const mas2 = new Date(lunes.getTime() + 120_000);
     const t2 = await d().tomar(L, { modo: "computer_use", por: "Facu" }, mas2);
     if (!("tarjeta" in t2)) throw new Error(JSON.stringify(t2));
-    expect(t2.tarjeta.contacto.nombre).toBe("Ana Gómez");
-    expect(t2.tarjeta.texto).toContain("Ana");
+    expect(t2.tarjeta.contacto.nombre).toBe("Beto");
+    expect(t2.tarjeta.texto).toContain("Beto");
     await d().confirmar(t2.tarjeta.contacto.id, { clave: t2.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "persona" }, mas2);
 
     const mas4 = new Date(lunes.getTime() + 240_000);
@@ -117,12 +121,12 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, new Date(lunes.getTime() + 360_000))).toMatchObject({ espera: { motivo: "tope", tope: 3 } });
     expect(await d().tomar(L, { modo: "computer_use", por: "Facu" }, ba("2026-11-17T11:00"))).toEqual({ vacia: true });
     const mie = await d().tomar(L, { modo: "computer_use", por: "Facu" }, ba("2026-11-18T11:00"));
-    expect("tarjeta" in mie && mie.tarjeta).toMatchObject({ paso: 1, contacto: { nombre: "Beto" } });
+    expect("tarjeta" in mie && mie.tarjeta).toMatchObject({ paso: 1, contacto: { nombre: "Ana Gómez" } });
     if (!("tarjeta" in mie)) return;
     await d().confirmar(mie.tarjeta.contacto.id, { clave: mie.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, ba("2026-11-18T11:00"));
     // Con 2 mensajes sin respuesta (el máximo de fábrica), no hay más.
-    const [beto] = await d().contactos(L, { buscar: "Beto" });
-    expect(beto).toMatchObject({ mensajes: 2, proxima_accion: null });
+    const [ana] = await d().contactos(L, { buscar: "Ana" });
+    expect(ana).toMatchObject({ mensajes: 2, proxima_accion: null });
   });
 
   it("fuera de horario, «Mandar igual» y el borrador", async () => {
@@ -175,6 +179,29 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     const cola = await d().cola(L, ba("2026-11-17T11:00"));
     expect(cola.map((c) => c.nombre).sort()).toEqual(["Beto", "Dani"]);
     expect((await d().contactos(L, { etapa: "baja" })).map((c) => c.nombre)).toEqual(["Ana Gómez"]);
+  });
+
+  it("una parte sale al azar, queda marcada y cuenta en los aprendizajes", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+    const conAzar = datosOutreach(pool, { azar: () => 0 });
+    const t = await conAzar.tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
+    if (!("tarjeta" in t)) throw new Error("sin tarjeta");
+    await conAzar.confirmar(t.tarjeta.contacto.id, { clave: t.tarjeta.clave, modo: "computer_use", por: "Facu", ejecutor: "bot" }, lunes);
+    expect((await pool.query("select al_azar from outreach_eventos where tipo = 'envio'")).rows).toEqual([{ al_azar: true }]);
+    await pool.query("update outreach_contactos set respondio = now() where id = $1", [t.tarjeta.contacto.id]);
+    const a = await d().aprendizajes(L);
+    expect(a.contactados).toBe(1);
+    expect(a.al_azar.length).toBeGreaterThan(0);
+    expect(a.todos.find((x) => x.variable === "antiguedad")).toMatchObject({ contactados: 1, respondieron: 1, tasa: 1, muestra_chica: true });
+    expect(a.por_puntaje.reduce((n, f) => n + f.contactados, 0)).toBe(1);
+  });
+
+  it("cambiar los pesos recalcula los puntajes", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const cfg = await d().config(L);
+    await d().guardarConfig(L, { ...cfg, puntaje: { ...cfg.puntaje, proyecto: { activo: 0, apagado: 0 } } }, "Axel");
+    expect((await d().cola(L, ba("2026-11-16T11:00"))).map((c) => [c.nombre, c.puntaje])).toEqual([["Beto", 14], ["Ana Gómez", 12], ["Dani", 10]]);
   });
 
   it("el tope sube después de una semana sin frenos", async () => {

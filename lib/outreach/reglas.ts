@@ -7,6 +7,7 @@
  */
 
 import { normalizarTelefono } from "./telefono";
+import { EXPLORACION_DE_FABRICA, PESOS_DE_FABRICA, validarPesos, type PesosPuntaje } from "./puntaje";
 
 /** Una franja de envío, en hora de Buenos Aires. Días: 0 domingo … 6 sábado. Horas «HH:MM». */
 export interface Franja {
@@ -44,6 +45,10 @@ export interface ConfigOutreach {
   excluidos: string[];
   /** Cuántos «no salió» o números inválidos seguidos frenan la línea. */
   freno_fallas: number;
+  /** Cuánto suma cada cosa en el puntaje de cada persona (lib/outreach/puntaje.ts). */
+  puntaje: PesosPuntaje;
+  /** Qué porcentaje de los nuevos sale al azar y no por puntaje (para medir si el puntaje acierta). */
+  exploracion: number;
 }
 
 export const LIMITES_OUTREACH = {
@@ -88,6 +93,8 @@ export const CONFIG_OUTREACH_DE_FABRICA: ConfigOutreach = {
   textos_revisados: false,
   excluidos: [],
   freno_fallas: 3,
+  puntaje: PESOS_DE_FABRICA,
+  exploracion: EXPLORACION_DE_FABRICA,
 };
 
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$|^24:00$/;
@@ -180,6 +187,12 @@ export function validarConfigOutreach(x: unknown): { config: ConfigOutreach } | 
   if (excluidos.length > LIMITES_OUTREACH.excluidos) return { error: `Excluidos: como mucho ${LIMITES_OUTREACH.excluidos}.` };
   c.excluidos = [...new Set(excluidos)];
   c.textos_revisados = o.textos_revisados === true;
+  const pesos = validarPesos(o.puntaje);
+  if ("error" in pesos) return { error: pesos.error };
+  c.puntaje = pesos.pesos;
+  const exploracion = entero(o.exploracion, [0, 50], "Al azar");
+  if (typeof exploracion === "string") return { error: exploracion };
+  c.exploracion = exploracion;
   if (!c.modos!.waha && !c.modos!.computer_use) return { error: "Modos: elegí al menos uno (WAHA nativo o computer use)." };
   return { config: c as ConfigOutreach };
 }
