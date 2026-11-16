@@ -281,5 +281,12 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     expect(await a.archivo(999)).toBeNull();
     await a.registrar({ tipo: "flujo", conversacion: 61, detalle: "Arrancó el flujo «x»." });
   });
+  it("la baja se puede anotar en el registro y bloquea el teléfono para todas las líneas", async () => {
+    const a = crearAlmacen(pool);
+    await a.guardarConversacion({ chatwoot_id: 4242, telefono: "+5491144440000", linea: "linea-3" });
+    expect(await a.pidioBaja(4242, "2026-11-16T14:00:00.000Z")).toBe(true);
+    await a.registrar({ tipo: "pidio_baja", conversacion: 4242, detalle: "Pidió que no le escriban más." });
+    expect((await pool.query("select telefono, linea from bajas where telefono = '5491144440000'")).rows).toEqual([{ telefono: "5491144440000", linea: "linea-3" }]);
+  });
 });
 

@@ -232,8 +232,12 @@ La línea 1 le escribe primero a las bases viejas de Mindlin ([`outreach.md`](ou
 | `POST outreach/contactos/{id}/confirmar` | `{ clave, modo, ejecutor: "persona" \| "bot" }`: salió. Con la misma clave cuenta una vez (`ya_estaba: true`). Agenda el seguimiento y la pausa |
 | `POST outreach/contactos/{id}/fallo` | `{ clave, falla: "no_salio" \| "sin_whatsapp" \| "numero_incorrecto", modo, ejecutor }`. Las fallas seguidas frenan la línea (`frenada: true`) |
 | `POST outreach/contactos/{id}/soltar` / `saltar` | Soltarlo sin mandar / dejarlo para dentro de 4 horas |
+| `GET outreach/{línea}/respuestas` | La bandeja «Responder»: quienes respondieron (etapa `respondio` o `interesado`), con `lote_nombre`, `conversacion` (para «Abrir en Chatwoot» o responder con `POST responder/{conversación}`), `ultimo_mensaje` y `ultimo_mensaje_fecha` |
+| `POST outreach/contactos/{id}/marcar` | `{ etapa: "interesado" \| "cerrado" }`: cómo siguió (solo los que respondieron) |
 | `POST outreach/{línea}/seguir` | Sacar el freno |
 | `POST outreach/{línea}/mandar-igual` | Fuera de franja, solo hoy (el tope y las pausas siguen) |
+
+**Al responder** (`config.al_responder`): `"equipo"` (de fábrica: nota, conversación abierta y aviso en el hub) o `"ia"` (la atiende el asistente con las fichas y las instrucciones de la línea). Las respuestas llegan por el webhook: ver [`outreach.md`](outreach.md), «Las respuestas».
 
 **Puntaje** (desde el 16/11): cada contacto trae `puntaje` (0 a 100), `puntaje_detalle` (`[{ variable, valor, puntos }]`) y `crm_etapa`. Los pesos van en `config.puntaje` (`antiguedad`, `proyecto`, `crm`, `origenes`, `datos`, `whatsapp`; cada valor de 0 a 50) y `config.exploracion` (de 0 a 50: el % de los nuevos que sale al azar). Cambiar los pesos recalcula todo. En `opciones.outreach.variables_puntaje`, el nombre de cada variable.
 

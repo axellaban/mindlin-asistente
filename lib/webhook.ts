@@ -4,11 +4,12 @@
  * Chatwoot espera la respuesta solo 5 segundos.
  */
 
-import { type Accion, accionPara, mensajeParaHistorial } from "./chatwoot/evento";
+import { type Accion, accionPara, contactoDe, mensajeParaHistorial, type EventoChatwoot } from "./chatwoot/evento";
 import { firmaValida } from "./chatwoot/firma";
 import type { Conexiones } from "./servicios";
 import { atender, laTomoUnaPersona, pasarPorPausa, type Servicios } from "./agente/servicio";
-import { lineaDeBandeja, notaLineaSinAsistente } from "./lineas";
+import { lineaDeBandeja, notaLineaSinAsistente, type Linea } from "./lineas";
+import { mensajeDeOutreach } from "./outreach/webhook";
 
 export interface Salida {
   status: number;
@@ -39,7 +40,7 @@ export async function manejarWebhook(
     return { status: 400, json: { error: "El cuerpo no es JSON." } };
   }
 
-  const { almacen, chatwoot, modelo, crm, transcribir = null, avisarAlEquipo = null } = conexiones;
+  const { almacen, chatwoot, modelo, crm, transcribir = null, avisarAlEquipo = null, outreach = null } = conexiones;
   const mensaje = mensajeParaHistorial(evento);
   const accion: Accion = accionPara(evento);
 
@@ -52,6 +53,24 @@ export async function manejarWebhook(
     } catch (e) {
       // Con 500, Chatwoot reintenta el aviso.
       return { status: 500, json: { error: `No se pudo guardar el mensaje: ${e instanceof Error ? e.message : String(e)}` } };
+    }
+  }
+
+  // La línea de outreach (docs/outreach.md): lo que sale y lo que contesta la base se maneja aparte,
+  // esté como esté la conversación. Si la línea atiende con la IA, sigue como una línea de leads.
+  let lineaElegida: Linea | null = null;
+  if (mensaje && almacen && outreach) {
+    const bandeja = (evento as EventoChatwoot).inbox?.id ?? null;
+    const deOutreach = bandeja == null ? null : ((await almacen.lineas().catch(() => [])).find((l) => l.bandeja === bandeja && l.tipo === "outreach_frio") ?? null);
+    if (deOutreach) {
+      try {
+        const d = await mensajeDeOutreach({ outreach, almacen, chatwoot, crm, avisarAlEquipo }, deOutreach, mensaje, contactoDe(evento as EventoChatwoot), accion);
+        if (d.fin) return { status: 200, json: d.json, tarea: d.tarea };
+        lineaElegida = d.linea;
+      } catch (e) {
+        // Con 500, Chatwoot reintenta (la respuesta no se anota dos veces).
+        return { status: 500, json: { error: `No se pudo anotar la respuesta del outreach: ${e instanceof Error ? e.message : String(e)}` } };
+      }
     }
   }
 
@@ -97,7 +116,7 @@ export async function manejarWebhook(
 
   // La línea, por la bandeja del aviso. Si no se puede saber (falla la base), se atiende como antes.
   const lineas = await almacen.lineas().catch(() => []);
-  const linea = lineas.length ? lineaDeBandeja(lineas, accion.bandeja) : null;
+  const linea = lineaElegida ?? (lineas.length ? lineaDeBandeja(lineas, accion.bandeja) : null);
   // Una bandeja que no es de ninguna línea, o una línea que no es de leads (outreach, la del equipo):
   // el asistente de ventas no contesta ahí.
   if (lineas.length && (!linea || linea.tipo !== "entrada")) {

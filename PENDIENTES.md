@@ -123,7 +123,9 @@ Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads vi
 - [x] Puntaje de las bases (0 a 100, pesos configurables, 15 % al azar, aprendizajes), en el asistente. Las pantallas, en el paso 2. — Claude, 16/11
 - [ ] 2. Hub, línea 1: Resumen, Prospectos (con el puntaje y los aprendizajes), Secuencia (textos, versiones, cuidados y pesos del puntaje) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). En el repo del hub. — Otra IA (16/11, en paralelo)
 - [ ] Hub: el scoring del CRM se puede configurar aunque el CRM esté en la planilla (pestaña «CRM Config»). En el repo del hub. — Otra IA (16/11, en paralelo)
-- [ ] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo»), respuestas automáticas, baja por teléfono, alta en el CRM de quien responde, qué pasa después (equipo, flujo o IA) y la bandeja «Responder». — Claude
+- [x] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo» y confirman solos), respuestas automáticas, «no», número equivocado, baja por teléfono (en todas las líneas), alta en el CRM de quien responde, qué pasa después (equipo o IA; un flujo, más adelante) y la API de la bandeja «Responder». — Claude, 16/11
+- [x] Arreglo: el registro no aceptaba «pidio_baja» y el asistente fallaba al anotar una baja en producción (migración `202611160017_registro_baja.sql`). — Claude, 16/11
+- [ ] Hub: la bandeja «Responder» de la línea 1 (`GET outreach/{línea}/respuestas`, «Abrir en Chatwoot», responder desde el hub y marcar interesado o cerrado) y «Al responder» (equipo o IA) en Secuencia. — Otra IA, con el paso 2
 - [ ] 4. WAHA nativo: verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno si la sesión se cae. Antes: probar en la línea de prueba cómo sale un primer mensaje y que la respuesta entre a la bandeja de la línea 1. — Claude con Panel
 - [ ] QA con 5 números del equipo, en los dos modos, antes de la primera tanda real (lista en `docs/outreach.md`). — Claude y Panel con Axel
 - [ ] 5. Embudo contra la meta, resultados por lote y por versión, y la subida gradual del tope. — Claude

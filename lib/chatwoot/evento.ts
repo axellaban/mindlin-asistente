@@ -102,7 +102,7 @@ function esIntegracion(e: EventoChatwoot): boolean {
   return c?.identifier === CONTACTO_INTEGRACION || c?.custom_attributes?.waha_whatsapp_chat_id === CONTACTO_INTEGRACION;
 }
 
-function contactoDe(e: EventoChatwoot): Contacto {
+export function contactoDe(e: EventoChatwoot): Contacto {
   const c = e.conversation?.meta?.sender;
   return { nombre: (c?.name ?? "").trim(), telefono: (c?.phone_number ?? "").replace(/[^\d]/g, "") };
 }
