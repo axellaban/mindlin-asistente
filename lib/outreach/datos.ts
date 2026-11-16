@@ -27,6 +27,7 @@ import {
   type MotivoEspera,
 } from "./reglas";
 import { normalizarTelefono, telefonoParaComparar } from "./telefono";
+import { aprendizajes, puntuar, type Aprendizaje, type Parte } from "./puntaje";
 
 type Db = Pick<pg.Pool, "query" | "connect">;
 type Cliente = Pick<pg.PoolClient, "query">;
@@ -73,6 +74,11 @@ export interface ContactoOutreach {
   tomado_hasta: string | null;
   ultimo_envio: string | null;
   respondio: string | null;
+  /** De 0 a 100 (lib/outreach/puntaje.ts), con lo que sumó cada cosa. */
+  puntaje: number;
+  puntaje_detalle: Parte[];
+  /** La etapa que tenía en el CRM cuando se cargó la base. */
+  crm_etapa: string | null;
 }
 
 /** Lo que necesita quien manda (o el agente): a quién, qué texto y la clave para confirmar. */
@@ -102,7 +108,8 @@ export interface EstadoOutreach extends EstadoLinea {
 }
 
 const COLUMNAS = `c.id, c.lote, c.nombre, c.telefono, c.telefono_original, c.proyecto, c.proyecto_texto, c.fecha_consulta, c.origen, c.notas,
-  c.etapa, c.motivo, c.mensajes, c.proxima_accion, c.tiene_whatsapp, c.tomado_por, c.tomado_hasta, c.ultimo_envio, c.respondio`;
+  c.etapa, c.motivo, c.mensajes, c.proxima_accion, c.tiene_whatsapp, c.tomado_por, c.tomado_hasta, c.ultimo_envio, c.respondio,
+  c.puntaje, c.puntaje_detalle, c.crm_etapa`;
 
 const iso = (x: unknown) => (x == null ? null : x instanceof Date ? x.toISOString() : String(x));
 const fecha = (x: unknown) => (x == null ? null : x instanceof Date ? x.toISOString().slice(0, 10) : String(x).slice(0, 10));
@@ -128,6 +135,9 @@ function contactoDeFila(r: Record<string, unknown>): ContactoOutreach {
     tomado_hasta: iso(r.tomado_hasta),
     ultimo_envio: iso(r.ultimo_envio),
     respondio: iso(r.respondio),
+    puntaje: Number(r.puntaje ?? 0),
+    puntaje_detalle: (r.puntaje_detalle as Parte[] | null) ?? [],
+    crm_etapa: (r.crm_etapa as string | null) ?? null,
   };
 }
 
@@ -155,7 +165,8 @@ async function transaccion<T>(db: Db, f: (c: Cliente) => Promise<T>): Promise<T>
 /** El inicio del día de hoy en Buenos Aires (para contar los envíos del día). */
 const inicioDeHoy = (ahora: Date) => new Date(`${enBuenosAires(ahora).fecha}T03:00:00.000Z`);
 
-export function datosOutreach(db: Db) {
+export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
+  const azar = o.azar ?? Math.random;
   async function config(linea: string, q: Pick<Cliente, "query"> = db): Promise<ConfigOutreach> {
     const { rows } = await q.query("select config from outreach_config where linea = $1", [linea]);
     if (!rows[0]) return CONFIG_OUTREACH_DE_FABRICA;
@@ -224,7 +235,32 @@ export function datosOutreach(db: Db) {
       and c.tiene_whatsapp is not false
       and not (c.telefono = any($4::text[]))
       and not exists (select 1 from bajas b where b.telefono = c.telefono)`;
-  const ORDEN = `order by (c.etapa = 'saludado') desc, c.proxima_accion nulls last, c.fecha_consulta desc nulls last, coalesce(p.activo, false) desc, c.id`;
+  const ORDEN = `order by (c.etapa = 'saludado') desc, c.proxima_accion nulls last, c.puntaje desc, c.fecha_consulta desc nulls last, c.id`;
+
+  /**
+   * Vuelve a calcular el puntaje de los que todavía pueden recibir algo (todos los de la línea, o
+   * los de `ids`). Se llama al cargar una base, al cambiar los pesos y cuando cambia un dato.
+   */
+  async function recalcular(q: Pick<Cliente, "query">, linea: string, ahora: Date, ids?: number[]) {
+    const cfg = await config(linea, q);
+    const activos = new Set<string>((await q.query("select id from proyectos where activo")).rows.map((r) => r.id));
+    const { rows } = await q.query(
+      `select id, nombre, proyecto, proyecto_texto, fecha_consulta, origen, crm_etapa, tiene_whatsapp from outreach_contactos
+       where linea = $1 and etapa in ('por_revisar', 'por_contactar', 'saludado') and ($2::bigint[] is null or id = any($2))`,
+      [linea, ids ?? null],
+    );
+    if (!rows.length) return;
+    const hoy = enBuenosAires(ahora).fecha;
+    const nuevos = rows.map((r) => {
+      const p = puntuar({ ...r, fecha_consulta: fecha(r.fecha_consulta) }, cfg.puntaje, { activos, hoy });
+      return { id: Number(r.id), puntaje: p.puntaje, detalle: JSON.stringify(p.detalle) };
+    });
+    await q.query(
+      `update outreach_contactos c set puntaje = x.puntaje, puntaje_detalle = x.detalle::jsonb
+       from unnest($1::bigint[], $2::smallint[], $3::text[]) as x(id, puntaje, detalle) where c.id = x.id`,
+      [nuevos.map((n) => n.id), nuevos.map((n) => n.puntaje), nuevos.map((n) => n.detalle)],
+    );
+  }
 
   async function tarjeta(q: Cliente, c: ContactoOutreach, cfg: ConfigOutreach, clave: string, hasta: string): Promise<Tarjeta> {
     const p = c.proyecto ? (await q.query("select nombre from proyectos where id = $1", [c.proyecto])).rows[0]?.nombre : null;
@@ -252,7 +288,11 @@ export function datosOutreach(db: Db) {
          on conflict (linea) do update set config = excluded.config, actualizado = now(), actualizado_por = excluded.actualizado_por`,
         [linea, JSON.stringify(c), por],
       );
+      await recalcular(db, linea, new Date());
     },
+
+    /** Recalcula los puntajes (por ejemplo, después de activar o apagar una ficha). */
+    recalcular: (linea: string, ahora: Date) => recalcular(db, linea, ahora),
 
     /** Lo que hace falta para decidir quién entra a la cola (el CRM viene de afuera: es la planilla). */
     async loQueSeSabe(linea: string, crm: ContactoCRM[] | null): Promise<LoQueSeSabe> {
@@ -330,6 +370,7 @@ export function datosOutreach(db: Db) {
         const lote = Number(rows[0].id);
         let guardados = 0;
         for (const f of guardar) guardados += await insertarFila(q, linea, lote, f);
+        await recalcular(q, linea, new Date());
         return { lote, totales: contarFilas(filas), guardados };
       });
     },
@@ -385,11 +426,13 @@ export function datosOutreach(db: Db) {
           `update outreach_contactos c set telefono = $2, etapa = 'por_contactar', motivo = '', tiene_whatsapp = null, actualizado = now()
            where id = $1 and mensajes = 0 and etapa in ('por_revisar', 'por_contactar', 'invalido')
              and not exists (select 1 from bajas b where b.telefono = $2)
-           returning ${COLUMNAS}`,
+           returning ${COLUMNAS}, c.linea`,
           [id, n.telefono],
         );
         if (!rows[0]) return { error: "No se puede cambiar: ya le escribimos, no existe o ese teléfono pidió la baja." };
-        return { contacto: contactoDeFila(rows[0]) };
+        await recalcular(db, String(rows[0].linea ?? ""), new Date(), [id]);
+        const [c] = (await db.query(`select ${COLUMNAS} from outreach_contactos c where c.id = $1`, [id])).rows;
+        return { contacto: contactoDeFila(c) };
       } catch (e) {
         if ((e as { code?: string }).code === "23505") return { error: "Ese teléfono ya está cargado en esta línea." };
         throw e;
@@ -449,14 +492,22 @@ export function datosOutreach(db: Db) {
         }
         const p = puedeTomar(cfg, estado, o.modo, ahora, o.por);
         if (!("ok" in p)) return { espera: { ...p, texto: textoEspera(p) } };
-        const { rows } = await q.query(
-          `select ${COLUMNAS} ${COLA} and ($5::bigint is null or c.id = $5) and (c.tomado_hasta is null or c.tomado_hasta <= $2) ${ORDEN} limit 1 for update of c skip locked`,
-          [linea, ahora, cfg.mensajes_max, cfg.excluidos, o.contacto ?? null],
-        );
+        const libre = `and (c.tomado_hasta is null or c.tomado_hasta <= $2)`;
+        const params = [linea, ahora, cfg.mensajes_max, cfg.excluidos, o.contacto ?? null];
+        let { rows } = await q.query(`select ${COLUMNAS} ${COLA} and ($5::bigint is null or c.id = $5) ${libre} ${ORDEN} limit 1 for update of c skip locked`, params);
         if (!rows[0]) return { vacia: true };
+        // Una parte de los nuevos sale al azar, para medir si el puntaje acierta (no los seguimientos ni uno elegido a mano).
+        let alAzar = false;
+        if (!o.contacto && rows[0].etapa === "por_contactar" && cfg.exploracion > 0 && azar() * 100 < cfg.exploracion) {
+          const otro = await q.query(`select ${COLUMNAS} ${COLA} and c.etapa = 'por_contactar' ${libre} order by random() limit 1 for update of c skip locked`, params.slice(0, 4));
+          if (otro.rows[0]) {
+            rows = otro.rows;
+            alAzar = true;
+          }
+        }
         const clave = randomUUID();
         const hasta = new Date(ahora.getTime() + TOMA_MINUTOS * 60_000);
-        await q.query("update outreach_contactos set tomado_por = $2, tomado_hasta = $3, toma_clave = $4 where id = $1", [rows[0].id, o.por, hasta, clave]);
+        await q.query("update outreach_contactos set tomado_por = $2, tomado_hasta = $3, toma_clave = $4, toma_azar = $5 where id = $1", [rows[0].id, o.por, hasta, clave, alAzar]);
         const c = { ...contactoDeFila(rows[0]), tomado_por: o.por, tomado_hasta: hasta.toISOString() };
         return { tarjeta: await tarjeta(q, c, cfg, clave, hasta.toISOString()) };
       });
@@ -472,7 +523,7 @@ export function datosOutreach(db: Db) {
       ahora: Date,
     ): Promise<{ ok: true; ya_estaba: boolean; contacto: ContactoOutreach } | { error: string }> {
       return transaccion(db, async (q) => {
-        const { rows } = await q.query(`select ${COLUMNAS}, c.linea, c.toma_clave from outreach_contactos c where c.id = $1 for update`, [id]);
+        const { rows } = await q.query(`select ${COLUMNAS}, c.linea, c.toma_clave, c.toma_azar from outreach_contactos c where c.id = $1 for update`, [id]);
         const r = rows[0];
         if (!r) return { error: "Ese contacto ya no existe." };
         const ya = await q.query("select 1 from outreach_eventos where clave = $1", [o.clave]);
@@ -484,14 +535,14 @@ export function datosOutreach(db: Db) {
         const p = r.proyecto ? (await q.query("select nombre from proyectos where id = $1", [r.proyecto])).rows[0]?.nombre : null;
         const { version } = textoDelPaso(cfg, paso, { id, nombre: r.nombre, proyecto_nombre: p ?? null });
         await q.query(
-          `insert into outreach_eventos (linea, contacto, lote, tipo, paso, version, modo, ejecutor, por, clave, creado)
-           values ($1, $2, $3, 'envio', $4, $5, $6, $7, $8, $9, $10)`,
-          [r.linea, id, r.lote, paso, version, o.modo, o.ejecutor, o.por, o.clave, ahora],
+          `insert into outreach_eventos (linea, contacto, lote, tipo, paso, version, modo, ejecutor, por, clave, creado, al_azar)
+           values ($1, $2, $3, 'envio', $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [r.linea, id, r.lote, paso, version, o.modo, o.ejecutor, o.por, o.clave, ahora, r.toma_azar === true],
         );
         const proxima = mensajes < cfg.mensajes_max ? masDiasHabiles(ahora, cfg.dias_seguimiento, cfg.feriados) : null;
         const act = await q.query(
           `update outreach_contactos c set mensajes = $2, etapa = case when etapa = 'por_contactar' then 'saludado' else etapa end,
-             ultimo_envio = $3, proxima_accion = $4, tiene_whatsapp = true, tomado_por = null, tomado_hasta = null, toma_clave = null, actualizado = $3
+             ultimo_envio = $3, proxima_accion = $4, tiene_whatsapp = true, tomado_por = null, tomado_hasta = null, toma_clave = null, toma_azar = false, actualizado = $3
            where id = $1 returning ${COLUMNAS}`,
           [id, mensajes, ahora, proxima],
         );
@@ -578,6 +629,28 @@ export function datosOutreach(db: Db) {
       await db.query("insert into outreach_eventos (linea, tipo, por, detalle) values ($1, 'forzar', $2, 'Mandar igual fuera de franja, solo hoy')", [linea, por]);
     },
 
+    /**
+     * Qué responde mejor: cada variable del puntaje contra cuántos respondieron, de todos los
+     * contactados y solo de los que salieron al azar (lo que mide sin el sesgo del orden). Y la
+     * respuesta por franja de puntaje: si el puntaje acierta, los de arriba responden más.
+     */
+    async aprendizajes(linea: string): Promise<{ todos: Aprendizaje[]; al_azar: Aprendizaje[]; por_puntaje: (Omit<Aprendizaje, "variable" | "valor"> & { franja: string })[]; contactados: number }> {
+      const { rows } = await db.query(
+        `select c.puntaje, c.puntaje_detalle, c.respondio is not null as respondio,
+           coalesce((select e.al_azar from outreach_eventos e where e.contacto = c.id and e.tipo = 'envio' and e.paso = 0 order by e.creado limit 1), false) as al_azar
+         from outreach_contactos c where c.linea = $1 and c.mensajes > 0`,
+        [linea],
+      );
+      const filas = rows.map((r) => ({ detalle: (r.puntaje_detalle ?? []) as Parte[], respondio: r.respondio === true, al_azar: r.al_azar === true, puntaje: Number(r.puntaje) }));
+      const franjas: [string, number, number][] = [["70 a 100", 70, 100], ["40 a 69", 40, 69], ["0 a 39", 0, 39]];
+      const por_puntaje = franjas.map(([franja, min, max]) => {
+        const f = filas.filter((x) => x.puntaje >= min && x.puntaje <= max);
+        const respondieron = f.filter((x) => x.respondio).length;
+        return { franja, contactados: f.length, respondieron, tasa: f.length ? respondieron / f.length : null, muestra_chica: f.length < 30 };
+      });
+      return { todos: aprendizajes(filas), al_azar: aprendizajes(filas.filter((f) => f.al_azar)), por_puntaje, contactados: filas.length };
+    },
+
     /** Pidió la baja (por teléfono, para todas las líneas). Lo usa el webhook (paso 3) y el hub. */
     async baja(telefono: string, o: { linea: string | null; origen: string }): Promise<void> {
       const t = telefonoParaComparar(telefono);
@@ -590,8 +663,8 @@ export function datosOutreach(db: Db) {
 
 async function insertarFila(q: Cliente, linea: string, lote: number, f: FilaRevisada): Promise<number> {
   const { rowCount } = await q.query(
-    `insert into outreach_contactos (lote, linea, nombre, telefono, telefono_original, proyecto, proyecto_texto, fecha_consulta, origen, notas, etapa, motivo)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `insert into outreach_contactos (lote, linea, nombre, telefono, telefono_original, proyecto, proyecto_texto, fecha_consulta, origen, notas, etapa, motivo, crm_etapa)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      on conflict (linea, telefono) where telefono is not null do nothing`,
     [
       lote,
@@ -606,6 +679,7 @@ async function insertarFila(q: Cliente, linea: string, lote: number, f: FilaRevi
       f.notas,
       f.estado === "entra" ? "por_contactar" : "por_revisar",
       f.motivo,
+      f.crm_etapa,
     ],
   );
   return rowCount ?? 0;

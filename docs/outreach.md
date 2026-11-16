@@ -107,7 +107,26 @@ Acá estamos mejor que Turnia, que lee WhatsApp una vez por día. A la línea 1 
   - **Descartado en el CRM:** se excluye de fábrica. Se puede incluir por lote, si la idea es reactivarlos.
 - **Lote:** cada carga es un lote con nombre (por ejemplo, «Leads Kommo 2024»), para medirlos por separado. Un lote se puede pausar o borrar entero.
 - **«Verificar 20 números»** (con WAHA): pregunta si tienen WhatsApp, de a poco, sin mandar nada.
-- **Orden de la cola:** primero los más recientes y los que consultaron por un proyecto que hoy tiene ficha activa. Se puede cambiar a mano.
+- **Orden de la cola: el puntaje** (abajo, «El puntaje»). Se puede elegir a uno a mano.
+
+## El puntaje (16/11)
+
+Idea traída del ranking de prospectos de Chapa Labs (habita.), adaptada a leads viejos de departamentos. Cada persona tiene un puntaje de 0 a 100 que dice a quién conviene escribirle primero. Se ve con el detalle de lo que sumó cada cosa. Los pesos se cambian desde el hub (0 apaga una variable) y, al cambiarlos, se recalcula todo.
+
+| Variable | De fábrica |
+| --- | --- |
+| Hace cuánto consultó | Menos de 6 meses 25 · de 6 a 12 meses 18 · de 1 a 2 años 10 · más 4 · sin fecha 6 |
+| Proyecto | Con ficha activa 20 · con ficha apagada 8 |
+| Hasta dónde llegó en el CRM | Visita o negociación 25 · seguimiento 12 · nuevo 4 |
+| De dónde vino (el origen contiene…) | Referido o recomendación 15 · web 8 · Instagram, Facebook, Meta o Google 6 · portales 4 |
+| Datos | Nombre 4 · proyecto 4 |
+| WhatsApp verificado | 8 |
+
+- **La cola sale por puntaje**, salvo los seguimientos que ya tocan, que van primero.
+- **Un 15 % de los nuevos sale al azar** (configurable, de 0 a 50 %). Sin eso, los de puntaje bajo nunca se contactan y no se puede saber si el puntaje acierta. Queda marcado en cada envío.
+- **Aprendizajes:** cuánto responde cada valor de cada variable, de todos y solo de los que salieron al azar, y por franja de puntaje. Si el puntaje acierta, los de 70 a 100 responden más que los de 0 a 39. Con menos de 30 casos, «muestra chica». No se cambian los pesos solos: decide una persona.
+- **Cuando alguien responde**, entra al CRM y desde ahí manda el scoring del hub (HQ → Comercial → Scoring).
+- Código: `lib/outreach/puntaje.ts` (puro, con pruebas).
 
 ## El embudo y los resultados
 

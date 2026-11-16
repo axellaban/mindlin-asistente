@@ -164,6 +164,8 @@ export interface FilaRevisada extends FilaLeida {
   motivo: string;
   /** El proyecto de la ficha que se reconoció en la columna «Proyecto». */
   proyecto: string | null;
+  /** La etapa que tiene en el CRM, si está. */
+  crm_etapa: string | null;
 }
 
 export interface LoQueSeSabe {
@@ -199,7 +201,7 @@ export function revisarBase(filas: FilaLeida[], s: LoQueSeSabe, o: { incluir_des
   const vistosSinTelefono = new Set<string>();
   return filas.map((f) => {
     const proyecto = proyectoDe(f.proyecto_texto, s.proyectos);
-    const r = (estado: EstadoFila, motivo: string): FilaRevisada => ({ ...f, estado, motivo, proyecto });
+    const r = (estado: EstadoFila, motivo: string): FilaRevisada => ({ ...f, estado, motivo, proyecto, crm_etapa: f.telefono ? (s.crm.get(f.telefono) ?? null) : null });
     if (!f.telefono) {
       const k = claveSinTelefono(f.nombre, f.telefono_original);
       if (s.yaCargadosSinTelefono?.has(k) || vistosSinTelefono.has(k)) return r("repetido", "ya estaba cargado (por revisar)");

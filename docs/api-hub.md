@@ -226,12 +226,16 @@ La línea 1 le escribe primero a las bases viejas de Mindlin ([`outreach.md`](ou
 | `POST outreach/{línea}/contactos` | `{ lote?, etapa?, buscar?, limite? }` (buscar: nombre, proyecto o 3 o más cifras del teléfono) |
 | `PUT outreach/contactos/{id}/telefono` | `{ telefono }`: corregir uno «por revisar» |
 | `GET outreach/{línea}/cola` | Los próximos 20, sin tomarlos |
+| `GET outreach/{línea}/aprendizajes` | Qué responde mejor: `todos` y `al_azar` (por variable del puntaje y valor: `contactados`, `respondieron`, `tasa`, `muestra_chica` con menos de 30), `por_puntaje` (franjas 70-100, 40-69, 0-39) y `contactados` |
+| `POST outreach/{línea}/recalcular` | Vuelve a calcular los puntajes (por ejemplo, después de prender o apagar una ficha) |
 | `POST outreach/{línea}/tomar` | `{ modo: "waha" \| "computer_use", contacto? }`. Toma el siguiente por 10 minutos: `{ tarjeta: { contacto, paso, texto, version, clave, hasta, whatsapp_web, whatsapp_celular } }`, `{ espera: { motivo, texto, … } }` o `{ vacia: true }`. Si quien pide ya tenía uno, devuelve el mismo |
 | `POST outreach/contactos/{id}/confirmar` | `{ clave, modo, ejecutor: "persona" \| "bot" }`: salió. Con la misma clave cuenta una vez (`ya_estaba: true`). Agenda el seguimiento y la pausa |
 | `POST outreach/contactos/{id}/fallo` | `{ clave, falla: "no_salio" \| "sin_whatsapp" \| "numero_incorrecto", modo, ejecutor }`. Las fallas seguidas frenan la línea (`frenada: true`) |
 | `POST outreach/contactos/{id}/soltar` / `saltar` | Soltarlo sin mandar / dejarlo para dentro de 4 horas |
 | `POST outreach/{línea}/seguir` | Sacar el freno |
 | `POST outreach/{línea}/mandar-igual` | Fuera de franja, solo hoy (el tope y las pausas siguen) |
+
+**Puntaje** (desde el 16/11): cada contacto trae `puntaje` (0 a 100), `puntaje_detalle` (`[{ variable, valor, puntos }]`) y `crm_etapa`. Los pesos van en `config.puntaje` (`antiguedad`, `proyecto`, `crm`, `origenes`, `datos`, `whatsapp`; cada valor de 0 a 50) y `config.exploracion` (de 0 a 50: el % de los nuevos que sale al azar). Cambiar los pesos recalcula todo. En `opciones.outreach.variables_puntaje`, el nombre de cada variable.
 
 Quién hizo cada cosa sale de `X-Hub-Usuario`. `ejecutor: "bot"` es para la pestaña del agente (computer use). En `GET /config`, `opciones.outreach` trae los cuidados de fábrica, los límites y las variables.
 

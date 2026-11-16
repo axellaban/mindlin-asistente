@@ -49,6 +49,7 @@ import type { Chequeo } from "../chequeo";
 import type { DatosOutreach } from "../outreach/datos";
 import { manejarOutreach } from "../outreach/api";
 import { CONFIG_OUTREACH_DE_FABRICA, LIMITES_OUTREACH } from "../outreach/reglas";
+import { NOMBRES_VARIABLE } from "../outreach/puntaje";
 
 export interface PedidoHub {
   metodo: string;
@@ -174,7 +175,7 @@ export const OPCIONES = {
   /** Las campañas: el largo del nombre (queda como etiqueta en el CRM) y de las frases. */
   limites_campania: { nombre: MAX_NOMBRE_CAMPANIA, frase_min: MIN_FRASE, frase_max: MAX_FRASE, frases: MAX_FRASES },
   /** El outreach frío (docs/outreach.md): los cuidados de fábrica y sus límites. */
-  outreach: { de_fabrica: CONFIG_OUTREACH_DE_FABRICA, limites: LIMITES_OUTREACH, variables: ["{nombre}", "{proyecto}", "{proyecto_en}"] },
+  outreach: { de_fabrica: CONFIG_OUTREACH_DE_FABRICA, limites: LIMITES_OUTREACH, variables: ["{nombre}", "{proyecto}", "{proyecto_en}"], variables_puntaje: NOMBRES_VARIABLE },
 } as const;
 
 export async function manejarHub(p: PedidoHub, d: DependenciasHub): Promise<RespuestaHub> {
