@@ -288,6 +288,65 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     expect(dani).toEqual({ fin: false, linea: { ...linea, tipo: "entrada" } });
   });
 
+  it("WAHA nativo: manda y confirma, salta los que no tienen WhatsApp sin frenar, y frena si la sesión se cae", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const lunes = ba("2026-11-16T11:00");
+    const enviados: [string, string, string][] = [];
+    let estado = "WORKING";
+    let falla = false;
+    const sinWhatsApp = new Set(["5491122222222"]);
+    const waha = {
+      estado: async () => estado,
+      existe: async (_: string, t: string) => ({ existe: !sinWhatsApp.has(t), chatId: `${t}@c.us` }),
+      enviarTexto: async (sesion: string, chatId: string, texto: string) => {
+        if (falla) throw new Error("WAHA respondió 500");
+        enviados.push([sesion, chatId, texto]);
+      },
+    };
+    const o = { por: "Facu", ejecutor: "persona" as const };
+
+    const r1 = await d().enviarPorWaha(L, waha, o, lunes);
+    expect(r1).toMatchObject({ enviado: { contacto: { nombre: "Ana Gómez" } } });
+    expect(enviados).toEqual([["linea1", "5491111111111@c.us", expect.stringMatching(/Ana/)]]);
+    expect((await pool.query("select modo, ejecutor from outreach_eventos where tipo = 'envio'")).rows).toEqual([{ modo: "waha", ejecutor: "persona" }]);
+
+    // Pausa de WAHA: de 3 a 6 minutos.
+    expect(await d().enviarPorWaha(L, waha, o, new Date(lunes.getTime() + 120_000))).toMatchObject({ espera: { motivo: "pausa" } });
+
+    // Beto no tiene WhatsApp: queda inválido y no cuenta como falla.
+    const mas7 = new Date(lunes.getTime() + 7 * 60_000);
+    expect(await d().enviarPorWaha(L, waha, o, mas7)).toMatchObject({ sin_whatsapp: { nombre: "Beto", etapa: "invalido" } });
+    expect((await d().estado(L, mas7, "Facu")).fallas_seguidas).toBe(0);
+
+    // Si no sale, cuenta como falla; si la sesión se cae, frena la línea.
+    falla = true;
+    expect(await d().enviarPorWaha(L, waha, o, mas7)).toMatchObject({ no_salio: { nombre: "Dani" }, error: "WAHA respondió 500", frenada: false });
+    falla = false;
+    estado = "SCAN_QR_CODE";
+    await d().seguir(L, "Axel");
+    expect(await d().enviarPorWaha(L, waha, o, ba("2026-11-17T11:00"))).toMatchObject({ espera: { motivo: "frenada", detalle: "la sesión de WhatsApp «linea1» no está conectada (SCAN_QR_CODE)" } });
+    expect((await d().cola(L, ba("2026-11-17T11:00"))).map((c) => c.nombre)).toEqual(["Dani"]);
+  });
+
+  it("WAHA: verificar números y mandarme una prueba", async () => {
+    await d().crearLote(L, "Leads", BASE, { incluir_descartados: false }, null, "Mati");
+    const enviados: string[] = [];
+    const waha = {
+      estado: async () => "WORKING",
+      existe: async (_: string, t: string) => ({ existe: t !== "5491122222222", chatId: null }),
+      enviarTexto: async (_: string, chatId: string, texto: string) => void enviados.push(`${chatId}: ${texto}`),
+    };
+    expect(await d().verificarNumeros(L, waha, { por: "Facu", pausaMs: 0 }, ba("2026-11-16T11:00"))).toEqual({ verificados: 3, con_whatsapp: 2, sin_whatsapp: 1 });
+    const [ana] = await d().contactos(L, { buscar: "Ana" });
+    expect(ana).toMatchObject({ tiene_whatsapp: true, puntaje: 40 });
+    expect(await d().verificarNumeros(L, waha, { por: "Facu", pausaMs: 0 }, ba("2026-11-16T11:00"))).toEqual({ verificados: 0, con_whatsapp: 0, sin_whatsapp: 0 });
+    expect(enviados).toEqual([]);
+
+    expect(await d().prueba(L, waha, "4567")).toEqual({ error: "Ese teléfono no sirve: el número es muy corto." });
+    expect(await d().prueba(L, waha, "011 15 9999-0000")).toMatchObject({ ok: true });
+    expect(enviados).toEqual([expect.stringMatching(/^5491199990000@c\.us: 🧪 Prueba del outreach:\n\n(Hola|¡Hola!) Prueba/)]);
+  });
+
   it("el tope sube después de una semana sin frenos", async () => {
     await pool.query("insert into outreach_estado (linea, tope, tope_desde) values ($1, 3, '2026-11-09')", [L]);
     const e = await d().estado(L, ba("2026-11-16T11:00"), "Facu");

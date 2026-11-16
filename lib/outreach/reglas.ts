@@ -54,6 +54,8 @@ export interface ConfigOutreach {
    * en el hub) o «ia» (la atiende el asistente con las fichas, como en una línea de leads).
    */
   al_responder: "equipo" | "ia";
+  /** La sesión de WAHA de la línea (la que se creó al vincular el chip; tarea 16). */
+  waha_sesion: string;
 }
 
 export const LIMITES_OUTREACH = {
@@ -101,6 +103,7 @@ export const CONFIG_OUTREACH_DE_FABRICA: ConfigOutreach = {
   puntaje: PESOS_DE_FABRICA,
   exploracion: EXPLORACION_DE_FABRICA,
   al_responder: "equipo",
+  waha_sesion: "linea1",
 };
 
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$|^24:00$/;
@@ -201,6 +204,9 @@ export function validarConfigOutreach(x: unknown): { config: ConfigOutreach } | 
   c.exploracion = exploracion;
   if (o.al_responder !== "equipo" && o.al_responder !== "ia") return { error: "Al responder: «equipo» o «ia»." };
   c.al_responder = o.al_responder;
+  const sesion = String(o.waha_sesion ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(sesion)) return { error: "Sesión de WAHA: solo letras, números, - y _ (por ejemplo, linea1)." };
+  c.waha_sesion = sesion;
   if (!c.modos!.waha && !c.modos!.computer_use) return { error: "Modos: elegí al menos uno (WAHA nativo o computer use)." };
   return { config: c as ConfigOutreach };
 }

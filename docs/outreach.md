@@ -150,6 +150,20 @@ En la base del asistente (Neon), con una migración nueva. Nombres orientativos:
 
 **Los datos son personales:** solo los ve quien tiene el permiso del módulo en el hub. No van al repo ni a las pruebas: las pruebas usan datos inventados. Borrar un lote borra sus contactos y deja en los eventos solo los totales.
 
+## WAHA nativo, en el código (paso 4)
+
+- **Las variables:** `WAHA_URL` y `WAHA_API_KEY` en Vercel; las carga la tarea 16. La sesión de la línea va en `config.waha_sesion` (de fábrica, «linea1»).
+- **`POST outreach/{línea}/enviar` manda uno por pedido:**
+  1. toma el siguiente, con todos los cuidados;
+  2. revisa que la sesión esté conectada (`WORKING`; si no, frena la línea);
+  3. si el número no está verificado, pregunta si tiene WhatsApp;
+  4. manda el texto y confirma.
+- **Si el número no tiene WhatsApp**, queda inválido sin contar como falla: en las bases viejas hay muchos fijos, y eso no dice nada de la salud de la línea. **Si el mensaje no sale**, cuenta como falla.
+- **La tanda la maneja la pantalla del hub:** llama, espera la pausa (`espera.hasta`) y vuelve a llamar, hasta la tanda o el tope. Si se cierra la pantalla, se frena.
+- **El eco:** lo que sale por WAHA vuelve a Chatwoot como saliente. El webhook no lo confirma de nuevo (la clave de la toma empieza con «waha-»).
+- **«Verificar números»** (de a 20, sin mandar nada) y **«Mandarme una prueba»** (el saludo a un número del equipo, sin contar).
+- **Por ahora, solo texto.** Las fotos, los audios y los PDF de la secuencia van después, si Mindlin los pide.
+
 ## Las respuestas, en el código (paso 3)
 
 - El webhook reconoce la línea de outreach por la bandeja y le pasa **todos** sus mensajes a `lib/outreach/webhook.ts`, esté como esté la conversación (una respuesta en una conversación abierta también se anota).
@@ -215,7 +229,7 @@ Cada paso es un PR chico, con pruebas y su doc.
    - el alta en el CRM;
    - qué pasa después (equipo, flujo o IA);
    - la bandeja «Responder».
-4. **WAHA nativo:** verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno por sesión caída. Antes, la prueba de la tarea 16.
+4. **WAHA nativo** (hecho el 16/11 en el asistente: `lib/outreach/waha.ts` y `enviarPorWaha`; falta la tarea 16 y la pantalla del hub): verificar números, la tanda desde el hub, «Mandarme una prueba» y el freno por sesión caída. Antes, la prueba de la tarea 16.
 5. **Embudo y resultados:** el embudo contra la meta, los resultados por lote y por versión, y la subida gradual del tope.
 6. **Si hace falta:** el proceso en el servidor, para que la tanda salga sin el hub abierto.
 
