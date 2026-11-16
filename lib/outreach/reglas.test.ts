@@ -107,23 +107,25 @@ describe("los textos", () => {
   });
 
   it("arma el saludo y alterna variantes por persona", () => {
-    const a = textoDelPaso(F, 0, { id: 2, nombre: "ana gómez", proyecto_nombre: null });
-    const b = textoDelPaso(F, 0, { id: 3, nombre: "ana gómez", proyecto_nombre: null });
+    const a = textoDelPaso(F, 0, { id: 3, nombre: "ana gómez", proyecto_nombre: null });
+    const b = textoDelPaso(F, 0, { id: 4, nombre: "ana gómez", proyecto_nombre: null });
     expect(a.texto.startsWith("Hola Ana, ¿cómo estás?")).toBe(true);
     expect(a.version).toBe(1);
     expect(b.version).toBe(2);
-    expect(textoDelPaso(F, 0, { id: 2, nombre: "Ana", proyecto_nombre: null })).toEqual(a);
+    expect(textoDelPaso(F, 0, { id: 3, nombre: "Ana", proyecto_nombre: null })).toEqual(a);
+    expect(textoDelPaso(F, 0, { id: 5, nombre: "Ana", proyecto_nombre: null }).texto.startsWith("Buenas Ana, ¿qué tal?")).toBe(true);
   });
 
   it("sin nombre no queda «Hola ,»", () => {
-    expect(textoDelPaso(F, 0, { id: 2, nombre: "", proyecto_nombre: null }).texto.startsWith("Hola, ¿cómo estás?")).toBe(true);
-    expect(textoDelPaso(F, 0, { id: 3, nombre: "", proyecto_nombre: null }).texto.startsWith("¡Hola! Soy de Mindlin")).toBe(true);
-    expect(textoDelPaso(F, 1, { id: 1, nombre: "", proyecto_nombre: null }).texto.startsWith("Te escribo de nuevo")).toBe(true);
+    expect(textoDelPaso(F, 0, { id: 3, nombre: "", proyecto_nombre: null }).texto.startsWith("Hola, ¿cómo estás?")).toBe(true);
+    expect(textoDelPaso(F, 0, { id: 4, nombre: "", proyecto_nombre: null }).texto.startsWith("¡Hola! Soy de Mindlin")).toBe(true);
+    expect(textoDelPaso(F, 1, { id: 2, nombre: "", proyecto_nombre: null }).texto.startsWith("Te escribo de nuevo")).toBe(true);
+    expect(textoDelPaso(F, 1, { id: 1, nombre: "", proyecto_nombre: null }).texto.startsWith("Último mensaje de mi parte")).toBe(true);
   });
 
   it("el proyecto, si lo hay", () => {
-    expect(textoDelPaso(F, 1, { id: 1, nombre: "Ana", proyecto_nombre: "Lerma 439" }).texto).toContain("lo que tenemos hoy en Lerma 439.");
-    expect(textoDelPaso(F, 1, { id: 1, nombre: "Ana", proyecto_nombre: null }).texto).toContain("lo que tenemos hoy.");
+    expect(textoDelPaso(F, 1, { id: 2, nombre: "Ana", proyecto_nombre: "Lerma 439" }).texto).toContain("lo que tenemos hoy en Lerma 439.");
+    expect(textoDelPaso(F, 1, { id: 2, nombre: "Ana", proyecto_nombre: null }).texto).toContain("lo que tenemos hoy.");
   });
 });
 

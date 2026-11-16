@@ -88,7 +88,7 @@ describe.skipIf(!url)("outreach (Postgres real)", () => {
     const t = await d().tomar(L, { modo: "computer_use", por: "Facu" }, lunes);
     if (!("tarjeta" in t)) throw new Error(JSON.stringify(t));
     expect(t.tarjeta).toMatchObject({ paso: 0, contacto: { nombre: "Ana Gómez", telefono: "5491111111111" } });
-    expect(t.tarjeta.texto).toMatch(/^(Hola|¡Hola!?) Ana/);
+    expect(t.tarjeta.texto).toMatch(/^(Hola|¡Hola!?|Buenas) Ana/);
     expect(t.tarjeta.whatsapp_web).toContain("web.whatsapp.com/send?phone=5491111111111&text=");
 
     // Mientras Facu la tiene, Axel espera; Facu, si recarga, recibe la misma.
