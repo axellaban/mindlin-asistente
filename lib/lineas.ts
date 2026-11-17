@@ -84,5 +84,5 @@ export function notaLineaSinAsistente(linea: Linea | null, bandeja: number | nul
   }
   if (linea.tipo === "outreach_frio") return `🙋 Respuesta en la línea «${linea.nombre}» (outreach frío): el asistente de ventas no atiende esta línea, sigue el equipo.`;
   if (linea.tipo === "equipo") return `🙋 Mensaje en la línea «${linea.nombre}» (la del equipo): el asistente todavía no la atiende, sigue el equipo.`;
-  return `⏸️ La línea «${linea.nombre}» está pausada (se reactiva desde el hub): atiende el equipo.`;
+  return `⏸️ La línea «${linea.nombre}» está pausada: atiende el equipo. Para que vuelva a responder la IA, reactivá la línea en el hub y, en esta conversación, «Marcar como pendiente».`;
 }

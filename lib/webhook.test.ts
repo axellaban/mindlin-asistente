@@ -125,7 +125,7 @@ describe("webhook del Agent Bot", () => {
     const r = await a.llamar(evento());
     expect(r.json).toEqual({ accion: "pasar_a_persona", motivo: "el asistente está pausado" });
     await r.tarea!();
-    expect(a.hechos).toEqual(["nota 2: ⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.", "abrir 2"]);
+    expect(a.hechos).toEqual(["nota 2: ⏸️ El asistente está pausado: atiende el equipo. Para que vuelva a responder la IA, reactivalo en el hub (Resumen) y, en esta conversación, «Marcar como pendiente».", "abrir 2"]);
     expect(llamadas).toBe(0);
     expect(a.datos.seguimiento.get(2)?.sin_seguimientos).toBe(true);
     // Igual queda en el historial.
@@ -207,7 +207,7 @@ describe("webhook: cada línea en su bandeja", () => {
     const r = await a.llamar(evento());
     expect(r.json).toEqual({ accion: "pasar_a_persona", motivo: "la línea «Leads entrantes» está pausada" });
     await r.tarea!();
-    expect(a.hechos).toEqual(["nota 2: ⏸️ La línea «Leads entrantes» está pausada (se reactiva desde el hub): atiende el equipo.", "abrir 2"]);
+    expect(a.hechos).toEqual(["nota 2: ⏸️ La línea «Leads entrantes» está pausada: atiende el equipo. Para que vuelva a responder la IA, reactivá la línea en el hub y, en esta conversación, «Marcar como pendiente».", "abrir 2"]);
     const otra = await a.llamar(evento({ id: 31, inbox: { id: 2 }, conversation: { id: 4, status: "pending", meta: { sender: { name: "Beto" } } } }));
     expect(otra.json).toEqual({ accion: "responder", linea: "linea-4" });
   });

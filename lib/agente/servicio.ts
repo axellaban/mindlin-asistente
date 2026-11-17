@@ -199,7 +199,7 @@ export function conTranscripciones(texto: string, transcripciones: string[]): st
 export async function pasarPorPausa(
   s: Pick<Servicios, "almacen" | "chatwoot">,
   conversacion: number,
-  { nota = "⏸️ El asistente está pausado (se reactiva desde el panel): atiende el equipo.", motivo = "El asistente está pausado." }: { nota?: string; motivo?: string } = {},
+  { nota = "⏸️ El asistente está pausado: atiende el equipo. Para que vuelva a responder la IA, reactivalo en el hub (Resumen) y, en esta conversación, «Marcar como pendiente».", motivo = "El asistente está pausado." }: { nota?: string; motivo?: string } = {},
 ): Promise<string> {
   await s.chatwoot.notaInterna(conversacion, nota);
   await s.chatwoot.pasarAPersona(conversacion);
