@@ -144,6 +144,23 @@ La QA de la IA de paneles (tareas 12 a 15) está en [`docs/estado-paneles.md`](d
 - [x] La ayuda de Conversaciones del hub todavía mandaba las fotos y los audios a Chatwoot: corregida (matimindlin111/mindlinhub#116). — Claude, 17/11
 - [x] El presupuesto de un contacto que ya existía quedaba en la actividad y la ficha seguía vacía: ahora el asistente completa lo **vacío** de la ficha (para qué, ambientes, presupuesto, forma de pago, plazo) sin tocar lo que cargó una persona ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 17/11
 
+## QA del 17/11 (Claude): lo que se arregló y lo que quedó
+
+Arreglado (asistente #49 y hub matimindlin111/mindlinhub#116):
+- La baja vale por teléfono: tampoco salen seguimientos ni flujos en otras líneas, chats viejos o nuevos de ese número.
+- «Último contacto» del CRM al día cuando escribe alguien que ya estaba (el hub lo mostraba frío y con alarma).
+- El embudo del outreach ya no «se frena» en «Con WhatsApp» con una base sin verificar.
+- Textos del outreach: sin «hoy .» cuando no hay proyecto; descripción de la línea 1 al día; la tarjeta dice «Falta conectar su chip».
+- Scoring: WhatsApp (6) y formulario de la web (5) suman en «De dónde vino».
+- CRM del hub: al dar de alta, avisa si el teléfono o el mail ya están («Ya está en el CRM» y «Crear igual»).
+
+Quedó para la próxima (sin créditos el 17/11):
+- [ ] **Decidir (Mati y Axel):** ¿los seguimientos salen también sábados, domingos y feriados? Hoy sí (el cron corre todos los días a las 10); el equipo trabaja de lunes a viernes.
+- [ ] Recorrer en pantalla el CRM del hub (tablero, ficha, alta con el aviso de repetido); solo se probó con pruebas automáticas.
+- [ ] Menor: con el CRM en la planilla, el hub reescribe la fila entera al editar un contacto; si en ese mismo segundo el asistente cambia la etapa, gana uno de los dos.
+- [ ] Menor: en Scoring, la columna de «Probalo» y «Así quedan arriba» se desplaza por dentro en pantallas bajas.
+- [ ] Actualizar Next.js (aviso de seguridad de la 16.4.3) en los dos repos.
+
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
 - [x] Webhook del Agent Bot: verifica la firma, guarda el historial, contesta y pasa a una persona si algo falla. Probado de punta a punta con un Chatwoot real (`docs/chatwoot.md`). — Claude, 07/11
