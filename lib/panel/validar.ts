@@ -8,7 +8,7 @@ import { ETAPAS } from "../crm/planilla";
 import { esEvento, ETAPAS_DESTINO, type Evento } from "../etapas/reglas";
 import type { Proyecto, ReglaSeguimiento, Tono } from "../datos/tipos";
 import { MAX_PASOS } from "../seguimientos/reglas";
-import { HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
+import { fechaFeriado, HORARIO_EQUIPO_DE_FABRICA, horarioValido, type HorarioEquipo } from "../agente/horario";
 import type { Linea } from "../lineas";
 import { LIMITES, validarPasos, type Paso } from "../flujos/modelo";
 
@@ -102,7 +102,19 @@ function leerHorario(f: Formulario): Resultado<HorarioEquipo> {
   const dias = lista != null ? String(lista).split(/[,\s]+/).filter(Boolean).map(Number) : casillas;
   if (!dias.length) return { ok: false, error: "Marcá al menos un día en el horario del equipo." };
   if (dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return { ok: false, error: "Los días del horario del equipo van de 0 (domingo) a 6 (sábado)." };
-  const h = horarioValido({ dias, desde: desde === "" ? Number.NaN : Number(desde), hasta: hasta === "" ? Number.NaN : Number(hasta) });
+  // Los automáticos y los feriados (equipo_automaticos, equipo_feriados: fechas separadas por coma o renglón).
+  const textoFeriados = texto(f, "equipo_feriados");
+  const sueltos = textoFeriados.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean);
+  const malo = sueltos.find((x) => !fechaFeriado(x));
+  if (malo) return { ok: false, error: `Feriados: «${malo}» no es una fecha (va como 25/12/2026).` };
+  if (sueltos.length > 60) return { ok: false, error: "Feriados: hasta 60 fechas." };
+  const h = horarioValido({
+    dias,
+    desde: desde === "" ? Number.NaN : Number(desde),
+    hasta: hasta === "" ? Number.NaN : Number(hasta),
+    automaticos: texto(f, "equipo_automaticos"),
+    feriados: sueltos,
+  });
   if (!h) return { ok: false, error: "El horario del equipo va en horas enteras de 0 a 24, y «desde» tiene que ser antes que «hasta» (por ejemplo, de 9 a 20)." };
   return { ok: true, valor: h };
 }

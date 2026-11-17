@@ -69,6 +69,13 @@ export default async function Tono({ searchParams }: { searchParams: Avisos }) {
               <input id="equipo_hasta" name="equipo_hasta" type="number" min={1} max={24} step={1} required defaultValue={t.horario_equipo.hasta} />
             </div>
           </div>
+          <label htmlFor="equipo_automaticos">Seguimientos y esperas de los flujos</label>
+          <select id="equipo_automaticos" name="equipo_automaticos" defaultValue={t.horario_equipo.automaticos ?? "todos_los_dias"}>
+            <option value="todos_los_dias">Todos los días, de 9 a 20</option>
+            <option value="dias_del_equipo">Solo los días del equipo, de 9 a 20 (y no en los feriados)</option>
+          </select>
+          <label htmlFor="equipo_feriados">Feriados (sin mensajes automáticos si se eligen los días del equipo)</label>
+          <input id="equipo_feriados" name="equipo_feriados" placeholder="25/12/2026, 01/01/2027" defaultValue={(t.horario_equipo.feriados ?? []).map((f) => f.split("-").reverse().join("/")).join(", ")} />
         </fieldset>
         <div className="acciones">
           <button type="submit">Guardar el tono</button>

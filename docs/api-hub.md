@@ -68,7 +68,7 @@ Una sola lectura trae todo lo necesario para dibujar las pantallas:
 - `opciones.horario_seguimientos.corre` dice cada cuánto sale la tanda de seguimientos, para mostrarlo tal cual (hoy, «una vez por día, a las 10»; ver [`seguimientos.md`](seguimientos.md)).
 - `lineas`: las cuatro líneas ([`lineas.md`](lineas.md)); `flujos`: todos los flujos de todas las líneas, con sus números; `archivos`: los que se subieron para los flujos (`en_uso`: qué flujos los usan).
 - `tono.pasar_al_responder` ya no se usa (15/11): el modo «presenta y pasa» es de cada línea (`lineas[].pasar_al_responder`).
-- `tono.horario_equipo` es el horario del equipo comercial que vale hoy; `opciones.horario_equipo`, el de fábrica. Días: 0 es domingo … 6 sábado (`opciones.dias_semana`); horas enteras de Buenos Aires, de `desde` a `hasta`.
+- `tono.horario_equipo` es el horario del equipo comercial que vale hoy; `opciones.horario_equipo`, el de fábrica. Días: 0 es domingo … 6 sábado (`opciones.dias_semana`); horas enteras de Buenos Aires, de `desde` a `hasta`. Desde el 17/11, también `automaticos` (`"todos_los_dias"`, de fábrica, o `"dias_del_equipo"`: los seguimientos y las esperas de los flujos salen solo esos días y no en los `feriados`, una lista de `AAAA-MM-DD`; se aceptan también como `25/12/2026`). Los dos son opcionales y, si no vienen, quedan como estaban.
 
 ## Cambiar
 

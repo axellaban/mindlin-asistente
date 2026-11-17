@@ -139,6 +139,8 @@ function camposHorario(h: unknown): Objeto {
   if (h.dias !== undefined) campos.equipo_dias = Array.isArray(h.dias) ? h.dias : String(h.dias);
   if (h.desde !== undefined) campos.equipo_desde = h.desde;
   if (h.hasta !== undefined) campos.equipo_hasta = h.hasta;
+  if (h.automaticos !== undefined) campos.equipo_automaticos = String(h.automaticos);
+  if (h.feriados !== undefined) campos.equipo_feriados = Array.isArray(h.feriados) ? h.feriados.join(", ") : String(h.feriados);
   return campos;
 }
 

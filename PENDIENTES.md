@@ -155,11 +155,11 @@ Arreglado (asistente #49 y hub matimindlin111/mindlinhub#116):
 - CRM del hub: al dar de alta, avisa si el teléfono o el mail ya están («Ya está en el CRM» y «Crear igual»).
 
 Quedó para la próxima (sin créditos el 17/11):
-- [ ] **Decidir (Mati y Axel):** ¿los seguimientos salen también sábados, domingos y feriados? Hoy sí (el cron corre todos los días a las 10); el equipo trabaja de lunes a viernes.
-- [ ] Recorrer en pantalla el CRM del hub (tablero, ficha, alta con el aviso de repetido); solo se probó con pruebas automáticas.
-- [ ] Menor: con el CRM en la planilla, el hub reescribe la fila entera al editar un contacto; si en ese mismo segundo el asistente cambia la etapa, gana uno de los dos.
-- [ ] Menor: en Scoring, la columna de «Probalo» y «Así quedan arriba» se desplaza por dentro en pantallas bajas.
-- [ ] Actualizar Next.js (aviso de seguridad de la 16.4.3) en los dos repos.
+- [ ] **Decidir (Mati):** ¿los seguimientos salen también sábados, domingos y feriados? De fábrica, sí. Desde el 17/11 se elige en el hub (Inteligencia comercial → Horario del equipo → «Seguimientos y esperas de los flujos»), con la lista de feriados.
+- [x] Recorrer en pantalla el CRM del hub (tablero, embudo, base, ficha y el alta con el aviso de repetido), en computadora y celular. Se arregló el origen que se cortaba letra por letra en el celular. — Claude, 17/11
+- [x] Con el CRM en la planilla, el hub escribe solo las celdas que cambian: ya no pisa lo que el asistente cambió en otra celda. — Claude, 17/11
+- [x] En Scoring, la columna derecha va con la página en pantallas bajas. — Claude, 17/11
+- [x] Next.js 16.4.6 en los dos repos (arreglo de seguridad). — Claude, 17/11
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
