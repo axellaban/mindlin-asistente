@@ -17,6 +17,7 @@ import type { Modelo } from "../agente/agente";
 import { retomarFlujos } from "../flujos/servicio";
 import type { AvisarAlEquipo } from "../hub/aviso";
 import { pausaAlAzar, PRESUPUESTO_MS } from "./espaciar";
+import { diaDeAutomaticos } from "../agente/horario";
 
 /** Cuántos seguimientos como mucho por corrida: WhatsApp por WAHA no es oficial y no conviene mandar de a muchos. */
 export const TOPE_POR_CORRIDA = 20;
@@ -69,6 +70,10 @@ export async function correrSeguimientos({
   const resultado: ResultadoCorrida = { estado: "listo", revisadas: 0, enviados: 0, errores: 0, movidos: 0, flujos: 0, postergados: 0 };
   if (!enHorario(ahora)) return { ...resultado, estado: "fuera de horario" };
   if (await almacen.pausado()) return { ...resultado, estado: "pausado" };
+  // Si Mindlin eligió que los automáticos salgan solo los días del equipo (sin feriados), hoy no sale nada:
+  // ni seguimientos ni esperas de flujos. Lo que vence, sale el próximo día hábil.
+  const horario = (await almacen.tono().catch(() => null))?.horario_equipo;
+  if (horario && !diaDeAutomaticos(ahora, horario)) return { ...resultado, estado: "fuera de horario" };
 
   // Primero los flujos con esperas vencidas: son parte de una secuencia que ya arrancó.
   const sinIA: Modelo = async () => {

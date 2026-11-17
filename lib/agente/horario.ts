@@ -11,9 +11,41 @@ export interface HorarioEquipo {
   dias: number[];
   desde: number;
   hasta: number;
+  /**
+   * Cuándo salen los mensajes automáticos (seguimientos y esperas de los flujos): «todos_los_dias»
+   * (de fábrica, como siempre) o «dias_del_equipo» (solo los días de arriba, y no en los feriados).
+   * Siempre de 9 a 20.
+   */
+  automaticos?: "todos_los_dias" | "dias_del_equipo";
+  /** Días sin mensajes automáticos (AAAA-MM-DD), si `automaticos` es «dias_del_equipo». */
+  feriados?: string[];
 }
 
 export const HORARIO_EQUIPO_DE_FABRICA: HorarioEquipo = { dias: [1, 2, 3, 4, 5], desde: 9, hasta: 20 };
+
+/** «2026-12-25», «25/12/2026» o «25/12/26» → «2026-12-25»; null si no es una fecha. */
+export function fechaFeriado(t: string): string | null {
+  const s = t.trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const [a, me, d] = m ? [m[1], m[2], m[3]] : ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/)) ? [m[3].length === 2 ? `20${m[3]}` : m[3], m[2].padStart(2, "0"), m[1].padStart(2, "0")] : []);
+  if (!a) return null;
+  const f = `${a}-${me}-${d}`;
+  const x = new Date(`${f}T12:00:00Z`);
+  return !Number.isNaN(x.getTime()) && x.toISOString().slice(0, 10) === f ? f : null;
+}
+
+const FECHA_BA = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" });
+const DIA_BA = new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short" });
+
+/**
+ * ¿Hoy pueden salir mensajes automáticos? Con «todos_los_dias», siempre (el horario de 9 a 20 lo
+ * mira cada corrida); con «dias_del_equipo», solo los días del equipo que no son feriado.
+ */
+export function diaDeAutomaticos(ahora: Date, h: HorarioEquipo): boolean {
+  if (h.automaticos !== "dias_del_equipo") return true;
+  const dia = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(DIA_BA.format(ahora));
+  return h.dias.includes(dia) && !(h.feriados ?? []).includes(FECHA_BA.format(ahora));
+}
 
 export const NOMBRES_DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"] as const;
 
@@ -33,7 +65,12 @@ export function horarioValido(x: unknown): HorarioEquipo | null {
   const desde = Number(h.desde);
   const hasta = Number(h.hasta);
   if (!Number.isInteger(desde) || !Number.isInteger(hasta) || desde < 0 || hasta > 24 || desde >= hasta) return null;
-  return { dias: SEMANA.filter((d) => dias.includes(d)), desde, hasta };
+  const base: HorarioEquipo = { dias: SEMANA.filter((d) => dias.includes(d)), desde, hasta };
+  // Lo de los automáticos es opcional: lo que no se entiende queda como de fábrica.
+  if (h.automaticos === "dias_del_equipo") base.automaticos = "dias_del_equipo";
+  const feriados = Array.isArray(h.feriados) ? [...new Set(h.feriados.map((x) => fechaFeriado(String(x))).filter((x): x is string => !!x))].sort() : [];
+  if (feriados.length) base.feriados = feriados;
+  return base;
 }
 
 /** «de lunes a viernes de 9 a 20», «lunes, miércoles y viernes de 10 a 18», «todos los días de 9 a 21». */

@@ -5,6 +5,7 @@ import type { Chatwoot } from "../chatwoot/api";
 import type { MensajeHistorial } from "../chatwoot/evento";
 import { COLUMNAS_CONTACTOS, crearCRM, type Hoja } from "../crm/planilla";
 import { almacenEnMemoria } from "../datos/memoria";
+import { HORARIO_EQUIPO_DE_FABRICA, type HorarioEquipo } from "../agente/horario";
 import type { ReglaSeguimiento } from "../datos/tipos";
 import { REGLAS_POR_DEFECTO, type ReglasEtapa } from "../etapas/reglas";
 import { correrSeguimientos } from "./correr";
@@ -102,8 +103,8 @@ describe("reglas de seguimiento", () => {
   });
 });
 
-function preparar({ reglas = [regla()], contactos = [] as string[][], etapas = {} as ReglasEtapa } = {}) {
-  const datos = almacenEnMemoria({ proyectos: [lerma()], reglas, etapas });
+function preparar({ reglas = [regla()], contactos = [] as string[][], etapas = {} as ReglasEtapa, horario = undefined as HorarioEquipo | undefined } = {}) {
+  const datos = almacenEnMemoria({ proyectos: [lerma()], reglas, etapas, ...(horario ? { tono: { instrucciones: "", criterios_comerciales: "", cuando_pasar_a_persona: "", horario_equipo: horario } } : {}) });
   const hechos: string[] = [];
   let falla = false;
   const chatwoot: Chatwoot = {
@@ -203,6 +204,19 @@ describe("la corrida de seguimientos", () => {
     expect((await p.correr(new Date("2026-11-10T02:00:00Z"))).estado).toBe("fuera de horario");
     expect((await preparar({ reglas: [] }).correr()).estado).toBe("sin reglas");
     expect(p.hechos).toEqual([]);
+  });
+
+  it("si se eligen los días del equipo, no sale nada un sábado ni un feriado; de fábrica, sí", async () => {
+    const sabado = new Date("2026-11-14T13:00:00Z"); // 10 de Buenos Aires
+    const soloEquipo = preparar({ horario: { ...HORARIO_EQUIPO_DE_FABRICA, automaticos: "dias_del_equipo", feriados: ["2026-11-16"] } });
+    await soloEquipo.charla(7, 3);
+    expect((await soloEquipo.correr(sabado)).estado).toBe("fuera de horario");
+    // El lunes 16 es feriado; el martes 17, sale.
+    expect((await soloEquipo.correr(new Date("2026-11-16T13:00:00Z"))).enviados).toBe(0);
+    expect((await soloEquipo.correr(new Date("2026-11-17T13:00:00Z"))).enviados).toBe(1);
+    const todos = preparar({ horario: HORARIO_EQUIPO_DE_FABRICA });
+    await todos.charla(7, 3);
+    expect((await todos.correr(sabado)).enviados).toBe(1);
   });
 
   it("no le escribe a quien respondió, ni si una persona del equipo tomó la conversación", async () => {
