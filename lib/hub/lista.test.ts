@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lerma } from "../../test/fixtures";
-import { conListaDePrecios, listaDesdeEnv, textoLista, VIGENCIA_MS, type ListaHub } from "./lista";
+import { conListaDePrecios, desdeDeLista, listaDesdeEnv, textoLista, usd, VIGENCIA_MS, type ListaHub, type UnidadHub } from "./lista";
 
 const ENV = { HUB_URL: "https://hub.ejemplo.com/", HUB_CLAVE: "clave-de-prueba" };
 const LISTA: ListaHub = {
@@ -54,9 +54,12 @@ describe("la lista de precios del hub", () => {
     const t = textoLista(LISTA)!;
     expect(t).toContain("lista de precios oficial de Mindlin (leída el 17/11, 10:05)");
     expect(t).toContain("Si una unidad no aparece acá, hoy no está disponible");
-    expect(t).toContain("- 2A · Piso 2 · 2 ambientes · Frente · 52.4 m² · USD 128.000 (USD 2.560/m²) · https://ejemplo.com/lerma/2a");
-    expect(t).toContain("- 3B · Piso 3 · 3 ambientes · 70 m² · USD 150.000 · reventa: la vende su dueño, a ese precio");
-    expect(t).toContain("Cocheras disponibles: C1 USD 25.000.");
+    expect(t).toContain("- 2A · Piso 2 · 2 ambientes · Frente · 52.4 m² · u$d 128.000 (u$d 2.560/m²) · https://ejemplo.com/lerma/2a");
+    expect(t).toContain("- 3B · Piso 3 · 3 ambientes · 70 m² · u$d 150.000 · reventa: la vende su dueño, a ese precio");
+    expect(t).toContain("Cocheras disponibles: C1 u$d 25.000.");
+    // Como habla Mindlin: «desde», con el mejor valor disponible (las reventas no cuentan para el «desde»).
+    expect(t).toContain("decí «desde» con el mejor valor disponible");
+    expect(t).toContain("Desde u$d 128.000 (la de mejor valor disponible: 2A, 2 ambientes). Por tipología:\n- 2 ambientes: queda 1 sola (la 2A), u$d 128.000");
     expect(t).toContain("- Precios en dólares, por unidad.");
     expect(textoLista({ disponible: true, unidades: [] })).toContain("Hoy no hay unidades disponibles en la lista");
     expect(textoLista({ disponible: false, motivo: "sin Excel madre" })).toBeNull();
@@ -72,5 +75,16 @@ describe("la lista de precios del hub", () => {
     expect(sinExcel.lista_precios).toBeUndefined();
     expect(pedidos).toEqual(["lerma-439", "t4v"]);
     expect(await conListaDePrecios([lerma({ lista_hub: "lerma-439" })], null)).toEqual([lerma({ lista_hub: "lerma-439" })]);
+  });
+  it("el «desde» y lo que queda de cada tipología (para decir «nos queda solo la 6E»)", () => {
+    const u = (codigo: string, tipologia: string, precio_usd: number, tipo: UnidadHub["tipo"] = "libre"): UnidadHub => ({ codigo, piso: "Piso 1", tipologia, orientacion: "", m2: 50, precio_usd, usd_m2: null, tipo, link: null });
+    const d = desdeDeLista([u("2A", "2 ambientes", 130_000), u("2B", "2 ambientes", 120_000), u("6E", "4 ambientes", 726_227), u("1C", "2 ambientes", 90_000, "reventa")]);
+    expect(d.desde?.codigo).toBe("2B");
+    expect(d.tipologias.map((t) => [t.tipologia, t.cantidad, t.desde.codigo])).toEqual([["2 ambientes", 2, "2B"], ["4 ambientes", 1, "6E"]]);
+    expect(textoLista({ disponible: true, unidades: [u("6E", "4 ambientes", 726_227)] })).toContain("- 4 ambientes: queda 1 sola (la 6E), u$d 726.227");
+    // Solo reventas: el «desde» es de esas.
+    expect(desdeDeLista([u("1C", "2 ambientes", 90_000, "reventa")]).desde?.codigo).toBe("1C");
+    expect(desdeDeLista([]).desde).toBeNull();
+    expect(usd(726227)).toBe("u$d 726.227");
   });
 });

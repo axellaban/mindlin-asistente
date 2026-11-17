@@ -10,12 +10,17 @@ En la ficha del proyecto, una sección «Lista de precios (unidades disponibles 
 - las **reventas** (las vende su dueño, a su precio) y las **cocheras**, solo si la lista para compartir las muestra (sus ajustes en el hub);
 - las **condiciones** de la lista (las del pie del PDF).
 
-Y estas reglas:
+Arriba de las unidades va un resumen: el **«desde»** de la lista (la de mejor valor disponible; las reventas no cuentan si hay unidades del proyecto) y, por tipología, cuántas quedan y desde cuánto («4 ambientes: queda 1 sola (la 6E), u$d 726.227»).
+
+Y estas reglas (cómo habla de precios Mindlin, Mati, 17/11):
 
 - vale esta lista por sobre lo que diga la ficha para precios y disponibilidad;
-- puede dar los precios de lista tal cual; descuentos, financiación especial y reservas los confirma el equipo;
-- una unidad que no está en la lista no está disponible: no la ofrece;
-- no manda la lista entera: cuenta dos o tres opciones que se ajustan a lo que busca la persona.
+- **siempre «desde»**, con el mejor valor disponible: el de la lista o, si ya dijo qué tipología busca, el de esa tipología;
+- el precio de una unidad puntual, cuando pregunten por esa unidad o cuando quedan pocas de lo que busca («Nos queda solo la 6E en u$d 726.227»); la escasez, solo si la lista la muestra;
+- son precios de lista: descuentos, financiación especial y reservas los confirma el equipo; una unidad que no está en la lista no está disponible y no la ofrece;
+- no manda la lista entera: como mucho dos o tres opciones que se ajusten a lo que busca la persona.
+
+**Montos** (vale para todo lo que escribe el asistente): dólares **u$d 128.000** y pesos argentinos **ar$ 1.500.000**, nunca «USD», «US$» ni «$» solo.
 
 Nunca recibe nada del comprador ni del inversor de una unidad.
 

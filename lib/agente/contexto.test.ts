@@ -71,7 +71,7 @@ describe("contexto del agente", () => {
     expect(s).toContain("18:05");
     expect(s).toContain("Etapa: Interesado. Responsable: Mati. Último contacto: 2026-11-01.");
     expect(s).toContain("Quiere balcón.");
-    expect(s).toContain("En el CRM figura: para: Invertir; presupuesto: USD 90000.");
+    expect(s).toContain("En el CRM figura: para: Invertir; presupuesto: u$d 90.000.");
     expect(s).toContain("Próximo paso que anotó el equipo: Mandar planos (2026-11-12).");
     expect(situacion({ ahora, nombre: "", telefono: "", crm: undefined })).toContain("no se pudo consultar");
     const conAnotado = situacion({ ahora, nombre: "Ana", telefono: "", crm: null, anotado: { nombre: "Ana Prueba", ambientes: "2", resumen: "Busca 2 ambientes." } });

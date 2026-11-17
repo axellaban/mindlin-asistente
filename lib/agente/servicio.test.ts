@@ -181,7 +181,8 @@ describe("atender un mensaje", () => {
     expect(pedidas).toEqual(["lerma-439"]);
     const sistema = m.pedidos[0].system.map((x) => x.text).join("\n");
     expect(sistema).toContain("### Lista de precios (unidades disponibles hoy)");
-    expect(sistema).toContain("- 2A · Piso 2 · 2 ambientes · Frente · 52 m² · USD 128.000");
+    expect(sistema).toContain("- 2A · Piso 2 · 2 ambientes · Frente · 52 m² · u$d 128.000");
+    expect(sistema).toContain("dólares «u$d 128.000» y pesos argentinos «ar$ 1.500.000»");
     // Sin lista (el hub no contesta), la ficha queda como siempre.
     const sin = preparar({ proyectos: [lerma({ lista_hub: "lerma-439" })], historial: [msg(1, "interesado", "Hola")] });
     const m2 = modeloFalso(respuesta([{ type: "text", text: "¡Hola!" }]));
