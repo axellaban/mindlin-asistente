@@ -81,13 +81,17 @@ export interface PasoEmbudo {
 export function embudo(filas: FilaResultado[], metas: MetasOutreach, o: { semanas: number }): { pasos: PasoEmbudo[]; frena: Paso | null; meta_contactados: number } {
   const orden: Paso[] = ["cargados", "con_whatsapp", "contactados", "respondieron", "interesados", "visita", "reserva"];
   const cuenta = Object.fromEntries(orden.map((p) => [p, 0])) as Record<Paso, number>;
+  // «Con WhatsApp» se mide sobre los que ya se sabe si tienen (verificados o contactados): los que
+  // nadie revisó todavía no cuentan como «no tiene». Sin esto, una base recién cargada «se frena» ahí.
+  let sabidos = 0;
   for (const f of filas) {
     const l = llego(f);
     for (const p of orden) if (l[p]) cuenta[p]++;
+    if (l.contactados || f.tiene_whatsapp !== null) sabidos++;
   }
   const metaDe: Partial<Record<Paso, number>> = { con_whatsapp: metas.con_whatsapp, respondieron: metas.respondieron, interesados: metas.interesados, visita: metas.visita, reserva: metas.reserva };
   const pasos = orden.map((paso, i): PasoEmbudo => {
-    const antes = i ? cuenta[orden[i - 1]] : 0;
+    const antes = paso === "con_whatsapp" ? sabidos : i ? cuenta[orden[i - 1]] : 0;
     // «Contactados» se mide contra la meta semanal, no contra el paso anterior.
     const meta = metaDe[paso] != null ? metaDe[paso]! / 100 : null;
     const conversion = i && antes ? cuenta[paso] / antes : null;

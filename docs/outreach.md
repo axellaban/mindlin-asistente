@@ -130,7 +130,7 @@ Idea traída del ranking de prospectos de Chapa Labs (habita.), adaptada a leads
 
 ## El embudo y los resultados
 
-- **Embudo contra la meta:** cargados → con WhatsApp → contactados → respondieron → interesados → visita → reserva. Cada paso incluye a los siguientes. Las metas se cambian en el hub. De fábrica: 100 contactados por semana, 70 % con WhatsApp, 15 % responde, 35 % interesados, 30 % visita y 15 % reserva. Se marca dónde se frena: el primer paso por debajo de la meta, con al menos 30 casos en el paso anterior.
+- **Embudo contra la meta:** cargados → con WhatsApp → contactados → respondieron → interesados → visita → reserva. Cada paso incluye a los siguientes. Las metas se cambian en el hub. De fábrica: 100 contactados por semana, 70 % con WhatsApp, 15 % responde, 35 % interesados, 30 % visita y 15 % reserva. Se marca dónde se frena: el primer paso por debajo de la meta, con al menos 30 casos en el paso anterior. «Con WhatsApp» se mide sobre los que ya se sabe si tienen (verificados o contactados), no sobre todos los cargados: si no, una base recién cargada aparecía frenada ahí (QA del 17/11).
   - Interesados, visita y reserva salen de la etapa del lead en el CRM.
   - Las respuestas automáticas no cuentan como «respondieron».
 - **Por lote y por versión del mensaje:** cuántos respondieron dentro de los 7 días del primer contacto. Con menos de 30 casos, se marca «muestra chica». No hay versión «ganadora» automática: decide una persona.

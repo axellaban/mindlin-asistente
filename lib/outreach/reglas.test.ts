@@ -127,6 +127,12 @@ describe("los textos", () => {
     expect(textoDelPaso(F, 1, { id: 2, nombre: "Ana", proyecto_nombre: "Lerma 439" }).texto).toContain("lo que tenemos hoy en Lerma 439.");
     expect(textoDelPaso(F, 1, { id: 2, nombre: "Ana", proyecto_nombre: null }).texto).toContain("lo que tenemos hoy.");
   });
+
+  it("con nombre y sin proyecto, no queda un espacio antes del punto ni de la coma", () => {
+    const c = { ...F, seguimiento: ["Hola {nombre}, te paso las novedades {proyecto_en}. Y las opciones {proyecto_en} , si querés."] };
+    expect(textoDelPaso(c, 1, { id: 1, nombre: "Ana", proyecto_nombre: null }).texto).toBe("Hola Ana, te paso las novedades. Y las opciones, si querés.");
+    expect(textoDelPaso(c, 1, { id: 1, nombre: "Ana", proyecto_nombre: "Lerma 439" }).texto).toBe("Hola Ana, te paso las novedades en Lerma 439. Y las opciones en Lerma 439, si querés.");
+  });
 });
 
 describe("¿puede salir?", () => {
