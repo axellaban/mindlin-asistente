@@ -10,7 +10,7 @@ Idea traída de DeskcommCRM (15/11): **una sola regla de baja que vale para todo
 
 ## Qué pasa
 
-- **No le salen más seguimientos ni flujos** en esa conversación. Si había un flujo esperando su respuesta, se corta: no sigue por «Si responde» ni por «Si no responde». Si la baja la marcó la IA en medio de un flujo, el flujo termina lo que estaba mandando y el cron ya no lo retoma.
+- **No le salen más seguimientos ni flujos**, en esa conversación ni en ninguna otra de ese teléfono: las de otras líneas, los chats viejos y los que empiece después (desde el 17/11; se compara por los últimos 10 dígitos, y el teléfono queda en la tabla `bajas`, la misma del outreach). Si había un flujo esperando su respuesta, se corta: no sigue por «Si responde» ni por «Si no responde». Si la baja la marcó la IA en medio de un flujo, el flujo termina lo que estaba mandando y el cron ya no lo retoma.
 - **La IA le contesta una vez, corto:** que no le van a escribir más y que, si algún día quiere información, puede escribir por acá. No ofrece nada ni pregunta nada. Si en realidad pedía otra cosa (que lo llamen, que le escriban por mail), responde a eso.
 - **Etapa:** pedir la baja no lo hace avanzar de etapa. Si la IA marca «no le interesa», pasa a **Descartado** (etapas automáticas, ver [`integracion-crm.md`](integracion-crm.md)).
 - **Queda anotado:** en el CRM, en la actividad del lead («Pidió que no le escriban más por WhatsApp…»); en el registro del asistente («Pidió que no le escriban», se ve en el panel); y en la conversación (`pidio_baja`, la fecha), que el hub recibe en sus conversaciones.

@@ -159,6 +159,8 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
         // interesado es jsonb: va como texto JSON.
         ...campos.map((k) => (k === "interesado" ? JSON.stringify(c.interesado ?? {}) : (c[k] ?? null))),
       ]);
+      // Un teléfono que ya pidió la baja (en otra línea u otra conversación): esta tampoco lleva nada automático.
+      if (c.telefono) await marcarBajaPorTelefono(db, { chatwoot_id: c.chatwoot_id });
     },
     async proyectosActivos() {
       const { rows } = await db.query(`select ${COLUMNAS_PROYECTO} from proyectos where activo order by nombre`);
@@ -192,6 +194,8 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       const telefono = telefonoParaComparar(rows[0]?.telefono);
       if (telefono) {
         await db.query("insert into bajas (telefono, linea, origen) values ($1, $2, 'pidió por WhatsApp') on conflict (telefono) do nothing", [telefono, rows[0]?.linea ?? null]);
+        // Y las otras conversaciones de ese teléfono (otras líneas, chats viejos): nada automático tampoco.
+        await marcarBajaPorTelefono(db, { telefono });
         await db.query("update outreach_contactos set etapa = 'baja', motivo = 'pidió que no le escriban más', proxima_accion = null, actualizado = now() where telefono = $1 and etapa <> 'baja'", [telefono]);
       }
       return rowCount === 1;
@@ -349,4 +353,22 @@ export function crearAlmacen(db: Pick<pg.Pool, "query">): Almacen {
       ]);
     },
   };
+}
+
+/**
+ * La baja vale por teléfono, para todas las líneas y conversaciones (docs/baja.md): marca «pidió la
+ * baja» a las conversaciones de un teléfono que está en `bajas`, sea una (`chatwoot_id`) o todas las
+ * de ese teléfono. Se compara por los últimos 10 dígitos, como el CRM. Lo que ya estaba marcado no cambia.
+ */
+export async function marcarBajaPorTelefono(db: Pick<pg.Pool, "query">, cual: { chatwoot_id: number } | { telefono: string }): Promise<void> {
+  const porConversacion = "chatwoot_id" in cual;
+  await db.query(
+    `update conversaciones c set sin_seguimientos = true, pidio_baja = b.cuando, actualizada = now()
+     from bajas b
+     where c.pidio_baja is null and c.telefono is not null
+       and length(regexp_replace(c.telefono, '\\D', '', 'g')) >= 8
+       and right(b.telefono, 10) = right(regexp_replace(c.telefono, '\\D', '', 'g'), 10)
+       and ${porConversacion ? "c.chatwoot_id = $1" : "b.telefono = $1"}`,
+    [porConversacion ? cual.chatwoot_id : cual.telefono],
+  );
 }

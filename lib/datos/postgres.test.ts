@@ -288,5 +288,25 @@ describe.skipIf(!url)("almacén en Postgres (migraciones y consultas reales)", (
     await a.registrar({ tipo: "pidio_baja", conversacion: 4242, detalle: "Pidió que no le escriban más." });
     expect((await pool.query("select telefono, linea from bajas where telefono = '5491144440000'")).rows).toEqual([{ telefono: "5491144440000", linea: "linea-3" }]);
   });
+
+  it("la baja vale por teléfono: las otras conversaciones de ese número, y las que vengan, no llevan nada automático", async () => {
+    const a = crearAlmacen(pool);
+    const ahora = "2026-11-20T15:00:00.000Z";
+    // La misma persona en la línea 3 (con otro formato de número) y en un chat viejo; otra persona aparte.
+    await a.guardarConversacion({ chatwoot_id: 5101, telefono: "+54 9 11 3333-0000", linea: "linea-1" });
+    await a.guardarConversacion({ chatwoot_id: 5102, telefono: "5491133330000", linea: "linea-3" });
+    await a.guardarConversacion({ chatwoot_id: 5103, telefono: "+5491122220000", linea: "linea-3" });
+    expect(await a.pidioBaja(5101, ahora)).toBe(true);
+    const marcadas = async () => (await pool.query("select chatwoot_id, sin_seguimientos, pidio_baja is not null as baja from conversaciones where chatwoot_id between 5101 and 5104 order by 1")).rows;
+    expect(await marcadas()).toEqual([
+      { chatwoot_id: "5101", sin_seguimientos: true, baja: true },
+      { chatwoot_id: "5102", sin_seguimientos: true, baja: true },
+      { chatwoot_id: "5103", sin_seguimientos: false, baja: false },
+    ]);
+    // Vuelve a escribir más adelante por una conversación nueva: entra ya marcada.
+    await a.guardarConversacion({ chatwoot_id: 5104, telefono: "+54 9 11 3333-0000", linea: "linea-3" });
+    expect((await marcadas()).at(-1)).toEqual({ chatwoot_id: "5104", sin_seguimientos: true, baja: true });
+    expect(await a.volvioAlBot(5104)).toBe(false);
+  });
 });
 
