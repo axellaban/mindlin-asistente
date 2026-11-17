@@ -16,7 +16,7 @@ Probado el 07/11/2026 con Chatwoot 4.19.1 y WAHA 2026.10.1 levantados con `infra
 ## Tomar, devolver y pausar (10/11)
 
 - **Devolver una conversación al bot:** en Chatwoot, **Marcar como pendiente**. Chatwoot vuelve a mandar los mensajes del interesado con estado `pending` y el asistente responde (y reactiva sus seguimientos). No hace falta otro aviso: se da cuenta con el primer mensaje.
-- **Pausa general:** es del asistente, no de Chatwoot (panel → Resumen). Pausado, el asistente pasa cada conversación a abierta con una nota.
+- **Pausa general:** es del asistente, no de Chatwoot (panel → Resumen). Pausado, el asistente pasa cada conversación a abierta con una nota. La nota dice cómo volver a la IA: reactivar (el asistente o la línea) en el hub y, en esa conversación, **Marcar como pendiente**. Reactivar solo no alcanza: las que ya pasaron al equipo siguen abiertas hasta que alguien las marca (17/11).
 - Falta confirmar con la línea real que una conversación **resuelta** que vuelve a recibir un mensaje entra como pendiente (con el Agent Bot en la bandeja, así lo hace Chatwoot): en ese caso la atiende el asistente de nuevo.
 
 ## WAHA → Chatwoot
