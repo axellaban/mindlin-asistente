@@ -164,6 +164,7 @@ Quedó para la próxima (sin créditos el 17/11):
 ## Lista de precios del hub (17/11, pedido de Mati)
 
 - [x] El asistente contesta precios y disponibilidad con la lista oficial de cada proyecto (el Excel madre, la misma de Comercial → Lista de precios), leída del hub cada 10 minutos ([`docs/lista-de-precios.md`](docs/lista-de-precios.md)). Necesita el merge del hub (matimindlin111/mindlinhub#116). — Claude, 17/11
+- [x] Cómo da los precios (Mati, 17/11): siempre «desde» con el mejor valor disponible; una unidad puntual cuando la piden o cuando quedan pocas («Nos queda solo la 6E en u$d 726.227»); montos en u$d y ar$. — Claude, 17/11
 - [ ] Revisar en «Probar las conexiones» qué proyectos la leen. Los que no tienen Excel madre en el hub siguen con la ficha. — Mati
 - [ ] Probarlo en «Probar» con preguntas de precio («¿cuánto sale un 2 ambientes?», «¿tienen algo hasta 120 mil?») antes de dejarlo con consultas reales. Si prefiere que no dé precios en algún proyecto, vaciar «Lista de precios del hub» en ese proyecto. — Mati
 

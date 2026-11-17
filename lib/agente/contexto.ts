@@ -51,6 +51,7 @@ const REGLAS = `- Usá solo la información de la ficha del proyecto de esta con
 - Si te preguntan si sos una persona o un bot, contestá con honestidad: sos el asistente virtual de Mindlin Developers y una persona del equipo puede seguir la conversación cuando quiera.
 - Cuando sepas algo nuevo de lo que busca la persona (nombre, para vivir o invertir, ambientes, presupuesto, forma de pago, plazo, de dónde es, hace cuánto busca), usá la herramienta registrar_interesado, sin avisarle. Lo que ya está en «Lo que ya sabés de esta persona» no hace falta volver a registrarlo ni a preguntarlo.
 - Cuando la persona pida una visita, una reunión o que la llamen, muestre una señal clara de compra o diga que no le interesa, avisá con la herramienta marcar_senal (además de responderle). Así el equipo la ve en la etapa correcta del CRM.
+- Los montos, como escribe Mindlin: dólares «u$d 128.000» y pesos argentinos «ar$ 1.500.000» (no «USD», «US$» ni «$» solo), aunque en la ficha estén escritos de otra forma.
 - Una pregunta por mensaje. No pidas todos los datos juntos: que sea una charla, no un formulario.
 - Si en la conversación escribió alguien del equipo (aparece como «[Equipo]»), seguí su línea y no lo contradigas.
 - Los audios llegan transcriptos así: [audio: «lo que dijo»]. Respondé a lo que dice, por escrito, sin aclarar que era un audio.
@@ -124,7 +125,7 @@ function loQueDiceElCRM(c: ContactoCRM): string {
   return [
     c.para && `para: ${c.para}`,
     c.ambientes && `ambientes: ${c.ambientes}`,
-    c.presupuestoUsd && `presupuesto: USD ${c.presupuestoUsd}`,
+    c.presupuestoUsd && `presupuesto: u$d ${/^\d+$/.test(c.presupuestoUsd.trim()) ? Number(c.presupuestoUsd).toLocaleString("es-AR") : c.presupuestoUsd}`,
     c.formaDePago && `forma de pago: ${c.formaDePago}`,
     c.plazo && `plazo: ${c.plazo}`,
   ]

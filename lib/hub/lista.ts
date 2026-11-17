@@ -64,7 +64,21 @@ export function listaDesdeEnv(env: Record<string, string | undefined>, pedir: ty
   };
 }
 
-const usd = (n: number) => `USD ${Math.round(n).toLocaleString("es-AR")}`;
+/** Como escribe Mindlin los montos (Mati, 17/11): dólares «u$d 128.000» y pesos «ar$ 1.500.000». */
+export const usd = (n: number) => `u$d ${Math.round(n).toLocaleString("es-AR")}`;
+
+/** El «desde» de la lista y el de cada tipología (solo las que vende el proyecto; las reventas, aparte). Puro. */
+export function desdeDeLista(unidades: UnidadHub[]): { desde: UnidadHub | null; tipologias: { tipologia: string; cantidad: number; desde: UnidadHub }[] } {
+  const propias = unidades.filter((u) => u.tipo === "libre");
+  const base = propias.length ? propias : unidades;
+  const masBarata = (us: UnidadHub[]) => us.reduce((a, b) => (b.precio_usd < a.precio_usd ? b : a));
+  const grupos = new Map<string, UnidadHub[]>();
+  for (const u of base) grupos.set(u.tipologia || "Sin tipología", [...(grupos.get(u.tipologia || "Sin tipología") ?? []), u]);
+  return {
+    desde: base.length ? masBarata(base) : null,
+    tipologias: [...grupos].map(([tipologia, us]) => ({ tipologia, cantidad: us.length, desde: masBarata(us) })).sort((a, b) => a.desde.precio_usd - b.desde.precio_usd),
+  };
+}
 const FECHA = new Intl.DateTimeFormat("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 /** Cómo la lee la IA, dentro de la ficha. Null si no hay lista (sin Excel madre o el hub no contestó). */
@@ -74,14 +88,23 @@ export function textoLista(l: ListaHub | null): string | null {
   const cuando = l.leido ? ` (leída el ${FECHA.format(new Date(l.leido))})` : "";
   const reglas = [
     `Es la lista de precios oficial de Mindlin${cuando}. Para precios y disponibilidad de unidades vale esta lista, por sobre lo que diga la ficha.`,
-    "Podés dar estos precios y superficies tal cual: son precios de lista, en dólares. Descuentos, financiación especial, reservas o una unidad que no está en la lista: eso lo confirma el equipo.",
-    "Si una unidad no aparece acá, hoy no está disponible: no la ofrezcas.",
-    "No mandes la lista entera: contá lo que se ajusta a lo que busca la persona (dos o tres opciones) y preguntá.",
+    // Cómo habla de precios Mindlin (Mati, 17/11): siempre «desde», con el mejor valor disponible.
+    "Cuando pregunten el precio, decí «desde» con el mejor valor disponible: el «desde» de la lista o, si ya dijo qué tipología busca, el de esa tipología (abajo).",
+    "El precio de una unidad puntual dalo cuando pregunten por esa unidad, o cuando quedan pocas de lo que busca la persona («Nos queda solo la 6E en u$d 726.227»): es un dato real que ayuda a decidir. Nunca inventes escasez: decilo solo si la lista lo muestra.",
+    "Son precios de lista: descuentos, financiación especial, reservas o una unidad que no está en la lista, eso lo confirma el equipo. Si una unidad no aparece acá, hoy no está disponible: no la ofrezcas.",
+    "No mandes la lista entera: como mucho dos o tres opciones que se ajusten a lo que busca, y preguntá.",
   ];
+  const { desde, tipologias } = desdeDeLista(unidades);
+  const resumen = desde
+    ? `Desde ${usd(desde.precio_usd)} (la de mejor valor disponible: ${desde.codigo}, ${desde.tipologia}). Por tipología:\n${tipologias
+        .map((t) => `- ${t.tipologia}: ${t.cantidad === 1 ? `queda 1 sola (la ${t.desde.codigo}), ${usd(t.desde.precio_usd)}` : `${t.cantidad} disponibles, desde ${usd(t.desde.precio_usd)}`}`)
+        .join("\n")}`
+    : "";
   const fila = (u: UnidadHub) =>
     `- ${u.codigo} · ${u.piso} · ${[u.tipologia, u.orientacion].filter(Boolean).join(" · ")} · ${u.m2} m² · ${usd(u.precio_usd)}${u.usd_m2 ? ` (${usd(u.usd_m2)}/m²)` : ""}${u.tipo === "reventa" ? " · reventa: la vende su dueño, a ese precio" : ""}${u.link ? ` · ${u.link}` : ""}`;
   const partes = [
     reglas.join(" "),
+    resumen,
     unidades.length ? `Unidades disponibles (${unidades.length}):\n${unidades.slice(0, MAX_UNIDADES).map(fila).join("\n")}${unidades.length > MAX_UNIDADES ? `\n(y ${unidades.length - MAX_UNIDADES} más: para esas, que lo vea el equipo)` : ""}` : "Hoy no hay unidades disponibles en la lista: no ofrezcas ninguna y ofrecé que el equipo le cuente las próximas.",
     l.cocheras?.length ? `Cocheras disponibles: ${l.cocheras.map((c) => `${c.codigo} ${usd(c.precio_usd)}`).join(", ")}.` : "",
     l.condiciones?.length ? `Condiciones de la lista:\n${l.condiciones.map((c) => `- ${c}`).join("\n")}` : "",
