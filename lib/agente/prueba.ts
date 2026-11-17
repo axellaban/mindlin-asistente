@@ -21,7 +21,7 @@ import { responder, type Herramientas, type Modelo } from "./agente";
 import { CAMPOS_ANOTADOS, sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
 import { tituloEvento, type ReglasEtapa } from "../etapas/reglas";
-import { conListaDePrecios, type LeerLista } from "../hub/lista";
+import { conListaDePrecios, sumarLista, type LeerLista } from "../hub/lista";
 import { paraWhatsApp } from "./whatsapp";
 
 export { estadoInicial, MAX_LARGO_PRUEBA, MAX_MENSAJES_PRUEBA, type EstadoPrueba, type MensajePrueba, type RespuestaPrueba } from "./prueba-comun";
@@ -39,7 +39,10 @@ export async function probar({
   flujos = [],
   vencer = false,
   archivos = new Map(),
+  listaDePrecios = null,
 }: {
+  /** La lista de precios del hub (lib/hub/lista.ts): la del proyecto elegido, y la de otro si cambia. */
+  listaDePrecios?: LeerLista | null;
   /** Para mostrar a qué etapa movería cada señal (si no vienen, solo muestra la señal). */
   reglasEtapa?: ReglasEtapa;
   modelo: Modelo;
@@ -63,7 +66,8 @@ export async function probar({
   const turno: { tipo: "bot" | "accion"; texto: string }[] = [];
   /** Lo que haría (va en «acciones» y, en orden, en «turno»). */
   const accion = (texto: string) => (acciones.push(texto), turno.push({ tipo: "accion", texto }));
-  const proyectos = proyectosDeLinea(linea, todos);
+  const deLinea = proyectosDeLinea(linea, todos);
+  const proyectos = await conListaDePrecios(deLinea, listaDePrecios, [deLinea.some((p) => p.id === estado.proyecto) ? estado.proyecto : deLinea.length === 1 ? deLinea[0].id : null]);
   const mensajes: MensajePrueba[] = [...estado.mensajes];
   /** Un mensaje del asistente: queda en la charla y, en orden, en «turno». */
   const bot = (texto: string) => (mensajes.push({ rol: "bot", texto }), turno.push({ tipo: "bot", texto }));
@@ -86,7 +90,7 @@ export async function probar({
       if (!p) throw new Error(`No hay un proyecto activo con id ${id}.`);
       proyectoId = p.id;
       accion(`🏢 Eligió el proyecto ${p.nombre}`);
-      return `Quedó elegido. Ficha:\n\n${ficha(p)}`;
+      return `Quedó elegido. Ficha:\n\n${ficha((await sumarLista(proyectos, p.id, listaDePrecios)) ?? p)}`;
     },
     async marcarSenal(senal, detalle) {
       const etapa = reglasEtapa?.[senal];
@@ -224,7 +228,7 @@ export async function probarConAlmacen(
   const archivos = new Map<number, string>();
   for (const a of await Promise.all(ids.map((x) => almacen.archivo(x).catch(() => null)))) if (a) archivos.set(a.id, a.nombre);
   // Con la lista de precios del hub, como en WhatsApp: así se prueba lo mismo que va a contestar.
-  return probar({ modelo, proyectos: await conListaDePrecios(proyectos, listaDePrecios), tono, ejemplos, reglasEtapa, estado, texto: texto.slice(0, MAX_LARGO_PRUEBA), linea, flujos, vencer, archivos });
+  return probar({ modelo, proyectos, listaDePrecios, tono, ejemplos, reglasEtapa, estado, texto: texto.slice(0, MAX_LARGO_PRUEBA), linea, flujos, vencer, archivos });
 }
 
 /** Lo que llega del navegador, revisado (nunca se confía en la forma). */

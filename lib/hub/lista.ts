@@ -33,7 +33,7 @@ export interface ListaHub {
 export type LeerLista = (proyectoHub: string) => Promise<ListaHub | null>;
 
 /** Cuánto se espera al hub (el Excel madre puede tardar la primera vez) y cuánto se guarda lo leído. */
-const ESPERA_MS = 6000;
+const ESPERA_MS = 4000;
 export const VIGENCIA_MS = 10 * 60_000;
 const VIGENCIA_ERROR_MS = 2 * 60_000;
 /** Más que esto no entra en la ficha (una torre grande): van las primeras, por piso. */
@@ -51,8 +51,18 @@ export function listaDesdeEnv(env: Record<string, string | undefined>, pedir: ty
       try {
         const r = await pedir(`${url}/api/asistente/unidades?proyecto=${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${clave}` }, signal: AbortSignal.timeout(ESPERA_MS) });
         const j = (await r.json().catch(() => null)) as ListaHub | null;
-        if (!r.ok || !j) throw new Error(`el hub respondió ${r.status}`);
-        return j;
+        if (r.ok && j) return j;
+        // Lo que no anduvo, con el motivo para «Probar las conexiones» (la IA no lo ve: sigue con la ficha).
+        const motivo =
+          r.status === 401
+            ? "el hub no aceptó la clave: HUB_CLAVE (acá) y ASISTENTE_CLAVE (en el hub) tienen que ser iguales"
+            : j?.motivo
+              ? j.motivo
+              : r.status === 404
+                ? "el hub todavía no tiene la lista para el asistente (falta publicar su versión del 17/11)"
+                : `el hub respondió ${r.status}`;
+        guardadas.set(id, { hasta: reloj() + VIGENCIA_ERROR_MS, lista: Promise.resolve({ disponible: false, motivo }) });
+        return { disponible: false, motivo };
       } catch {
         // Un rato sin volver a preguntar: si el hub está caído, no se lo pide en cada mensaje.
         guardadas.set(id, { hasta: reloj() + VIGENCIA_ERROR_MS, lista: Promise.resolve(null) });
@@ -112,15 +122,27 @@ export function textoLista(l: ListaHub | null): string | null {
   return partes.filter(Boolean).join("\n\n");
 }
 
-/** Los proyectos con su lista de precios del hub al lado (`lista_precios`), los que tienen `lista_hub`. */
-export async function conListaDePrecios(proyectos: Proyecto[], leer: LeerLista | null | undefined): Promise<Proyecto[]> {
+/**
+ * Los proyectos con su lista de precios del hub al lado (`lista_precios`), los que tienen `lista_hub`.
+ * Con `solo`, únicamente esos (el de la conversación): los demás se piden si la persona cambia de
+ * proyecto (sumarLista). Así no se le pide al hub, en cada conversación, la lista de todos.
+ */
+export async function conListaDePrecios(proyectos: Proyecto[], leer: LeerLista | null | undefined, solo?: (string | null)[]): Promise<Proyecto[]> {
   if (!leer) return proyectos;
   return Promise.all(
     proyectos.map(async (p) => {
       const id = p.lista_hub?.trim();
-      if (!id) return p;
+      if (!id || p.lista_precios || (solo && !solo.includes(p.id))) return p;
       const texto = textoLista(await leer(id).catch(() => null));
       return texto ? { ...p, lista_precios: texto } : p;
     }),
   );
+}
+
+/** Cuando la persona cambia de proyecto: le suma la lista a ese (en la misma lista de proyectos) y lo devuelve. */
+export async function sumarLista(proyectos: Proyecto[], id: string, leer: LeerLista | null | undefined): Promise<Proyecto | null> {
+  const i = proyectos.findIndex((p) => p.id === id);
+  if (i < 0) return null;
+  [proyectos[i]] = await conListaDePrecios([proyectos[i]], leer);
+  return proyectos[i];
 }

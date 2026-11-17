@@ -278,6 +278,35 @@ describe("atender un mensaje", () => {
     expect(p.datos.conversaciones.get(7)?.proyecto).toBe("lerma-439");
   });
 
+  it("la lista de precios se pide solo del proyecto de la conversación; la de otro, cuando la persona cambia", async () => {
+    const proyectos: Proyecto[] = [lerma({ lista_hub: "lerma-439" }), { ...otroProyecto(), lista_hub: "otro-hub" }];
+    const pedidas: string[] = [];
+    const unidad = (codigo: string) => ({ codigo, piso: "Piso 1", tipologia: "2 ambientes", orientacion: "", m2: 50, precio_usd: 100000, usd_m2: null, tipo: "libre" as const, link: null });
+    const listaDePrecios = async (id: string) => (pedidas.push(id), { disponible: true, unidades: [unidad(id === "lerma-439" ? "2A" : "9Z")] });
+    // Sin proyecto elegido todavía: no pide ninguna. Al elegir uno, recién ahí la de ese.
+    const p = preparar({ proyectos, historial: [msg(1, "interesado", "Hola, consulto por Lerma")] });
+    const m = modeloFalso(
+      respuesta([{ type: "tool_use", id: "t1", name: "elegir_proyecto", input: { proyecto_id: "lerma-439" } }]),
+      respuesta([{ type: "text", text: "¡Hola! Lerma 439 está en Villa Crespo." }]),
+    );
+    await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null, listaDePrecios }, accion(1));
+    expect(pedidas).toEqual(["lerma-439"]);
+    expect(JSON.stringify(m.pedidos[1].messages.at(-1))).toContain("2A · Piso 1");
+    // Con Lerma ya elegido, el mensaje siguiente pide solo la de Lerma (lo guardado lo resuelve el lector).
+    pedidas.length = 0;
+    await p.datos.almacen.guardarMensaje(msg(3, "interesado", "¿Y cuánto sale?"));
+    await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: modeloFalso(respuesta([{ type: "text", text: "Desde u$d 100.000." }])).modelo, crm: null, listaDePrecios }, accion(3, "¿Y cuánto sale?"));
+    expect(pedidas).toEqual(["lerma-439"]);
+  });
+
+  it("con la lista, lo que se escribió a mano de precios y disponibilidad queda marcado como posiblemente viejo", async () => {
+    const { ficha } = await import("./contexto");
+    const t = ficha(lerma({ precios: "Desde USD 88.000.", lista_precios: "Desde u$d 95.000." }));
+    expect(t).toContain("### Precios\n(Para precios y unidades disponibles, usá la «Lista de precios» de abajo, que está al día. Lo que sigue se escribió a mano y puede estar desactualizado: usalo solo como contexto. Desde USD 88.000.)");
+    expect(t).toContain("### Lista de precios (unidades disponibles hoy)\nDesde u$d 95.000.");
+    expect(ficha(lerma({ precios: "Desde USD 88.000." }))).toContain("### Precios\nDesde USD 88.000.");
+  });
+
   it("sin teléfono (WhatsApp no lo pasa), no crea repetidos: la segunda vez lo encuentra por el ID anotado", async () => {
     const p = preparar({ historial: [msg(1, "interesado", "Hola, busco 2 ambientes"), msg(2, "bot", "¡Hola! ¿Para vivir o invertir?"), msg(3, "interesado", "Para invertir")] });
     const sinTelefono = (mensaje: number, texto: string): Responder => ({ ...accion(mensaje, texto), contacto: { nombre: "Ana Prueba", telefono: "" } });
