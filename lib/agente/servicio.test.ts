@@ -143,8 +143,8 @@ describe("atender un mensaje", () => {
     expect(m.pedidos[1].messages.at(-1)).toMatchObject({ role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "Listo: quedó en el CRM como contacto nuevo." }] });
   });
 
-  it("si la persona ya está en el CRM, no la duplica: suma actividad", async () => {
-    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Seguimiento", Responsable: "Mati" })[c as "ID"] ?? "");
+  it("si la persona ya está en el CRM, no la duplica: suma actividad y completa solo lo vacío", async () => {
+    const existente = COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Seguimiento", Responsable: "Mati", Para: "Vivir" })[c as "ID"] ?? "");
     const p = preparar({ contactos: [existente], historial: [msg(1, "interesado", "Hola")] });
     const m = modeloFalso(
       respuesta([{ type: "tool_use", id: "t1", name: "registrar_interesado", input: { nombre: "", para: "Invertir", ambientes: "", presupuesto_usd: "90000", forma_de_pago: "", plazo: "", resumen: "Ahora busca para invertir." } }]),
@@ -153,6 +153,9 @@ describe("atender un mensaje", () => {
     await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: p.crm }, accion(1, "Hola"));
     expect(p.hoja.pestanias["CRM Contactos"]).toHaveLength(1);
     expect(p.hoja.pestanias["CRM Actividad"][0].slice(2, 7)).toEqual(["c1", "Ana", "WhatsApp", "Ahora busca para invertir. (para: Invertir, presupuesto: USD 90000)", "Seguimiento"]);
+    // En la ficha: el presupuesto estaba vacío y se completa; «Para» lo cargó el equipo y no se toca.
+    const fila = p.hoja.pestanias["CRM Contactos"][0];
+    expect([fila[COLUMNAS_CONTACTOS.indexOf("Presupuesto USD")], fila[COLUMNAS_CONTACTOS.indexOf("Para")]]).toEqual(["90000", "Vivir"]);
     expect(m.pedidos[0].system[1].text).toContain("Responsable: Mati");
   });
 

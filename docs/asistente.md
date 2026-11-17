@@ -18,7 +18,7 @@
      - **Instrucciones estables:** tono, las instrucciones de la línea, reglas, la ficha del proyecto (solo los proyectos que atiende esa línea) y los ejemplos. Van en el caché de Anthropic.
      - **La situación:** fecha y hora (y si el equipo está trabajando), quién es, qué dice el CRM (etapa, responsable, para qué busca, presupuesto, próximo paso, notas) y **lo que el asistente ya anotó** de esa persona.
    - La IA responde (`lib/agente/agente.ts`), con Claude u OpenAI (ver «Modelo»). Puede usar tres herramientas:
-     - `registrar_interesado`: lo guarda en la conversación (`conversaciones.interesado`) y da de alta en el CRM del hub si no existe; si ya existe, suma actividad **solo con lo que cambió** (si no hay nada nuevo, no escribe).
+     - `registrar_interesado`: lo guarda en la conversación (`conversaciones.interesado`) y da de alta en el CRM del hub si no existe; si ya existe, suma actividad **solo con lo que cambió** (si no hay nada nuevo, no escribe) y completa en su ficha lo que estaba **vacío** (para qué, ambientes, presupuesto, forma de pago, plazo), sin tocar lo que tiene algo.
      - `pasar_a_persona`.
      - `marcar_senal`: avisa que pidió una visita, mostró una señal de compra o dijo que no le interesa (esta última, además, frena para siempre los seguimientos y los flujos: ver [`baja.md`](baja.md)). Sirve para las etapas automáticas.
      - `elegir_proyecto`: solo si hay más de un proyecto activo. Con un proyecto ya elegido, ve los nombres de los otros (sin sus datos) para poder cambiar si preguntan por otro.
@@ -92,7 +92,7 @@ Después de responder, el asistente mueve al lead de etapa en el CRM según lo q
   - qué proyecto y qué contacto del CRM tiene cada conversación, y lo que el asistente anotó de la persona;
   - mensajes ya respondidos;
   - registro de lo que hizo el bot.
-- **CRM del hub:** contacto nuevo (etapa Contacto inicial, o Nuevo si no hay reglas de etapas; origen WhatsApp, con «Entró por WhatsApp (asistente)» en las notas), actividad tipo WhatsApp con el usuario «Asistente WhatsApp» (también cada seguimiento automático) y los **cambios de etapa** automáticos, anotados como «Cambio de etapa» ([`integracion-crm.md`](integracion-crm.md)). Nunca cambia los datos que cargó una persona. Las etapas y columnas son las del hub desde noviembre de 2026 (con la columna Tags); las etapas de antes se leen como las de ahora.
+- **CRM del hub:** contacto nuevo (etapa Contacto inicial, o Nuevo si no hay reglas de etapas; origen WhatsApp, con «Entró por WhatsApp (asistente)» en las notas), actividad tipo WhatsApp con el usuario «Asistente WhatsApp» (también cada seguimiento automático) y los **cambios de etapa** automáticos, anotados como «Cambio de etapa» ([`integracion-crm.md`](integracion-crm.md)). Nunca cambia los datos que cargó una persona: de un contacto que ya existía, solo completa lo vacío. Las etapas y columnas son las del hub desde noviembre de 2026 (con la columna Tags); las etapas de antes se leen como las de ahora.
 
 ## Prueba local de punta a punta
 

@@ -175,6 +175,19 @@ export async function prepararCharla(
           }
           // Solo lo que cambió: lo que ya estaba anotado no se repite en la actividad.
           await s.crm.anotarActividad({ contacto: ch.contacto, detalle: [d.resumen?.trim(), `(${suma.cambios.join(", ")})`].filter(Boolean).join(" "), ahora: cuando });
+          // Y en la ficha, lo que estaba vacío (lo que cargó una persona no se toca).
+          // Si falla, la actividad ya quedó: se anota el error y la conversación sigue.
+          const a = ch.anotado;
+          try {
+            const completadas = await s.crm.completarVacios({
+              id: ch.contacto.id,
+              datos: { para: a.para ?? "", ambientes: a.ambientes ?? "", presupuestoUsd: a.presupuesto_usd ?? "", formaDePago: a.forma_de_pago ?? "", plazo: a.plazo ?? "" },
+              ahora: cuando,
+            });
+            if (completadas.length) await s.almacen.registrar({ tipo: "crm", conversacion: conv, detalle: `Completado en ${ch.contacto.id}: ${completadas.join(", ")}` });
+          } catch (e) {
+            await s.almacen.registrar({ tipo: "error", conversacion: conv, detalle: `CRM (completar la ficha): ${detalle(e)}` });
+          }
           await s.almacen.registrar({ tipo: "crm", conversacion: conv, detalle: `Actividad en ${ch.contacto.id}`, datos: d });
           return "Listo: quedó anotado en el CRM (el contacto ya existía).";
         },

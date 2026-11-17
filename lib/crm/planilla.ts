@@ -139,7 +139,16 @@ export interface CRM {
    * Devuelve el contacto como quedó, o null si no se movió.
    */
   cambiarEtapa(c: { id: string; permitido: (etapaActual: string) => string | null; por: string; motivoDeDescarte?: string; ahora: string }): Promise<ContactoCRM | null>;
+  /**
+   * Completa en la fila del contacto lo que está **vacío** (para qué, ambientes, presupuesto, forma de
+   * pago y plazo), con los mismos cuidados que el alta. Lo que tiene algo no se toca: lo cargó una
+   * persona. Devuelve qué columnas se completaron (ninguna si no había nada vacío que completar).
+   */
+  completarVacios(c: { id: string; datos: Partial<Pick<DatosInteresado, CampoCompletable>>; ahora: string }): Promise<string[]>;
 }
+
+/** Lo que el asistente puede completar en un contacto que ya existía, si está vacío. */
+export type CampoCompletable = "para" | "ambientes" | "presupuestoUsd" | "formaDePago" | "plazo";
 
 /** Los últimos 10 dígitos: así coinciden «+54 9 11 5555-0000», «5491155550000» y «11 5555 0000». */
 export function claveTelefono(t: string): string {
@@ -174,6 +183,15 @@ export function contactoDeFila(f: string[]): ContactoCRM {
 }
 
 const enLista = (valor: string, lista: readonly string[]) => (lista.includes(valor) ? valor : "");
+
+/** Cada campo que se puede completar, con su columna y lo que se acepta (lo mismo que en el alta). */
+const COMPLETABLES: { campo: CampoCompletable; columna: (typeof COLUMNAS_CONTACTOS)[number]; valor: (v: string) => string }[] = [
+  { campo: "para", columna: "Para", valor: (v) => enLista(v, USOS) },
+  { campo: "ambientes", columna: "Ambientes", valor: (v) => v.trim() },
+  { campo: "presupuestoUsd", columna: "Presupuesto USD", valor: (v) => (/^\d+$/.test(v.trim()) ? v.trim() : "") },
+  { campo: "formaDePago", columna: "Forma de pago", valor: (v) => enLista(v, FORMAS_DE_PAGO) },
+  { campo: "plazo", columna: "Plazo", valor: (v) => enLista(v, PLAZOS) },
+];
 
 export function filaContactoNuevo(d: DatosInteresado, id: string, ahora: string, responsable: string, etapa = "Nuevo"): string[] {
   const fila = COLUMNAS_CONTACTOS.map(() => "");
@@ -262,6 +280,20 @@ export function crearCRM(hoja: Hoja, { responsable = "" }: { responsable?: strin
         [ahora, USUARIO_ASISTENTE, id, antes.nombre, "Cambio de etapa", `${antes.etapa} → ${etapa}${motivo ? ` (${motivo})` : ""}. Automático: ${por}`.slice(0, 2000), etapa],
       ]);
       return despues;
+    },
+    async completarVacios({ id, datos, ahora }) {
+      // Se vuelve a leer: si alguien lo cargó recién, gana lo suyo.
+      const filas = await hoja.leer(RANGO_CONTACTOS);
+      const i = filas.findIndex((f) => (f[col("ID")] ?? "").trim() === id);
+      if (i < 0) return [];
+      const celda = (n: (typeof COLUMNAS_CONTACTOS)[number], valor: string) => ({ rango: `'${PESTANIA_CONTACTOS}'!${letraColumna(col(n) + 1)}${i + 2}`, valor });
+      const celdas = COMPLETABLES.flatMap(({ campo, columna, valor }) => {
+        const nuevo = valor(datos[campo] ?? "");
+        return nuevo && !(filas[i][col(columna)] ?? "").trim() ? [{ columna, ...celda(columna, nuevo) }] : [];
+      });
+      if (!celdas.length) return [];
+      await hoja.actualizar([...celdas.map(({ rango, valor }) => ({ rango, valor })), celda("Actualizado", ahora)]);
+      return celdas.map((c) => c.columna);
     },
   };
 }
