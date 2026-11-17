@@ -27,7 +27,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       return NextResponse.json({ error: "El cuerpo no es JSON." }, { status: 400 });
     }
   }
-  const { almacen, modelo, crm, chatwoot } = conexionesDesdeEnv();
+  const { almacen, modelo, crm, chatwoot, listaDePrecios } = conexionesDesdeEnv();
   const r = await manejarHub(
     { metodo: req.method, ruta, cuerpo, autorizacion: req.headers.get("authorization"), usuario: nombreDelEncabezado(req.headers.get("x-hub-usuario")) },
     {
@@ -35,7 +35,7 @@ async function atender(req: Request, { params }: { params: Promise<{ ruta: strin
       datos: datos(),
       faltan: estadoConfig(process.env).faltan,
       ia: describirIA(process.env),
-      probar: almacen && modelo ? (estado, texto, o) => probarConAlmacen(almacen, modelo, estado, texto, o) : null,
+      probar: almacen && modelo ? (estado, texto, o) => probarConAlmacen(almacen, modelo, estado, texto, { ...o, listaDePrecios }) : null,
       chequear: () => chequear(),
       enlaceChatwoot: enlacesChatwoot(process.env),
       contactosCRM: crm ? () => crm.contactos() : null,

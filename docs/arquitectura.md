@@ -183,3 +183,7 @@ Se adapta, no se copia a ciegas:
 ## Fuera del MVP
 
 Lo que la propuesta deja para después (lo construye Mindlin o se presupuesta aparte): scoring, afinar etapas, mensajes y reglas comerciales, agenda automática, clasificación de proveedores y postulantes, terrenos y email (previsto, ver sección 9). La línea de outreach ya existe (sección 11), y su panel está diseñado (sección 15).
+
+## 16. Precios desde la lista del hub (17/11)
+
+El asistente no lee el Excel madre por su cuenta: se lo pide al hub (`GET /api/asistente/unidades`, con la clave compartida del aviso), que ya sabe leerlo y aplica los mismos criterios que la lista para compartir (qué unidades están libres, reventas y cocheras según sus ajustes). Así hay una sola lectura de la planilla y una sola regla de qué se puede ofrecer. Se guarda 10 minutos y, si el hub no contesta, el asistente sigue con la ficha. Cada proyecto dice de qué proyecto del hub la toma (`proyectos.lista_hub`), porque los ids no siempre coinciden. Detalle en [`lista-de-precios.md`](lista-de-precios.md).

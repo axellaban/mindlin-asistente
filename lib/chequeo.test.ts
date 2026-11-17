@@ -1,3 +1,4 @@
+import { lerma } from "../test/fixtures";
 import { describe, expect, it } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
 import { chequearConexiones, type DependenciasChequeo } from "./chequeo";
@@ -192,3 +193,17 @@ describe("chequeo de conexiones", () => {
   });
 });
 
+describe("la lista de precios del hub en el chequeo", () => {
+  const proyectos = async () => [lerma({ lista_hub: "lerma-439" }), lerma({ id: "guemes", nombre: "Güemes", lista_hub: "guemes-4676" }), lerma({ id: "otro", nombre: "Otro", lista_hub: "" })];
+  it("sin HUB_URL no aparece; con la lista, cuántas unidades tiene cada proyecto que la usa", async () => {
+    expect(estados(await chequearConexiones(deps({ pedir: chatwootFalso().pedir })))["Lista de precios del hub"]).toBeUndefined();
+    const leer = async (id: string) => (id === "lerma-439" ? { disponible: true, unidades: [{} as never, {} as never] } : { disponible: false, motivo: "El proyecto no tiene configurado su Excel madre." });
+    const c = await chequearConexiones(deps({ pedir: chatwootFalso().pedir, listaDePrecios: { leer, proyectos } }));
+    expect(estados(c)["Lista de precios del hub"]).toBe("aviso");
+    expect(detalle(c, "Lista de precios del hub")).toBe("Lerma 439: 2 unidades disponibles; Güemes: no se pudo leer (El proyecto no tiene configurado su Excel madre.), contesta con la ficha.");
+    // Un aviso no es una falla: el asistente sigue andando.
+    expect(c.ok).toBe(true);
+    const todas = await chequearConexiones(deps({ pedir: chatwootFalso().pedir, listaDePrecios: { leer: async () => ({ disponible: true, unidades: [] }), proyectos } }));
+    expect(estados(todas)["Lista de precios del hub"]).toBe("ok");
+  });
+});

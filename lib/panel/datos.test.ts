@@ -60,6 +60,10 @@ describe.skipIf(!url)("datos del panel (Postgres real)", () => {
     expect(ids[0]).toBe("lerma-439");
     expect(ids).toContain("guemes-4676");
     expect((await crearAlmacen(pool).proyectosActivos()).map((p) => p.id)).toEqual(["lerma-439"]);
+    // La lista de precios del hub: la migración la dejó cargada para Lerma; se cambia y se lee.
+    expect((await crearAlmacen(pool).proyectosActivos())[0].lista_hub).toBe("lerma-439");
+    await d.guardarProyecto(ficha({ lista_hub: "guemes-4676" }), "Mati");
+    expect((await d.proyecto("guemes-4676"))?.lista_hub).toBe("guemes-4676");
   });
 
   it("tono y ejemplos", async () => {

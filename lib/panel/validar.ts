@@ -70,7 +70,10 @@ export function validarProyecto(f: Formulario): Resultado<FichaEditable> {
         .filter(Boolean),
     ),
   ].slice(0, 30);
-  return { ok: true, valor: { id, nombre, palabras_clave: palabras, ...campos, activo: f.get("activo") === "on", notas_internas: notas } };
+  // El proyecto del hub del que toma la lista de precios (vacío: no la usa).
+  const listaHub = texto(f, "lista_hub").toLowerCase();
+  if (listaHub && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(listaHub)) return { ok: false, error: "«Lista de precios del hub» va con el identificador del proyecto en el hub (por ejemplo «lerma-439»), o vacío." };
+  return { ok: true, valor: { id, nombre, palabras_clave: palabras, ...campos, activo: f.get("activo") === "on", notas_internas: notas, lista_hub: listaHub } };
 }
 
 export function validarTono(f: Formulario): Resultado<Tono> {

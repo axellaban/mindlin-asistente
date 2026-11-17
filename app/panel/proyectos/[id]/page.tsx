@@ -68,6 +68,10 @@ export default async function Ficha({ params, searchParams }: { params: Promise<
             Notas internas <small>Para el equipo: el asistente no las lee.</small>
           </label>
           <textarea id="notas_internas" name="notas_internas" maxLength={MAX_CAMPO_FICHA} defaultValue={p?.notas_internas} />
+          <label htmlFor="lista_hub">
+            Lista de precios del hub <small>El identificador del proyecto en el hub (por ejemplo «lerma-439»): el asistente da las unidades disponibles y sus precios del Excel madre. Vacío: solo la ficha.</small>
+          </label>
+          <input id="lista_hub" name="lista_hub" type="text" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={60} defaultValue={p?.lista_hub ?? ""} />
           <label className="casilla">
             <input type="checkbox" name="activo" defaultChecked={p?.activo ?? true} /> Activo: el asistente lo ofrece
           </label>

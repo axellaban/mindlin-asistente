@@ -172,6 +172,23 @@ describe("atender un mensaje", () => {
     expect(hoy.hoja.pestanias["CRM Contactos"][0][col("Último contacto")]).toBe(reciente);
   });
 
+  it("con la lista de precios del hub, la IA recibe las unidades disponibles en la ficha del proyecto", async () => {
+    const p = preparar({ proyectos: [lerma({ lista_hub: "lerma-439" })], historial: [msg(1, "interesado", "¿Cuánto sale un 2 ambientes?")] });
+    const m = modeloFalso(respuesta([{ type: "text", text: "El 2A, en el piso 2, sale USD 128.000." }]));
+    const pedidas: string[] = [];
+    const listaDePrecios = async (id: string) => (pedidas.push(id), { disponible: true, unidades: [{ codigo: "2A", piso: "Piso 2", tipologia: "2 ambientes", orientacion: "Frente", m2: 52, precio_usd: 128000, usd_m2: 2560, tipo: "libre" as const, link: null }] });
+    await atender({ ...sinEspera, almacen: p.datos.almacen, chatwoot: p.cw.chatwoot, modelo: m.modelo, crm: null, listaDePrecios }, accion(1, "¿Cuánto sale un 2 ambientes?"));
+    expect(pedidas).toEqual(["lerma-439"]);
+    const sistema = m.pedidos[0].system.map((x) => x.text).join("\n");
+    expect(sistema).toContain("### Lista de precios (unidades disponibles hoy)");
+    expect(sistema).toContain("- 2A · Piso 2 · 2 ambientes · Frente · 52 m² · USD 128.000");
+    // Sin lista (el hub no contesta), la ficha queda como siempre.
+    const sin = preparar({ proyectos: [lerma({ lista_hub: "lerma-439" })], historial: [msg(1, "interesado", "Hola")] });
+    const m2 = modeloFalso(respuesta([{ type: "text", text: "¡Hola!" }]));
+    await atender({ ...sinEspera, almacen: sin.datos.almacen, chatwoot: sin.cw.chatwoot, modelo: m2.modelo, crm: null, listaDePrecios: async () => null }, accion(1, "Hola"));
+    expect(m2.pedidos[0].system.map((x) => x.text).join("\n")).not.toContain("Lista de precios");
+  });
+
   it("si la persona sigue escribiendo, contesta el último mensaje y no cada uno", async () => {
     const p = preparar({ historial: [msg(1, "interesado", "Hola"), msg(2, "interesado", "¿Tienen cochera?")] });
     const m = modeloFalso(respuesta([{ type: "text", text: "¡Hola! Sí, hay cocheras." }]));

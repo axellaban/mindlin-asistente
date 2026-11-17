@@ -34,7 +34,7 @@ function pool(url: string): pg.Pool {
 }
 
 const COLUMNAS_PROYECTO =
-  "id, nombre, palabras_clave, presentacion, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links";
+  "id, nombre, palabras_clave, presentacion, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links, lista_hub";
 
 interface FilaMensaje {
   id: string;

@@ -21,6 +21,7 @@ import { sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
 import type { Transcriptor } from "./openai";
 import { paraWhatsApp } from "./whatsapp";
+import { conListaDePrecios, type LeerLista } from "../hub/lista";
 import type { AvisarAlEquipo } from "../hub/aviso";
 
 export interface Servicios {
@@ -36,6 +37,8 @@ export interface Servicios {
   esperaMs?: number;
   /** Avisa en el hub (la campanita y el celular) cuando pasa una conversación al equipo. */
   avisarAlEquipo?: AvisarAlEquipo | null;
+  /** La lista de precios del hub (lib/hub/lista.ts). Sin ella, vale solo la ficha. */
+  listaDePrecios?: LeerLista | null;
 }
 
 /** Mensajes del historial que se le pasan a la IA. */
@@ -113,7 +116,8 @@ export async function prepararCharla(
     // Sin las reglas de etapas, el asistente atiende igual: solo no mueve a nadie.
     s.almacen.reglasEtapa().catch((): ReglasEtapa => ({})),
   ]);
-  const proyectos = proyectosDeLinea(linea, todos);
+  // Con la lista de precios del hub de cada proyecto que la usa (guardada 10 minutos; si falla, la ficha sola).
+  const proyectos = await conListaDePrecios(proyectosDeLinea(linea, todos), s.listaDePrecios);
   // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
   const telefono = delAviso?.telefono || guardada?.telefono || null;
   const nombre = delAviso?.nombre || guardada?.nombre || null;

@@ -24,6 +24,13 @@ export interface Proyecto {
   amenities: string;
   preguntas_frecuentes: string;
   links: string;
+  /**
+   * De qué proyecto del hub toma la lista de precios (unidades disponibles, precios y condiciones; el
+   * Excel madre). Vacío: no la usa y vale solo la ficha. Ver docs/lista-de-precios.md.
+   */
+  lista_hub?: string;
+  /** La lista de precios leída del hub, ya armada para la IA (no se guarda: lib/hub/lista.ts). */
+  lista_precios?: string;
 }
 
 export interface Tono {
