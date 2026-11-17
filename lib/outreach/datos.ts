@@ -30,6 +30,7 @@ import { normalizarTelefono, telefonoParaComparar } from "./telefono";
 import { aprendizajes, puntuar, type Aprendizaje, type Parte } from "./puntaje";
 import type { Waha } from "./waha";
 import { comparar, embudo, type FilaResultado } from "./resultados";
+import { marcarBajaPorTelefono } from "../datos/postgres";
 
 type Db = Pick<pg.Pool, "query" | "connect">;
 type Cliente = Pick<pg.PoolClient, "query">;
@@ -940,6 +941,8 @@ export function datosOutreach(db: Db, o: { azar?: () => number } = {}) {
       if (!t) return;
       await db.query("insert into bajas (telefono, linea, origen) values ($1, $2, $3) on conflict (telefono) do nothing", [t, o.linea, o.origen]);
       await db.query("update outreach_contactos set etapa = 'baja', motivo = 'pidió que no le escriban más', proxima_accion = null, actualizado = now() where telefono = $1", [t]);
+      // Sus conversaciones en las otras líneas: sin seguimientos ni flujos automáticos.
+      await marcarBajaPorTelefono(db, { telefono: t });
     },
   };
 }

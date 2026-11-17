@@ -105,6 +105,37 @@ describe("CRM del hub", () => {
     expect(pestanias["CRM Actividad"][1][5]).toBe("Contacto inicial → Descartado (Otro). Automático: dijo que no le interesa");
   });
 
+  it("completa solo lo vacío de un contacto que ya existía, con los mismos cuidados que el alta", async () => {
+    const { hoja, pestanias } = hojaFalsa([
+      filaDe({ ID: "c1", Nombre: "Otra" }),
+      filaDe({ ID: "c2", Nombre: "Ana", Para: "Vivir", Ambientes: " ", Actualizado: "2026-11-01T10:00:00.000Z" }),
+    ]);
+    const crm = crearCRM(hoja);
+    const v = (fila: number, n: (typeof COLUMNAS_CONTACTOS)[number]) => pestanias["CRM Contactos"][fila][COLUMNAS_CONTACTOS.indexOf(n)];
+    const completadas = await crm.completarVacios({
+      id: "c2",
+      datos: { para: "Invertir", ambientes: "2", presupuestoUsd: "USD 90 mil", formaDePago: "Contado", plazo: "Cuando sea" },
+      ahora: AHORA,
+    });
+    // «Para» lo cargó el equipo; el presupuesto que no es un número y el plazo que no está en la lista no entran.
+    expect(completadas).toEqual(["Ambientes", "Forma de pago"]);
+    expect([v(1, "Para"), v(1, "Ambientes"), v(1, "Presupuesto USD"), v(1, "Forma de pago"), v(1, "Plazo"), v(1, "Actualizado")]).toEqual(["Vivir", "2", "", "Contado", "", AHORA]);
+    expect(pestanias["CRM Contactos"][0]).toEqual(filaDe({ ID: "c1", Nombre: "Otra" }));
+    // Si no queda nada vacío que completar (o no está el contacto), no escribe nada.
+    expect(await crm.completarVacios({ id: "c2", datos: { ambientes: "3", formaDePago: "Financiado" }, ahora: "2026-11-08T10:00:00.000Z" })).toEqual([]);
+    expect(await crm.completarVacios({ id: "no-esta", datos: { ambientes: "3" }, ahora: AHORA })).toEqual([]);
+    expect([v(1, "Ambientes"), v(1, "Actualizado")]).toEqual(["2", AHORA]);
+  });
+
+  it("«Último contacto» se pone en la fila del contacto, y nada más", async () => {
+    const { hoja, pestanias } = hojaFalsa([filaDe({ ID: "c1", Nombre: "Otra" }), filaDe({ ID: "c2", Nombre: "Ana", "Último contacto": "2026-11-01T10:00:00.000Z", Notas: "La cargó Tadeo." })]);
+    const crm = crearCRM(hoja);
+    expect(await crm.tocarUltimoContacto({ id: "c2", ahora: AHORA })).toBe(true);
+    expect(pestanias["CRM Contactos"][1]).toEqual(filaDe({ ID: "c2", Nombre: "Ana", "Último contacto": AHORA, Notas: "La cargó Tadeo." }));
+    expect(pestanias["CRM Contactos"][0]).toEqual(filaDe({ ID: "c1", Nombre: "Otra" }));
+    expect(await crm.tocarUltimoContacto({ id: "no-esta", ahora: AHORA })).toBe(false);
+  });
+
   it("el contacto nuevo puede entrar en otra etapa (la del primer contacto)", async () => {
     const { hoja, pestanias } = hojaFalsa();
     const c = await crearCRM(hoja).crearContacto(datos(), AHORA, "Contacto inicial");

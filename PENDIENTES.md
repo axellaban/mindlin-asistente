@@ -25,7 +25,7 @@ Al terminar una tarea: marcarla `[x]`, con la fecha y lo que el siguiente necesi
 
 **En qué orden sigue:**
 
-1. La IA de paneles prueba todo en producción (tareas 12 a 15).
+1. ~~La IA de paneles prueba todo en producción (tareas 12 a 15).~~ Hecho el 16/11 ([#41](https://github.com/axellaban/mindlin-asistente/pull/41), detalle en [`docs/estado-paneles.md`](docs/estado-paneles.md)). Lo que quedó sin probar está abajo, en «Lo que quedó de la QA del 16/11».
 2. Axel decide lo suyo y Mati carga lo de Mindlin (ver «Qué falta, por persona», abajo).
 3. Se activan los seguimientos y los flujos.
 4. Pruebas internas con el equipo.
@@ -46,13 +46,13 @@ Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
    - **Con Hobby:** los seguimientos y las esperas de los flujos salen una vez por día, a las 10, y el repo queda público.
    - **Con Pro**, o con un servicio gratis que llame al cron cada 15 minutos: salen a la hora justa y el repo puede volver a ser privado. Lo que cambia en el código está en la mejora 10.
 4. **Correo para Chatwoot:** Zoho, Google Workspace o Brevo. Sin él no se puede invitar al equipo a Chatwoot ni usar su app del celular (tarea 7).
-5. **A quién le llegan los avisos de los leads sin responsable** (`ASISTENTE_AVISAR_SIN_RESPONSABLE` en el hub, por ejemplo `Mati,Tade`; tarea 13).
-6. **El mail del usuario «Hub» de Chatwoot**, que sirve para ver fotos y audios en el hub (tarea 14).
+5. **A quién le llegan los avisos de los leads sin responsable** (`ASISTENTE_AVISAR_SIN_RESPONSABLE` en el hub, por ejemplo `Mati,Tade`; tarea 13). Los avisos andan (QA del 16/11); falta elegir a quién.
+6. ~~El mail del usuario «Hub» de Chatwoot~~: hecho el 16/11 (tarea 14). Las fotos y los audios se ven en el hub.
 7. **Las filas de prueba del CRM:** «Juan Prueba» (`cmwb5wcob9uz6`) y las que liste la tarea 15. ¿Se borran o pasan a «Descartado»?
 
 ### Axel: hace
 
-8. Pasarle a la IA de paneles las tareas 12 a 15 (y estar para el teléfono de prueba y los códigos).
+8. ~~Pasarle a la IA de paneles las tareas 12 a 15~~ (hechas el 16/11). Falta un **número que nunca le haya escrito a la línea 3**, para probar el alta, la campaña y un flujo de verdad (ver «Lo que quedó de la QA del 16/11»).
 9. Conseguir el chip o número de la línea 4 (tarea 11) y **el de la línea 1** (outreach frío, chip propio para no arriesgar la línea de leads).
 10. Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas del CRM sin avisar.
 11. Hostinger: delegar el acceso Admin a su cuenta.
@@ -71,7 +71,7 @@ Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
    - ¿un número aparte o el mismo?;
    - ¿qué avisos pasan a WhatsApp?;
    - ¿conviven unas semanas con Telegram o se corta?
-4. **Línea 1 (outreach frío):** cargar las bases de leads viejas (en planillas) y escribir los textos de la secuencia: saludo, mensaje para quien responde y seguimiento, con 2 variantes de cada uno. Mientras tanto, el hub trae un borrador, pero no deja mandar hasta que estén los textos. Antes de la primera tanda, confirmar con su abogado el Registro No Llame y el consentimiento de la base. Ver [`docs/outreach.md`](docs/outreach.md).
+4. **Línea 1 (outreach frío):** cargar las bases de leads viejas (en planillas) y revisar los textos de la secuencia. El hub trae un borrador con 3 variantes del saludo y 3 del seguimiento: Mati los cambia a su gusto y marca «Textos revisados»; hasta entonces no sale nada. Antes de la primera tanda, confirmar con su abogado el Registro No Llame y el consentimiento de la base. Ver [`docs/outreach.md`](docs/outreach.md).
 5. **Etapas automáticas:** revisar las de fábrica. Por ejemplo, ¿«señal de compra» tiene que mover a Negociación? Hoy no mueve.
 6. **VIA 53 y Torre Cuatro Vientos:** sus dos documentos tienen datos distintos (precios, entrega, forma de pago, el semipiso). ¿Cuáles valen?
 7. **Horario del equipo comercial:** hoy es de lunes a viernes de 9 a 20.
@@ -93,17 +93,14 @@ Esta es la lista para mirar. Lo de más abajo es el detalle y el historial.
 
 Las tareas de [`IA_DE_PANELES.md`](IA_DE_PANELES.md), en este orden:
 
-- **12:** QA de líneas y flujos en producción.
-- **13:** avisos al responsable.
-- **14:** usuario «Hub» de Chatwoot.
-- **15:** prueba en producción de todo lo del 15/11, más la revisión de la planilla del CRM.
+- ~~**12 a 15:**~~ hechas el 16/11 (QA de líneas y flujos, avisos, usuario «Hub» de Chatwoot y todo lo del 15/11). Queda lo de «Lo que quedó de la QA del 16/11», con un número nuevo.
 - **11:** la línea 4, con el chip.
 - **16:** la línea 1 (outreach), con su chip.
 - **7:** el equipo en Chatwoot, cuando esté el correo.
 
 ### Claude (código)
 
-- **Outreach frío (línea 1):** hecho del lado del asistente el 16/11 (base, cola y cuidados, puntaje, respuestas, WAHA y resultados; [`docs/outreach.md`](docs/outreach.md)). Las pantallas del hub las hace otra IA en paralelo. Se retoma con lo que salga de la tarea 16 y de la primera tanda de prueba.
+- **Outreach frío (línea 1):** hecho del lado del asistente el 16/11 (base, cola y cuidados, puntaje, respuestas, WAHA y resultados; [`docs/outreach.md`](docs/outreach.md)). Las pantallas del hub, también (matimindlin111/mindlinhub#112, #113 y #114, publicadas el 17/11). Se retoma con lo que salga de la tarea 16 y de la primera tanda de prueba.
 
 Además, se retoma con:
 
@@ -121,20 +118,48 @@ Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads vi
 - [x] Diseño y la excepción a la regla, anotada en `AGENTS.md`. — Claude, 16/11
 - [x] 1. Asistente: migración (`outreach_*` y `bajas` por teléfono), cargar la base (vista previa, teléfonos argentinos, repetidos, cruce con el CRM, las bajas y las conversaciones en curso), la cola con la toma de 10 minutos, confirmar o «no salió» sin contar dos veces, los cuidados que hace cumplir el servidor y la API para el hub (`docs/api-hub.md`, «Outreach frío»). Falta conectar el webhook a la tabla `bajas` (paso 3). — Claude, 16/11
 - [x] Puntaje de las bases (0 a 100, pesos configurables, 15 % al azar, aprendizajes), en el asistente. Las pantallas, en el paso 2. — Claude, 16/11
-- [ ] 2. Hub, línea 1: Resumen, Prospectos (con el puntaje y los aprendizajes), Secuencia (textos, versiones, cuidados y pesos del puntaje) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). En el repo del hub. — Otra IA (16/11, en paralelo)
-- [ ] Hub: el scoring del CRM se puede configurar aunque el CRM esté en la planilla (pestaña «CRM Config»). En el repo del hub. — Otra IA (16/11, en paralelo)
+- [x] 2. Hub, línea 1: Resumen, Prospectos (con el puntaje y los aprendizajes), Secuencia (textos, versiones, cuidados y pesos del puntaje) y Enviar con computer use (tarjeta con `data-testid`, `?agente=1` e instrucciones para el agente). En el repo del hub (#112). — Otra IA, 16/11
+- [x] Hub: el scoring del CRM se puede configurar aunque el CRM esté en la planilla (pestaña «CRM Config»), con la etapa como señal y la pantalla rehecha (#112 y #114). — Otra IA y Claude, 16/11
 - [x] 3. Respuestas por el webhook: los salientes de la línea 1 (no son «escribió el equipo» y confirman solos), respuestas automáticas, «no», número equivocado, baja por teléfono (en todas las líneas), alta en el CRM de quien responde, qué pasa después (equipo o IA; un flujo, más adelante) y la API de la bandeja «Responder». — Claude, 16/11
 - [x] Arreglo: el registro no aceptaba «pidio_baja» y el asistente fallaba al anotar una baja en producción (migración `202611160017_registro_baja.sql`). — Claude, 16/11
-- [ ] Hub: la bandeja «Responder» de la línea 1 (`GET outreach/{línea}/respuestas`, «Abrir en Chatwoot», responder desde el hub y marcar interesado o cerrado) y «Al responder» (equipo o IA) en Secuencia. — Otra IA, con el paso 2
+- [x] Hub: la bandeja «Responder» de la línea 1 (`GET outreach/{línea}/respuestas`, «Abrir en Chatwoot», responder desde el hub y marcar interesado o cerrado) y «Al responder» (equipo o IA) en Secuencia (#113). — Claude, 16/11
 - [x] 4. WAHA nativo, en el asistente: mandar uno por pedido (`POST outreach/{línea}/enviar`), verificar números, «Mandarme una prueba», estado de la sesión y el freno si se cae. Solo texto por ahora. — Claude, 16/11
-- [ ] 4b. Hub: el botón de la tanda por WAHA (llama a `enviar`, espera la pausa y repite hasta la tanda), «Verificar 20 números», «Mandarme una prueba» y si WAHA está conectado. — Otra IA, con el paso 2
+- [x] 4b. Hub: el botón de la tanda por WAHA (llama a `enviar`, espera la pausa y repite hasta la tanda), «Verificar 20 números», «Mandarme una prueba» y si WAHA está conectado (#113). — Claude, 16/11
 - [ ] 4c. Probar en la línea 1 de verdad (tarea 16): que el mensaje por WAHA aparezca en Chatwoot como saliente en su bandeja y que la respuesta entre a esa conversación. — Panel con Axel
 - [ ] QA con 5 números del equipo, en los dos modos, antes de la primera tanda real (lista en `docs/outreach.md`). — Claude y Panel con Axel
 - [x] 5. Embudo contra la meta, resultados por base y por versión, lo que salió cada día (`POST outreach/{línea}/resultados`) y la subida gradual del tope. — Claude, 16/11
-- [ ] 5b. Hub: la solapa «Resultados» de la línea 1 (embudo contra la meta con dónde se frena, por base, por versión, por día y los aprendizajes del puntaje) y las metas en Secuencia. — Otra IA, con el paso 2
+- [x] 5b. Hub: la solapa «Resultados» de la línea 1 (embudo contra la meta con dónde se frena, por base, por versión, por día y los aprendizajes del puntaje) y las metas en Secuencia (#113). — Claude, 16/11
 - [ ] Tarea 16 de la IA de paneles: el chip de la línea 1 vinculado, su bandeja con el Agent Bot, `WAHA_URL` y `WAHA_API_KEY` en Vercel del asistente y la prueba del primer mensaje. — Panel con Axel
 - [ ] Cargar las bases y revisar los textos de la secuencia. Hay un borrador con 3 variantes del saludo y 3 del seguimiento (hub → línea 1 → Secuencia): Mati los cambia a su gusto y marca «Textos revisados»; sin eso no sale nada. Cuando quiera, más adelante. — Mindlin
 - [ ] Confirmar con su abogado lo legal antes de la primera tanda: el Registro No Llame (ley 26.951) y el consentimiento de la base (ley 25.326). — Mindlin
+
+## Lo que quedó de la QA del 16/11
+
+La QA de la IA de paneles (tareas 12 a 15) está en [`docs/estado-paneles.md`](docs/estado-paneles.md). Probado en producción: WhatsApp de punta a punta, el CRM en la planilla, fotos y audios en el hub, avisos, responder desde el hub, «Revisar», respuestas rápidas y devolver el chat al asistente. Lo que no se pudo probar o quedó a medias:
+
+- [ ] **Con un número que nunca le escribió a la línea 3:** el alta en el CRM, la campaña (desde el primer mensaje de un anuncio) y un flujo de verdad (mensajes en orden, un archivo que llega a WhatsApp, la espera del cron de las 10 y la devolución a la IA al terminar). — Panel con Axel
+- [ ] **La baja** («no me escriban más»), con una conversación de prueba que pueda quedar marcada para siempre (no la de Axel). — Panel con Axel
+- [ ] **Recepción en el teléfono** de lo que se manda desde el hub (respuesta y respuesta rápida) y la **campanita de Mati** con el aviso. — Panel con Axel
+- [ ] **Seguimientos y su espaciado:** se ven recién con alguna regla activa (hoy las 6 están archivadas) y una corrida de las 10 dentro de la ventana de logs. — Panel con Axel, después de que Axel y Mati activen reglas
+- [x] La ayuda de Conversaciones del hub todavía mandaba las fotos y los audios a Chatwoot: corregida (matimindlin111/mindlinhub#116). — Claude, 17/11
+- [x] El presupuesto de un contacto que ya existía quedaba en la actividad y la ficha seguía vacía: ahora el asistente completa lo **vacío** de la ficha (para qué, ambientes, presupuesto, forma de pago, plazo) sin tocar lo que cargó una persona ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 17/11
+
+## QA del 17/11 (Claude): lo que se arregló y lo que quedó
+
+Arreglado (asistente #49 y hub matimindlin111/mindlinhub#116):
+- La baja vale por teléfono: tampoco salen seguimientos ni flujos en otras líneas, chats viejos o nuevos de ese número.
+- «Último contacto» del CRM al día cuando escribe alguien que ya estaba (el hub lo mostraba frío y con alarma).
+- El embudo del outreach ya no «se frena» en «Con WhatsApp» con una base sin verificar.
+- Textos del outreach: sin «hoy .» cuando no hay proyecto; descripción de la línea 1 al día; la tarjeta dice «Falta conectar su chip».
+- Scoring: WhatsApp (6) y formulario de la web (5) suman en «De dónde vino».
+- CRM del hub: al dar de alta, avisa si el teléfono o el mail ya están («Ya está en el CRM» y «Crear igual»).
+
+Quedó para la próxima (sin créditos el 17/11):
+- [ ] **Decidir (Mati y Axel):** ¿los seguimientos salen también sábados, domingos y feriados? Hoy sí (el cron corre todos los días a las 10); el equipo trabaja de lunes a viernes.
+- [ ] Recorrer en pantalla el CRM del hub (tablero, ficha, alta con el aviso de repetido); solo se probó con pruebas automáticas.
+- [ ] Menor: con el CRM en la planilla, el hub reescribe la fila entera al editar un contacto; si en ese mismo segundo el asistente cambia la etapa, gana uno de los dos.
+- [ ] Menor: en Scoring, la columna de «Probalo» y «Así quedan arriba» se desplaza por dentro en pantallas bajas.
+- [ ] Actualizar Next.js (aviso de seguridad de la 16.4.3) en los dos repos.
 
 ## 1. Conversación por WhatsApp con la forma de hablar de Mindlin
 
@@ -175,7 +200,7 @@ Decidido el 16/11 (Axel): la línea 1 le escribe primero a las bases de leads vi
 - [x] El acuerdo de integración: qué lee y escribe, y qué tiene que cuidar Mindlin ([`docs/integracion-crm.md`](docs/integracion-crm.md)). — Claude, 10/11
 - [x] Decidido: el CRM es una planilla de Google, que es lo que el asistente ya usa. Mindlin no tiene que construir nada para la integración. — Axel, 10/11
 - [x] **Confirmado (15/11): el CRM del hub en producción es la planilla de Google**, no la base de datos. El asistente y el hub trabajan sobre la misma planilla: lo que escribe el asistente (leads nuevos, cambios de etapa, etiquetas de campaña) se ve en el CRM del hub, y «qué vende» se mide contra el mismo CRM. No hace falta que el asistente escriba por la API del hub. — Axel, 15/11
-- [ ] Comprobarlo en los paneles: que el hub de producción no tenga `DATABASE_URL` y que `CRM_SHEET_ID` del asistente sea la misma planilla que lee el hub (`CRM_CONTACTOS_SHEET_ID` del hub o, si no está, su `CRM_SHEET_ID`). Si alguna de las dos no se cumple, frenar y avisar a Axel. — Panel, tarea 15 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
+- [x] Comprobado el 16/11: el hub de producción no tiene `DATABASE_URL` y lo que escribe el asistente aparece en el CRM del hub y en «CRM Actividad» (el valor de `CRM_SHEET_ID` no se ve porque es Secret, pero la escritura real lo confirma). — Panel con Axel. El pedido original era: que el hub de producción no tenga `DATABASE_URL` y que `CRM_SHEET_ID` del asistente sea la misma planilla que lee el hub (`CRM_CONTACTOS_SHEET_ID` del hub o, si no está, su `CRM_SHEET_ID`). Si alguna de las dos no se cumple, frenar y avisar a Axel. — Panel, tarea 15 de [`IA_DE_PANELES.md`](IA_DE_PANELES.md)
 - [ ] Avisarle a Mindlin que no cambien el orden ni los nombres de las columnas sin avisar. — Axel
 - [ ] Si en el hub cargan `CRM_CONTACTOS_SHEET_ID` (planilla comercial aparte, nueva desde el 11/11), poner el mismo ID en `CRM_SHEET_ID` de este proyecto. Si no, el asistente escribe en una planilla que el hub no lee. Lo revisa la tarea 15. — Axel
 - [x] Probar el CRM con la planilla real (con la línea de prueba): el contacto quedó con proyecto `lerma-439`, origen WhatsApp y su etapa. Antes hubo que poner al día tres títulos de «CRM Contactos» (B decía «Proyecto» y faltaban «Hora próximo paso» y «Tags»); se cambiaron solo esas celdas de la fila 1, después de confirmar que el hub lee la planilla por posición. — Panel y Axel, 13/11

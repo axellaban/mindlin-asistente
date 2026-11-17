@@ -61,8 +61,9 @@ export async function mensajeDeOutreach(
   await s.almacen.guardarConversacion({ chatwoot_id: conversacion, telefono: c.telefono, nombre: contacto.nombre || c.nombre || null, linea: linea.id, ...(c.crm_contacto_id ? { crm_contacto_id: c.crm_contacto_id } : {}) });
 
   if (clasificacion === "baja") {
-    await s.outreach.baja(c.telefono!, { linea: linea.id, origen: "pidió en la línea de outreach" });
+    // Primero la conversación (dice si es la primera vez que la pide) y después el teléfono, para todas las líneas.
     const primera = await s.almacen.pidioBaja(conversacion, ahora().toISOString());
+    await s.outreach.baja(c.telefono!, { linea: linea.id, origen: "pidió en la línea de outreach" });
     await s.almacen.registrar({ tipo: "pidio_baja", conversacion, detalle: `Pidió que no le escriban más (outreach, base «${c.lote_nombre}»).` });
     return {
       fin: true,

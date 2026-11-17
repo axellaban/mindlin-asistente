@@ -11,7 +11,7 @@ import type { Proyecto } from "./datos/tipos";
 
 export const TIPOS_LINEA = [
   ["entrada", "Leads entrantes", "Responde las consultas de los interesados que escriben: la IA, los flujos y los seguimientos."],
-  ["outreach_frio", "Outreach frío", "Le escribe primero a contactos nuevos. Su panel se suma más adelante; mientras tanto, si alguien responde, atiende el equipo."],
+  ["outreach_frio", "Outreach frío", "Le escribe primero a las bases de leads viejas, de a uno y con tope, pausas y franjas. Quien responde entra al CRM y lo atiende el equipo (o la IA, si se elige en Secuencia)."],
   ["equipo", "Equipo, facturas y outreach cálido", "Para el equipo: facturas, recibos, presupuestos y lo que hoy hace el bot de Telegram, más el outreach a contactos conocidos. Se suma al final."],
 ] as const;
 

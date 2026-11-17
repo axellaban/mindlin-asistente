@@ -34,6 +34,17 @@ describe("embudo del outreach", () => {
     expect(e.pasos.find((p) => p.paso === "respondieron")).toMatchObject({ cantidad: 2, conversion: 0.05, meta: 0.15, bajo: true });
     expect(e.frena).toBe("respondieron");
   });
+
+  it("«Con WhatsApp» se mide sobre los que ya se sabe: una base recién cargada no «se frena» ahí", () => {
+    const recien = embudo(Array.from({ length: 40 }, () => f()), M, { semanas: 1 });
+    expect(recien.pasos.find((p) => p.paso === "con_whatsapp")).toMatchObject({ cantidad: 0, conversion: null, bajo: false });
+    expect(recien.frena).toBeNull();
+    // 40 verificados: 20 con WhatsApp y 20 sin (más 100 sin revisar, que no cuentan) → 50 %, por debajo del 70 %.
+    const filas = [...Array.from({ length: 40 }, (_, i) => f({ tiene_whatsapp: i < 20 })), ...Array.from({ length: 100 }, () => f())];
+    const e = embudo(filas, M, { semanas: 1 });
+    expect(e.pasos.find((p) => p.paso === "con_whatsapp")).toMatchObject({ cantidad: 20, conversion: 0.5, bajo: true });
+    expect(e.frena).toBe("con_whatsapp");
+  });
 });
 
 describe("comparar bases y versiones", () => {
