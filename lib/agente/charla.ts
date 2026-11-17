@@ -21,7 +21,7 @@ import { sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
 import type { Transcriptor } from "./openai";
 import { paraWhatsApp } from "./whatsapp";
-import { conListaDePrecios, type LeerLista } from "../hub/lista";
+import { conListaDePrecios, sumarLista, type LeerLista } from "../hub/lista";
 import type { AvisarAlEquipo } from "../hub/aviso";
 
 export interface Servicios {
@@ -116,8 +116,11 @@ export async function prepararCharla(
     // Sin las reglas de etapas, el asistente atiende igual: solo no mueve a nadie.
     s.almacen.reglasEtapa().catch((): ReglasEtapa => ({})),
   ]);
-  // Con la lista de precios del hub de cada proyecto que la usa (guardada 10 minutos; si falla, la ficha sola).
-  const proyectos = await conListaDePrecios(proyectosDeLinea(linea, todos), s.listaDePrecios);
+  // Con la lista de precios del hub del proyecto de la conversación (guardada 10 minutos; si falla, la ficha
+  // sola). La de otro proyecto se pide si la persona cambia (elegirProyecto).
+  const deLinea = proyectosDeLinea(linea, todos);
+  const elegido = guardada?.proyecto ?? (deLinea.length === 1 ? deLinea[0].id : null);
+  const proyectos = await conListaDePrecios(deLinea, s.listaDePrecios, [elegido]);
   // El teléfono y el nombre de WhatsApp, si cambiaron o todavía no estaban (la fila la puede haber creado el historial).
   const telefono = delAviso?.telefono || guardada?.telefono || null;
   const nombre = delAviso?.nombre || guardada?.nombre || null;
@@ -157,6 +160,7 @@ export async function prepararCharla(
     async elegirProyecto(id) {
       ch.proyectoId = id;
       await s.almacen.guardarConversacion({ chatwoot_id: conv, proyecto: id });
+      await sumarLista(proyectos, id, s.listaDePrecios);
     },
     async turnoIA({ consigna = null } = {}) {
       const herramientas: Herramientas = {
@@ -199,7 +203,8 @@ export async function prepararCharla(
           const p = ch.proyecto(id);
           if (!p) throw new Error(`No hay un proyecto activo con id ${id}.`);
           await ch.elegirProyecto(p.id);
-          return `Quedó elegido. Ficha:\n\n${ficha(p)}`;
+          // Con su lista de precios, si la usa (se pide recién ahora).
+          return `Quedó elegido. Ficha:\n\n${ficha(ch.proyecto(p.id) ?? p)}`;
         },
         async marcarSenal(senal: Senal) {
           if (!ch.eventos.includes(senal)) ch.eventos.push(senal);

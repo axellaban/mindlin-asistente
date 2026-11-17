@@ -42,4 +42,10 @@ Si un proyecto del hub no tiene Excel madre, el hub contesta «no disponible» y
 ## Cómo funciona
 
 - **Hub:** `GET /api/asistente/unidades?proyecto=<id del hub>`, con `Authorization: Bearer <ASISTENTE_CLAVE>` (la misma clave del aviso; no pasa por el login). Devuelve `{ disponible, leido, unidades, cocheras, condiciones, web }` o `{ disponible: false, motivo }`. Ver `lib/asistente/unidades.ts` en el hub.
-- **Asistente:** `lib/hub/lista.ts` la pide con `HUB_URL` y `HUB_CLAVE` (las del aviso al hub), la guarda 10 minutos por proyecto (si el hub falla, no vuelve a preguntar por 2 minutos) y la suma a la ficha (`lista_precios`, no se guarda). La usan WhatsApp, «Probar» y los pasos «La IA escribe» de los flujos. Si el hub no contesta en 6 segundos, responde con la ficha.
+- **Asistente:** `lib/hub/lista.ts` la pide con `HUB_URL` y `HUB_CLAVE` (las del aviso al hub), la guarda 10 minutos por proyecto (si el hub falla, no vuelve a preguntar por 2 minutos) y la suma a la ficha (`lista_precios`, no se guarda). Pide solo la del proyecto de la conversación; la de otro, cuando la persona cambia de proyecto. La usan WhatsApp, «Probar» y los pasos «La IA escribe» de los flujos. Si el hub no contesta en 4 segundos, responde con la ficha.
+- Con la lista, los campos «Precios» y «Disponibilidad» de la ficha (escritos a mano) le llegan a la IA marcados como posiblemente viejos: vale la lista.
+- «Probar las conexiones» dice por qué no se lee una lista: la clave distinta entre los dos, el hub todavía sin la versión del 17/11, un proyecto sin Excel madre o el hub caído.
+
+## QA del 17/11
+
+El asistente real contra un hub falso por HTTP, con datos inventados: pide la lista con la clave, la guarda (el segundo mensaje no vuelve a pedir), el chequeo informa cada proyecto, con el hub caído contesta enseguida con la ficha y con el hub lento espera como mucho 4 segundos. Lo que se arregló: pedía la lista de todos los proyectos de la línea en cada conversación (ahora solo la del proyecto elegido), la espera era de 6 segundos y el chequeo no decía si la clave era la equivocada. Las respuestas de la IA con la lista se prueban en «Probar» (en esta QA no había clave de IA).

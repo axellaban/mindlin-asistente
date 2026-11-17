@@ -29,8 +29,13 @@ const CAMPOS_FICHA: [keyof Proyecto, string][] = [
 
 /** La ficha de un proyecto como la lee el agente. Lo vacío se marca: así no lo inventa. */
 export function ficha(p: Proyecto): string {
+  const conLista = Boolean(p.lista_precios?.trim());
   const lineas = CAMPOS_FICHA.map(([campo, titulo]) => {
     const valor = String(p[campo] ?? "").trim();
+    // Con la lista de precios del hub, lo que se escribió a mano de precios y disponibilidad puede estar viejo.
+    if (conLista && (campo === "precios" || campo === "disponibilidad")) {
+      return `### ${titulo}\n(Para precios y unidades disponibles, usá la «Lista de precios» de abajo, que está al día.${valor ? ` Lo que sigue se escribió a mano y puede estar desactualizado: usalo solo como contexto. ${valor}` : ""})`;
+    }
     return `### ${titulo}\n${valor || "(Sin datos: no lo informes; ofrecé que lo confirme el equipo.)"}`;
   });
   const presentacion = (p.presentacion ?? "").trim();

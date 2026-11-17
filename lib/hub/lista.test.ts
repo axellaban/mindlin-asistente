@@ -31,7 +31,7 @@ describe("la lista de precios del hub", () => {
     expect(listaDesdeEnv({ HUB_URL: "https://hub.ejemplo.com" })).toBeNull();
   });
 
-  it("la pide con la clave, la guarda 10 minutos y, si el hub falla, no frena (null) y espera un rato", async () => {
+  it("la pide con la clave, la guarda 10 minutos y, si el hub falla, no frena (dice por qué) y espera un rato", async () => {
     let ahora = 0;
     const h = hubFalso([LISTA, LISTA, 500, LISTA]);
     const leer = listaDesdeEnv(ENV, h.pedir, () => ahora)!;
@@ -44,10 +44,20 @@ describe("la lista de precios del hub", () => {
     await leer("lerma-439");
     expect(h.pedidos).toHaveLength(2);
     ahora = 2 * VIGENCIA_MS + 2;
-    expect(await leer("lerma-439")).toBeNull();
+    expect(await leer("lerma-439")).toEqual({ disponible: false, motivo: "el hub respondió 500" });
     ahora += 60_000;
-    expect(await leer("lerma-439")).toBeNull(); // dentro de los 2 minutos: no vuelve a pedir
+    expect((await leer("lerma-439"))?.disponible).toBe(false); // dentro de los 2 minutos: no vuelve a pedir
     expect(h.pedidos).toHaveLength(3);
+  });
+
+  it("los motivos que ve «Probar las conexiones»: la clave, el hub sin la versión nueva, el hub caído", async () => {
+    const con = (status: number, cuerpo: unknown) => listaDesdeEnv(ENV, (async () => new Response(JSON.stringify(cuerpo), { status })) as typeof fetch)!;
+    expect(await con(401, { error: "Clave incorrecta." })("lerma-439")).toEqual({ disponible: false, motivo: "el hub no aceptó la clave: HUB_CLAVE (acá) y ASISTENTE_CLAVE (en el hub) tienen que ser iguales" });
+    expect((await con(404, "<html>")("lerma-439"))?.motivo).toBe("el hub todavía no tiene la lista para el asistente (falta publicar su versión del 17/11)");
+    // El 404 del hub con su propio motivo (un proyecto que no existe allá).
+    expect((await con(404, { disponible: false, motivo: "No hay un proyecto «x» en el hub." })("x"))?.motivo).toBe("No hay un proyecto «x» en el hub.");
+    const caido = listaDesdeEnv(ENV, (async () => { throw new Error("ECONNREFUSED"); }) as typeof fetch)!;
+    expect(await caido("lerma-439")).toBeNull();
   });
 
   it("cómo la lee la IA: las reglas, las unidades (con la reventa y el link), cocheras y condiciones", () => {
