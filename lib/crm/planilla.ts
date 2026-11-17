@@ -145,6 +145,12 @@ export interface CRM {
    * persona. Devuelve qué columnas se completaron (ninguna si no había nada vacío que completar).
    */
   completarVacios(c: { id: string; datos: Partial<Pick<DatosInteresado, CampoCompletable>>; ahora: string }): Promise<string[]>;
+  /**
+   * Pone «Último contacto» en `ahora`. El hub lo usa para las alarmas («hace X días que no
+   * hablamos»), la temperatura y el «se enfrió» del scoring: sin esto, alguien que charla todos los
+   * días con el asistente figura frío. Devuelve si encontró la fila.
+   */
+  tocarUltimoContacto(c: { id: string; ahora: string }): Promise<boolean>;
 }
 
 /** Lo que el asistente puede completar en un contacto que ya existía, si está vacío. */
@@ -280,6 +286,13 @@ export function crearCRM(hoja: Hoja, { responsable = "" }: { responsable?: strin
         [ahora, USUARIO_ASISTENTE, id, antes.nombre, "Cambio de etapa", `${antes.etapa} → ${etapa}${motivo ? ` (${motivo})` : ""}. Automático: ${por}`.slice(0, 2000), etapa],
       ]);
       return despues;
+    },
+    async tocarUltimoContacto({ id, ahora }) {
+      const filas = await hoja.leer(RANGO_CONTACTOS);
+      const i = filas.findIndex((f) => (f[col("ID")] ?? "").trim() === id);
+      if (i < 0) return false;
+      await hoja.actualizar([{ rango: `'${PESTANIA_CONTACTOS}'!${letraColumna(col("Último contacto") + 1)}${i + 2}`, valor: ahora }]);
+      return true;
     },
     async completarVacios({ id, datos, ahora }) {
       // Se vuelve a leer: si alguien lo cargó recién, gana lo suyo.

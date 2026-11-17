@@ -22,6 +22,9 @@ import type { Linea } from "../lineas";
 import { LARGO_HISTORIAL, pasarAPersona, prepararCharla, type Servicios } from "./charla";
 import { motivoParaFrenar } from "./limites";
 
+/** Cada cuánto, como mucho, se actualiza «Último contacto» en el CRM cuando la persona escribe. */
+export const ULTIMO_CONTACTO_CADA_MS = 12 * 3_600_000;
+
 export { LARGO_HISTORIAL, type Servicios } from "./charla";
 
 export const ESPERA_MS = 6000;
@@ -76,6 +79,14 @@ export async function atender(s: Servicios, a: Responder, linea: Linea | null = 
     const devuelta = recien || (await s.almacen.laDevolvioElEquipo(conv).catch(() => false));
 
     const ch = await prepararCharla(s, { conv, linea, historial, contacto: a.contacto, bandeja: a.bandeja, eventoPara: (g) => eventoDelMensaje(historial, g?.ultimo_seguimiento) });
+
+    // Escribió alguien que ya está en el CRM: «Último contacto» al día (como mucho una vez cada 12 horas),
+    // para que el hub no lo muestre frío ni con la alarma de «hace X días que no hablamos».
+    if (s.crm && ch.contacto && !(Date.parse(ch.contacto.ultimoContacto) > ahora().getTime() - ULTIMO_CONTACTO_CADA_MS)) {
+      await s.crm.tocarUltimoContacto({ id: ch.contacto.id, ahora: ahora().toISOString() }).catch(async (e) => {
+        await s.almacen.registrar({ tipo: "error", conversacion: conv, detalle: `CRM (último contacto): ${e instanceof Error ? e.message : String(e)}` }).catch(() => {});
+      });
+    }
 
     // «No me escriban más» (lib/baja.ts): ni flujo ni seguimientos, para siempre en esta conversación.
     // La IA le contesta una vez, corto; si después vuelve a escribir, le contesta como siempre.

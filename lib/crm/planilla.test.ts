@@ -127,6 +127,15 @@ describe("CRM del hub", () => {
     expect([v(1, "Ambientes"), v(1, "Actualizado")]).toEqual(["2", AHORA]);
   });
 
+  it("«Último contacto» se pone en la fila del contacto, y nada más", async () => {
+    const { hoja, pestanias } = hojaFalsa([filaDe({ ID: "c1", Nombre: "Otra" }), filaDe({ ID: "c2", Nombre: "Ana", "Último contacto": "2026-11-01T10:00:00.000Z", Notas: "La cargó Tadeo." })]);
+    const crm = crearCRM(hoja);
+    expect(await crm.tocarUltimoContacto({ id: "c2", ahora: AHORA })).toBe(true);
+    expect(pestanias["CRM Contactos"][1]).toEqual(filaDe({ ID: "c2", Nombre: "Ana", "Último contacto": AHORA, Notas: "La cargó Tadeo." }));
+    expect(pestanias["CRM Contactos"][0]).toEqual(filaDe({ ID: "c1", Nombre: "Otra" }));
+    expect(await crm.tocarUltimoContacto({ id: "no-esta", ahora: AHORA })).toBe(false);
+  });
+
   it("el contacto nuevo puede entrar en otra etapa (la del primer contacto)", async () => {
     const { hoja, pestanias } = hojaFalsa();
     const c = await crearCRM(hoja).crearContacto(datos(), AHORA, "Contacto inicial");

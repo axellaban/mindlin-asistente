@@ -159,6 +159,19 @@ describe("atender un mensaje", () => {
     expect(m.pedidos[0].system[1].text).toContain("Responsable: Mati");
   });
 
+  it("si escribe alguien que ya está en el CRM, pone «Último contacto» al día (como mucho cada 12 horas)", async () => {
+    const col = (n: string) => COLUMNAS_CONTACTOS.indexOf(n as (typeof COLUMNAS_CONTACTOS)[number]);
+    const fila = (ultimo: string) => COLUMNAS_CONTACTOS.map((c) => ({ ID: "c1", Nombre: "Ana", Teléfono: "+54 9 11 5555-0000", Etapa: "Seguimiento", "Último contacto": ultimo })[c as "ID"] ?? "");
+    const viejo = preparar({ contactos: [fila("2026-11-01T10:00:00.000Z")], historial: [msg(1, "interesado", "Hola")] });
+    await atender({ ...sinEspera, almacen: viejo.datos.almacen, chatwoot: viejo.cw.chatwoot, modelo: modeloFalso(respuesta([{ type: "text", text: "¡Hola!" }])).modelo, crm: viejo.crm }, accion(1, "Hola"));
+    expect(viejo.hoja.pestanias["CRM Contactos"][0][col("Último contacto")]).toBe(AHORA.toISOString());
+    // Hace 2 horas: no se vuelve a escribir.
+    const reciente = new Date(AHORA.getTime() - 2 * 3_600_000).toISOString();
+    const hoy = preparar({ contactos: [fila(reciente)], historial: [msg(1, "interesado", "Hola")] });
+    await atender({ ...sinEspera, almacen: hoy.datos.almacen, chatwoot: hoy.cw.chatwoot, modelo: modeloFalso(respuesta([{ type: "text", text: "¡Hola!" }])).modelo, crm: hoy.crm }, accion(1, "Hola"));
+    expect(hoy.hoja.pestanias["CRM Contactos"][0][col("Último contacto")]).toBe(reciente);
+  });
+
   it("si la persona sigue escribiendo, contesta el último mensaje y no cada uno", async () => {
     const p = preparar({ historial: [msg(1, "interesado", "Hola"), msg(2, "interesado", "¿Tienen cochera?")] });
     const m = modeloFalso(respuesta([{ type: "text", text: "¡Hola! Sí, hay cocheras." }]));
