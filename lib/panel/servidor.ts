@@ -37,12 +37,14 @@ export function linkChatwoot(conversacion: number): string | null {
 
 /** Prueba las conexiones de verdad con las variables cargadas (lib/chequeo.ts). Lo usan /panel/chequeo y la API del hub. */
 export function chequear(env: Record<string, string | undefined> = process.env): Promise<Chequeo> {
+  const c = conexionesDesdeEnv(env);
   return chequearConexiones({
     chatwoot: configChatwoot(env),
     datos: datos(),
     hoja: hojaGoogle(env),
-    modelo: conexionesDesdeEnv(env).modelo,
+    modelo: c.modelo,
     ia: describirIA(env),
     cron: Boolean(env.CRON_SECRET?.trim()),
+    listaDePrecios: c.listaDePrecios && c.almacen ? { leer: c.listaDePrecios, proyectos: () => c.almacen!.proyectosActivos() } : null,
   });
 }

@@ -21,6 +21,8 @@ import type { ConfigChatwoot } from "./chatwoot/api";
 import { COLUMNAS_ACTIVIDAD, COLUMNAS_CONTACTOS, letraColumna, PESTANIA_ACTIVIDAD, PESTANIA_CONTACTOS, type Hoja } from "./crm/planilla";
 import type { Modelo } from "./agente/agente";
 import type { DatosPanel } from "./panel/datos";
+import type { Proyecto } from "./datos/tipos";
+import type { LeerLista } from "./hub/lista";
 import { CORRIDA } from "./seguimientos/reglas";
 
 export type EstadoPrueba = "ok" | "aviso" | "falla";
@@ -50,6 +52,8 @@ export interface DependenciasChequeo {
   cron: boolean;
   pedir?: typeof fetch;
   ahora?: () => Date;
+  /** La lista de precios del hub (HUB_URL y HUB_CLAVE) y los proyectos activos: si los que la usan la pueden leer. */
+  listaDePrecios?: { leer: LeerLista; proyectos: () => Promise<Proyecto[]> } | null;
 }
 
 /** Cuánto esperar cada prueba. */
@@ -67,9 +71,26 @@ function conTiempo<T>(p: Promise<T>, ms = TIEMPO_MAXIMO_PRUEBA_MS): Promise<T> {
 
 export async function chequearConexiones(d: DependenciasChequeo): Promise<Chequeo> {
   const ahora = d.ahora ?? (() => new Date());
-  const grupos = await Promise.all([probarChatwoot(d), probarBase(d), probarCRM(d), probarIA(d)]);
+  const grupos = await Promise.all([probarChatwoot(d), probarBase(d), probarCRM(d), probarIA(d), probarListaDePrecios(d)]);
   const pruebas = grupos.flat();
   return { ok: pruebas.every((p) => p.estado !== "falla"), fecha: ahora().toISOString(), pruebas };
+}
+
+/** Cada proyecto activo que usa la lista de precios del hub: si se lee y cuántas unidades tiene. */
+async function probarListaDePrecios({ listaDePrecios: l }: DependenciasChequeo): Promise<PruebaConexion[]> {
+  const que = "Lista de precios del hub";
+  if (!l) return [];
+  try {
+    const usan = (await conTiempo(l.proyectos())).filter((p) => p.lista_hub?.trim());
+    if (!usan.length) return [{ que, estado: "aviso", detalle: "Ningún proyecto activo la usa: el asistente da solo lo que dice cada ficha (Proyectos → «Lista de precios del hub»)." }];
+    const leidas = await conTiempo(Promise.all(usan.map(async (p) => ({ p, l: await l.leer(p.lista_hub!.trim()).catch(() => null) }))));
+    const partes = leidas.map(({ p, l: x }) =>
+      x?.disponible ? `${p.nombre}: ${x.unidades?.length ?? 0} unidades disponibles` : `${p.nombre}: no se pudo leer${x?.motivo ? ` (${x.motivo})` : " (el hub no contestó)"}, contesta con la ficha`,
+    );
+    return [{ que, estado: leidas.every((x) => x.l?.disponible) ? "ok" : "aviso", detalle: `${partes.join("; ")}.` }];
+  } catch (e) {
+    return [{ que, estado: "aviso", detalle: `No se pudo probar: ${detalleDe(e)}` }];
+  }
 }
 
 async function probarChatwoot({ chatwoot: cfg, pedir = fetch }: DependenciasChequeo): Promise<PruebaConexion[]> {

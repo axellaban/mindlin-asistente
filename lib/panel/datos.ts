@@ -214,7 +214,7 @@ export interface RegistroPanel {
 const iso = (f: Date | string | null) => (f ? new Date(f).toISOString() : null);
 
 const COLUMNAS_FICHA =
-  "id, nombre, activo, palabras_clave, presentacion, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links, notas_internas";
+  "id, nombre, activo, palabras_clave, presentacion, descripcion, ubicacion, etapa_obra, entrega, tipologias, precios, financiacion, disponibilidad, amenities, preguntas_frecuentes, links, notas_internas, lista_hub";
 
 export function datosPanel(db: Db) {
   return {
@@ -232,13 +232,13 @@ export function datosPanel(db: Db) {
     async guardarProyecto(p: FichaEditable, por: string): Promise<void> {
       await db.query(
         `insert into proyectos (${COLUMNAS_FICHA}, actualizado, actualizado_por)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now(), $18)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now(), $19)
          on conflict (id) do update set
            nombre = excluded.nombre, activo = excluded.activo, palabras_clave = excluded.palabras_clave,
            presentacion = excluded.presentacion, descripcion = excluded.descripcion, ubicacion = excluded.ubicacion, etapa_obra = excluded.etapa_obra,
            entrega = excluded.entrega, tipologias = excluded.tipologias, precios = excluded.precios,
            financiacion = excluded.financiacion, disponibilidad = excluded.disponibilidad, amenities = excluded.amenities,
-           preguntas_frecuentes = excluded.preguntas_frecuentes, links = excluded.links, notas_internas = excluded.notas_internas,
+           preguntas_frecuentes = excluded.preguntas_frecuentes, links = excluded.links, notas_internas = excluded.notas_internas, lista_hub = excluded.lista_hub,
            actualizado = now(), actualizado_por = excluded.actualizado_por`,
         [
           p.id,
@@ -258,6 +258,7 @@ export function datosPanel(db: Db) {
           p.preguntas_frecuentes,
           p.links,
           p.notas_internas,
+          p.lista_hub ?? "",
           por,
         ],
       );

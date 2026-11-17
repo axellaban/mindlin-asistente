@@ -21,6 +21,7 @@ import { responder, type Herramientas, type Modelo } from "./agente";
 import { CAMPOS_ANOTADOS, sumarAnotado } from "./anotado";
 import { ficha, instrucciones, situacion } from "./contexto";
 import { tituloEvento, type ReglasEtapa } from "../etapas/reglas";
+import { conListaDePrecios, type LeerLista } from "../hub/lista";
 import { paraWhatsApp } from "./whatsapp";
 
 export { estadoInicial, MAX_LARGO_PRUEBA, MAX_MENSAJES_PRUEBA, type EstadoPrueba, type MensajePrueba, type RespuestaPrueba } from "./prueba-comun";
@@ -204,7 +205,7 @@ export async function probarConAlmacen(
   modelo: Modelo,
   estadoCrudo: unknown,
   texto: string,
-  { linea: idLinea = null, vencer = false }: { linea?: string | null; vencer?: boolean } = {},
+  { linea: idLinea = null, vencer = false, listaDePrecios = null }: { linea?: string | null; vencer?: boolean; listaDePrecios?: LeerLista | null } = {},
 ): Promise<RespuestaPrueba> {
   let estado = estadoDesdeNavegador(estadoCrudo);
   const [proyectos, tono, ejemplos, reglasEtapa, lineas] = await Promise.all([
@@ -222,7 +223,8 @@ export async function probarConAlmacen(
   const ids = archivosDe([...flujos.flatMap((f) => f.pasos), ...(estado.flujo?.pasos ?? [])]);
   const archivos = new Map<number, string>();
   for (const a of await Promise.all(ids.map((x) => almacen.archivo(x).catch(() => null)))) if (a) archivos.set(a.id, a.nombre);
-  return probar({ modelo, proyectos, tono, ejemplos, reglasEtapa, estado, texto: texto.slice(0, MAX_LARGO_PRUEBA), linea, flujos, vencer, archivos });
+  // Con la lista de precios del hub, como en WhatsApp: así se prueba lo mismo que va a contestar.
+  return probar({ modelo, proyectos: await conListaDePrecios(proyectos, listaDePrecios), tono, ejemplos, reglasEtapa, estado, texto: texto.slice(0, MAX_LARGO_PRUEBA), linea, flujos, vencer, archivos });
 }
 
 /** Lo que llega del navegador, revisado (nunca se confía en la forma). */

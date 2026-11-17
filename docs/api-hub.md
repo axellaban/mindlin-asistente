@@ -76,7 +76,7 @@ En las fichas y en el tono **solo cambia lo que se manda**: lo demás queda como
 
 | Qué | Pedido | Cuerpo |
 | --- | --- | --- |
-| Crear o cambiar una ficha | `PUT /api/hub/proyectos/{id}` | Los campos de la ficha que cambian: `nombre`, `activo`, `palabras_clave` (lista), `presentacion`, `descripcion`, `ubicacion`, `etapa_obra`, `entrega`, `tipologias`, `precios`, `financiacion`, `disponibilidad`, `amenities`, `preguntas_frecuentes`, `links`, `notas_internas`. Para uno nuevo, `nombre` es obligatorio. El `id` va en minúsculas, números y guiones (`via-53`). |
+| Crear o cambiar una ficha | `PUT /api/hub/proyectos/{id}` | Los campos de la ficha que cambian: `nombre`, `activo`, `palabras_clave` (lista), `presentacion`, `descripcion`, `ubicacion`, `etapa_obra`, `entrega`, `tipologias`, `precios`, `financiacion`, `disponibilidad`, `amenities`, `preguntas_frecuentes`, `links`, `notas_internas` y `lista_hub` (el proyecto del hub del que toma la lista de precios; `""` para no usarla; ver [`lista-de-precios.md`](lista-de-precios.md)). Para uno nuevo, `nombre` es obligatorio. El `id` va en minúsculas, números y guiones (`via-53`). |
 | Apagar o prender un proyecto | `PUT /api/hub/proyectos/{id}` | `{ "activo": false }` |
 | Cambiar el tono y los criterios | `PUT /api/hub/tono` | `instrucciones`, `criterios_comerciales`, `cuando_pasar_a_persona`, `sobre_la_empresa`, `objeciones`, `pasar_al_responder` (true o false), `horario_equipo` |
 | Cambiar el horario del equipo | `PUT /api/hub/tono` | `{ "horario_equipo": { "dias": [1, 2, 3, 4, 5, 6], "desde": 9, "hasta": 19 } }`. Se puede mandar solo una parte (`{ "horario_equipo": { "hasta": 19 } }`): lo demás queda. Al menos un día, y `desde` antes que `hasta` (de 0 a 24). |

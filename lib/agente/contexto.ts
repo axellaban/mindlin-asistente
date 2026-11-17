@@ -39,6 +39,8 @@ export function ficha(p: Proyecto): string {
       `### Cómo presentarlo\nLa primera vez que le hables de este proyecto, presentalo con esto (adaptado a lo que preguntó, en tus palabras y sin repetirlo si ya se lo contaste):\n${presentacion}`,
     );
   }
+  // La lista de precios del hub (Excel madre), si el proyecto la usa: para unidades y precios vale esa.
+  if (p.lista_precios?.trim()) lineas.push(`### Lista de precios (unidades disponibles hoy)\n${p.lista_precios.trim()}`);
   return `## ${p.nombre} (id: ${p.id})\n\n${lineas.join("\n\n")}`;
 }
 
